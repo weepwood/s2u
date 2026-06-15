@@ -13,7 +13,7 @@
             {{ isShowHistory ? "HISTORY" : title }}
           </h1>
           <p class="tool-subtitle" v-if="!isShowHistory && !showCloseMsg">
-            将 URL Scheme（如 <strong>weixin://open</strong>）转换为可分享的 HTTP 链接
+            将链接或 URL Scheme（如 <strong>weixin://open</strong> / <strong>baidu.com</strong>）转换为可分享的跳转链接
           </p>
         </div>
         <button
@@ -96,7 +96,7 @@
               v-model="url"
               class="text-input"
               :class="{ 'input-error': urlError }"
-              placeholder="例如 weixin://open"
+              placeholder="例如 weixin://open、baidu.com、https://example.com"
               @keydown.enter="copy"
               @input="urlError = ''"
             />
@@ -181,14 +181,23 @@ export default {
     }
   },
   methods: {
+    // 将输入归一化为可跳转的 URL：补上 https://
+    normalizeUrl(url) {
+      if (!url) return url;
+      // 已有协议或为 URL Scheme → 原样返回
+      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) return url;
+      // 裸域名 或 localhost → 补 https://
+      return "https://" + url;
+    },
     changeUrl(url) {
       // 防止定时器泄漏
       if (this.countdownTimer) {
         clearInterval(this.countdownTimer);
         this.countdownTimer = null;
       }
-      if (url) {
-        window.location.replace(url);
+      const normalizedUrl = this.normalizeUrl(url);
+      if (normalizedUrl) {
+        window.location.replace(normalizedUrl);
         this.updateHistory(url);
       }
       if (window.location.hash.substring(1)) {
@@ -215,7 +224,7 @@ export default {
     },
     toHistoryUrl(url) {
       navigator.clipboard.writeText(window.location.origin + "/#" + url).catch(() => {});
-      window.open(url);
+      window.open(this.normalizeUrl(url));
     },
     updateHistory(scheme) {
       let time = Date.now();
@@ -337,8 +346,11 @@ export default {
     },
     validateUrl(val) {
       if (!val.trim()) return "";
-      if (!/:\/\//.test(val)) return "请输入有效的 URL Scheme（包含 ://）";
-      return "";
+      // 允许 URL Scheme（weixin://）、完整 URL（https://）、或裸域名（baidu.com）
+      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(val)) return "";
+      if (/^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(\/|$|:)/.test(val)) return "";
+      if (/^localhost(:\d+)?(\/|$)/.test(val)) return "";
+      return "请输入有效的 URL、域名或 URL Scheme";
     },
     copy() {
       const scheme = this.url;
