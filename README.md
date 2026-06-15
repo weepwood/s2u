@@ -4,13 +4,13 @@
 
 适用于微信内置浏览器、邮件客户端等不支持原生 Scheme 跳转的场景。
 
-**在线使用：** [https://weepwood.github.io/s2u/](https://weepwood.github.io/s2u/)
+**在线使用：** [https://s2u2.netlify.app/](https://s2u2.netlify.app/)
 
 ---
 
 ## 功能
 
-- **Scheme 转换** — 输入 `weixin://open`，生成 `https://s2u/#weixin://open` 链接
+- **Scheme 转换** — 输入 `weixin://open`，生成 `https://s2u2.netlify.app/#weixin://open` 链接
 - **网页跳转** — 也支持普通网址，如 `baidu.com`、`https://example.com`
 - **自动跳转** — 访问生成的链接时，页面自动读取 hash 并跳转到目标
 - **历史记录** — 本地持久化，按使用次数和时间排序
@@ -26,8 +26,8 @@
 ### 本地开发
 
 ```bash
-git clone https://github.com/weepwood/weepwood-scheme-to-url.git
-cd weepwood-scheme-to-url
+git clone https://github.com/weepwood/s2u.git
+cd s2u
 pnpm install
 pnpm dev
 ```
@@ -53,7 +53,7 @@ pnpm build
 
 ### 跳转原理
 
-访问 `https://s2u/#目标地址` 时，页面从 hash 中提取目标地址并执行 `window.location.replace()`，实现自动跳转。
+访问 `https://s2u2.netlify.app/#目标地址` 时，页面从 hash 中提取目标地址并执行 `window.location.replace()`，实现自动跳转。
 
 ### GitHub Gist 同步
 
