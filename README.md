@@ -6,7 +6,7 @@
 
 **在线使用：** [https://s2u2.netlify.app/](https://s2u2.netlify.app/)
 
----
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/weepwood/s2u)
 
 ## 功能
 
@@ -28,17 +28,17 @@
 ```bash
 git clone https://github.com/weepwood/s2u.git
 cd s2u
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 ### 构建
 
 ```bash
-pnpm build
+npm run build
 ```
 
-构建产物输出到 `dist/`，可直接部署到 GitHub Pages 或任意静态托管服务。
+构建产物输出到 `dist/`，可直接部署到任意静态托管服务，推荐一键部署 Netlify。
 
 ## 使用说明
 
@@ -76,11 +76,11 @@ pnpm build
 | 层级 | 技术 |
 |---|---|
 | 框架 | Vue 3 (Options API) |
-| 构建 | Vite 4 |
+| 构建 | Vite 6 |
 | 路由 | vue-router 4 |
 | 字体 | Cormorant Garamond / Inter / JetBrains Mono |
 | 持久化 | localStorage + GitHub Gist API |
-| 部署 | GitHub Pages |
+| 部署 | Netlify |
 
 ## 设计系统
 
