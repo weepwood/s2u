@@ -5,7 +5,6 @@ import Change from 'components/Change.vue'
 
 const routes = [
     { path: '/', name: 'change', component: Change },
-    { path: '/history', name: 'history', component: () => import('components/History.vue') },
 ]
 
 const router = createRouter({
