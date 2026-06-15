@@ -20,5 +20,8 @@
     "eslint-plugin-vue": "9",
     "prettier": "^3.8.4",
     "vite": "^4.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }
