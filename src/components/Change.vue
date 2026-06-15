@@ -185,11 +185,12 @@ export default {
           scheme_history[scheme_index].count++;
           scheme_history[scheme_index].recently = time;
         }
-        localStorage.setItem("scheme_history", JSON.stringify(scheme_history));
+        this.history = this.sortByTime(scheme_history);
+        localStorage.setItem("scheme_history", JSON.stringify(this.history));
       }
     },
     invalidHistory() {
-      localStorage.clear();
+      localStorage.removeItem("scheme_history");
       location.reload();
     },
     formatDate(timestamp) {
@@ -241,11 +242,13 @@ export default {
       return history || [];
     },
     copy() {
+      const scheme = this.url;
       navigator.clipboard
         .writeText(this.toUrl)
         .then(() => {
           this.copyText = "Copied!";
-          this.urlList.unshift(window.location.origin + "/#" + this.url);
+          this.urlList.unshift(window.location.origin + "/#" + scheme);
+          this.updateHistory(scheme);
           this.url = "";
           setTimeout(() => {
             this.copyText = "Copy";
