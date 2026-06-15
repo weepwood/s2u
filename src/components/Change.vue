@@ -89,7 +89,10 @@
 
         <!-- Cloud Sync Settings -->
         <div v-if="showSettings" class="settings-panel">
-          <div class="settings-header">GitHub Gist 同步</div>
+          <div class="settings-header">
+            GitHub Gist 同步
+            <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" class="settings-link">获取 Token</a>
+          </div>
           <div class="settings-row">
             <input
               v-model="cloudToken"
