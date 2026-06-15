@@ -92,6 +92,7 @@
           <div class="settings-header">
             GitHub Gist 同步
             <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" class="settings-link">获取 Token</a>
+            <a v-if="cloudGistId" :href="'https://gist.github.com/' + cloudGistId" target="_blank" rel="noopener" class="settings-link">Gist 仓库</a>
           </div>
           <div class="settings-row">
             <input
@@ -1210,6 +1211,20 @@ export default {
   font-size: 13px;
   font-weight: 500;
   color: var(--card-text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-link {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.settings-link:hover {
+  text-decoration: underline;
 }
 
 .settings-row {
