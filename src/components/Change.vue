@@ -13,7 +13,7 @@
             {{ isShowHistory ? "HISTORY" : title }}
           </h1>
           <p class="tool-subtitle" v-if="!isShowHistory && !showCloseMsg">
-            将链接或 URL Scheme（如 <strong>weixin://open</strong> / <strong>baidu.com</strong>）转换为可分享的跳转链接
+            将链接或 URL Scheme（如 <strong><a href="https://s2u2.netlify.app/#weixin://open">weixin://open</a></strong> / <strong><a href="https://s2u2.netlify.app/#baidu.com">baidu.com</a></strong>）转换为可分享的跳转链接
           </p>
         </div>
         <button
@@ -145,7 +145,7 @@
               v-model="url"
               class="text-input"
               :class="{ 'input-error': urlError }"
-              placeholder="例如 weixin://open、baidu.com、https://example.com"
+              placeholder="例如 weixin://open、example.com"
               @keydown.enter="copy"
               @input="urlError = ''"
             />
