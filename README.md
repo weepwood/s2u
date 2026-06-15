@@ -1,8 +1,6 @@
 # Scheme to URL
 
-将 URL Scheme（如 `weixin://`）或任意网址转换为可分享的 HTTP 跳转链接。
-
-适用于微信内置浏览器、邮件客户端等不支持原生 Scheme 跳转的场景。
+将 URL Scheme（如 `weixin://`）或任意网址转换为 HTTP 跳转链接。
 
 **在线使用：** [https://s2u2.netlify.app/](https://s2u2.netlify.app/)
 
