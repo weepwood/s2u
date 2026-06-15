@@ -6,7 +6,7 @@
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/weepwood/s2u)
 
-<img width="1608" height="770" href="https://s2u2.netlify.app" alt="image" src="https://github.com/user-attachments/assets/06940286-b068-42f0-86f1-7c9a03152fe4" />
+[<img width="1608" height="770" alt="应用截图" src="https://github.com/user-attachments/assets/06940286-b068-42f0-86f1-7c9a03152fe4" />](https://s2u2.netlify.app)
 
 ## 功能
 
