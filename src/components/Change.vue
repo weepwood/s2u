@@ -1,9 +1,21 @@
 <template>
-  <div class="box">
+  <div class="box" :class="{ dark: darkMode }" @keydown="handleKeydown" tabindex="-1">
+    <!-- Dark mode toggle -->
+    <button class="theme-toggle" @click="darkMode = !darkMode" :aria-label="darkMode ? '切换到浅色模式' : '切换到深色模式'">
+      {{ darkMode ? '☀' : '☾' }}
+    </button>
+
     <div class="tool-card">
       <!-- Header -->
       <div class="tool-card-header">
-        <h1 class="tool-title">{{ isShowHistory ? "HISTORY" : title }}</h1>
+        <div class="title-group">
+          <h1 class="tool-title" @click="isShowHistory = !isShowHistory">
+            {{ isShowHistory ? "HISTORY" : title }}
+          </h1>
+          <p class="tool-subtitle" v-if="!isShowHistory && !showCloseMsg">
+            将 URL Scheme（如 <strong>weixin://open</strong>）转换为可分享的 HTTP 链接
+          </p>
+        </div>
         <button
           class="mode-toggle"
           :class="{ active: isShowHistory }"
@@ -17,7 +29,7 @@
       <!-- Auto-redirect message -->
       <div v-if="showCloseMsg" class="section close-msg">
         <p class="close-text">
-          本页面将在 <strong class="countdown-num">{{ countDown }}</strong> 秒后自动关闭
+          正在跳转，页面将在 <strong class="countdown-num">{{ countDown }}</strong> 秒后自动关闭
         </p>
         <p class="close-sub">
           需要创建链接请访问
@@ -27,10 +39,20 @@
 
       <!-- History mode -->
       <div v-else-if="isShowHistory" class="section history-section">
-        <div v-if="history.length === 0" class="history-empty">
-          <p>暂无历史记录</p>
+        <!-- Search -->
+        <div class="search-row" v-if="history.length > 0">
+          <input
+            v-model="searchQuery"
+            class="search-input"
+            placeholder="搜索历史记录…"
+            aria-label="搜索历史记录"
+          />
         </div>
-        <div v-for="item in history" :key="item.scheme" class="history-item">
+
+        <div v-if="filteredHistory.length === 0" class="history-empty">
+          <p>{{ searchQuery ? '无匹配记录' : '暂无历史记录' }}</p>
+        </div>
+        <div v-for="item in filteredHistory" :key="item.scheme" class="history-item">
           <div class="history-scheme" @click="toHistoryUrl(item.scheme)">
             <span :title="item.scheme">{{ truncateString(item.scheme, 30) }}</span>
           </div>
@@ -39,10 +61,23 @@
             <span class="history-date" :title="formatDate(item.recently).data">
               {{ formatDate(item.recently).info }}
             </span>
+            <button
+              class="delete-item-btn"
+              @click.stop="deleteHistoryItem(item.scheme)"
+              title="删除此记录"
+              aria-label="删除此记录"
+            >
+              ×
+            </button>
           </div>
         </div>
         <div class="history-footer">
-          <button class="clear-btn" @click="invalidHistory">清空记录</button>
+          <div class="history-footer-left">
+            <button class="clear-btn" @click="invalidHistory">清空记录</button>
+            <button class="outline-btn" @click="exportHistory">导出</button>
+            <button class="outline-btn" @click="importHistory">导入</button>
+            <input ref="importInput" type="file" accept=".json" class="sr-only" @change="onImportFile" />
+          </div>
           <span class="history-note"
             >所有记录均存放在本地，
             <a href="https://github.com/weepwood/weepwood-scheme-to-url" target="_blank" rel="noopener">源代码</a></span
@@ -54,21 +89,31 @@
       <div v-else class="section input-section">
         <div class="input-row">
           <label for="url" class="sr-only">需要跳转的地址</label>
-          <input
-            id="url"
-            ref="urlInput"
-            v-model="url"
-            class="text-input"
-            placeholder="需要跳转的地址"
-            @keydown.enter="copy"
-          />
-          <button class="copy-btn" :class="{ copied: copyText !== 'Copy' }" @click="copy">
+          <div class="input-wrap" :class="{ error: urlError }">
+            <input
+              id="url"
+              ref="urlInput"
+              v-model="url"
+              class="text-input"
+              :class="{ 'input-error': urlError }"
+              placeholder="例如 weixin://open"
+              @keydown.enter="copy"
+              @input="urlError = ''"
+            />
+            <span v-if="urlError" class="input-error-msg">{{ urlError }}</span>
+          </div>
+          <button
+            class="copy-btn"
+            :class="{ copied: copyText === 'Copied!', failed: copyText === 'Failed' }"
+            @click="copy"
+            :disabled="!url.trim()"
+          >
             {{ copyText }}
           </button>
         </div>
 
         <!-- Generated URL display -->
-        <div v-if="url" class="url-display">
+        <div v-if="url && !urlError" class="url-display">
           <span class="url-label">Generated URL</span>
           <span class="url-text" @click="gotoUrl(toUrl)">
             {{ decodeURI(toUrl) }}
@@ -77,6 +122,9 @@
 
         <!-- Recently copied URLs -->
         <div v-if="urlList.length" class="copied-list">
+          <div class="copied-header">
+            <span class="url-label">最近复制</span>
+          </div>
           <div v-for="item in urlList" :key="item" class="copied-item" @click="gotoUrl(item)">
             <span class="copied-icon">→</span>
             <span class="copied-text">{{ decodeURI(item) }}</span>
@@ -90,28 +138,26 @@
 <script>
 export default {
   name: "ChangeView",
-  components: {},
 
   data() {
     return {
-      time: Date.now(),
       url: "",
       urlList: [],
       targetScheme: window.location.hash.substring(1),
-      isShowLink: false,
       isShowHistory: false,
       history: [],
-      msg: "",
       copyText: "Copy",
       countDown: "5",
       showCloseMsg: false,
       origin: window.location.origin,
       title: "HELLO",
       countdownTimer: null,
+      darkMode: false,
+      searchQuery: "",
+      urlError: "",
     };
   },
 
-  created() {},
   mounted() {
     if (this.targetScheme) {
       this.changeUrl(this.targetScheme);
@@ -136,6 +182,11 @@ export default {
   },
   methods: {
     changeUrl(url) {
+      // 防止定时器泄漏
+      if (this.countdownTimer) {
+        clearInterval(this.countdownTimer);
+        this.countdownTimer = null;
+      }
       if (url) {
         window.location.replace(url);
         this.updateHistory(url);
@@ -170,17 +221,12 @@ export default {
       let time = Date.now();
       let scheme_history = this.history;
       if (!scheme_history || scheme_history.length === 0) {
-        const scheme_info = {
-          scheme: scheme,
-          count: 1,
-          recently: time,
-        };
-        this.history = [scheme_info];
-        localStorage.setItem("scheme_history", JSON.stringify([scheme_info]));
+        this.history = [{ scheme, count: 1, recently: time }];
+        localStorage.setItem("scheme_history", JSON.stringify(this.history));
       } else {
         let scheme_index = scheme_history.findIndex((obj) => obj.scheme === scheme);
         if (scheme_index === -1) {
-          scheme_history.push({ scheme: scheme, count: 1, recently: time });
+          scheme_history.push({ scheme, count: 1, recently: time });
         } else {
           scheme_history[scheme_index].count++;
           scheme_history[scheme_index].recently = time;
@@ -189,15 +235,60 @@ export default {
         localStorage.setItem("scheme_history", JSON.stringify(this.history));
       }
     },
+    deleteHistoryItem(scheme) {
+      this.history = this.history.filter((item) => item.scheme !== scheme);
+      localStorage.setItem("scheme_history", JSON.stringify(this.history));
+    },
     invalidHistory() {
-      localStorage.removeItem("scheme_history");
-      location.reload();
+      if (!confirm("确定清空所有历史记录？此操作不可撤销。")) return;
+      this.history = [];
+      localStorage.setItem("scheme_history", JSON.stringify([]));
+    },
+    exportHistory() {
+      const data = JSON.stringify(this.history, null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `scheme-history-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    importHistory() {
+      this.$refs.importInput.click();
+    },
+    onImportFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          if (!Array.isArray(imported)) throw new Error("格式错误");
+          // 合并：新增的追加，已有的保留计数较高的
+          const merged = [...this.history];
+          for (const item of imported) {
+            if (!item.scheme) continue;
+            const idx = merged.findIndex((m) => m.scheme === item.scheme);
+            if (idx === -1) {
+              merged.push({ scheme: item.scheme, count: item.count || 1, recently: item.recently || Date.now() });
+            } else {
+              merged[idx].count = Math.max(merged[idx].count, item.count || 1);
+              merged[idx].recently = Math.max(merged[idx].recently, item.recently || 0);
+            }
+          }
+          this.history = this.sortByTime(merged);
+          localStorage.setItem("scheme_history", JSON.stringify(this.history));
+        } catch {
+          alert("导入失败：文件格式不正确");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = "";
     },
     formatDate(timestamp) {
       function addLeadingZero(number) {
-        if (number < 10) {
-          return `0${number}`;
-        }
+        if (number < 10) return `0${number}`;
         return number;
       }
 
@@ -215,24 +306,27 @@ export default {
 
       if (daysAgo === 0) {
         return {
-          info: `${year}/${month}/${day} 今天`,
+          info: `今天 ${hour}:${min}`,
           data: `${year}/${month}/${day} ${hour}:${min}:${second}`,
         };
       } else if (daysAgo === 1) {
         return {
-          info: `${year}/${month}/${day} 昨天`,
+          info: `昨天 ${hour}:${min}`,
+          data: `${year}/${month}/${day} ${hour}:${min}:${second}`,
+        };
+      } else if (daysAgo <= 30) {
+        return {
+          info: `${month}/${day} ${daysAgo}天前`,
           data: `${year}/${month}/${day} ${hour}:${min}:${second}`,
         };
       }
       return {
-        info: `${year}/${month}/${day} ${daysAgo}天前`,
+        info: `${year}/${month}/${day}`,
         data: `${year}/${month}/${day} ${hour}:${min}:${second}`,
       };
     },
     truncateString(str, num) {
-      if (str.length <= num) {
-        return str;
-      }
+      if (str.length <= num) return str;
       return str.slice(0, num) + "...";
     },
     sortByTime(history) {
@@ -241,24 +335,74 @@ export default {
       }
       return history || [];
     },
+    validateUrl(val) {
+      if (!val.trim()) return "";
+      if (!/:\/\//.test(val)) return "请输入有效的 URL Scheme（包含 ://）";
+      return "";
+    },
     copy() {
       const scheme = this.url;
+
+      // 空输入守卫
+      if (!scheme.trim()) return;
+
+      // 输入验证
+      const error = this.validateUrl(scheme);
+      if (error) {
+        this.urlError = error;
+        return;
+      }
+
       navigator.clipboard
         .writeText(this.toUrl)
         .then(() => {
           this.copyText = "Copied!";
-          this.urlList.unshift(window.location.origin + "/#" + scheme);
+          // urlList 去重 + 上限 20
+          const fullUrl = window.location.origin + "/#" + scheme;
+          this.urlList = this.urlList.filter((u) => u !== fullUrl);
+          this.urlList.unshift(fullUrl);
+          if (this.urlList.length > 20) this.urlList.pop();
+
           this.updateHistory(scheme);
           this.url = "";
           setTimeout(() => {
             this.copyText = "Copy";
           }, 1200);
         })
-        .catch(() => {});
+        .catch(() => {
+          this.copyText = "Failed";
+          setTimeout(() => {
+            this.copyText = "Copy";
+          }, 1500);
+        });
+    },
+    handleKeydown(e) {
+      // Cmd/Ctrl + Enter → 复制
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        this.copy();
+      }
+      // Escape → 清空输入
+      if (e.key === "Escape" && !this.isShowHistory) {
+        this.url = "";
+        this.urlError = "";
+        this.$refs.urlInput?.focus();
+      }
+      // H → 切换历史
+      if (e.key === "h" || e.key === "H") {
+        if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+          this.isShowHistory = !this.isShowHistory;
+        }
+      }
     },
   },
   watch: {
-    $route: function (to) {
+    url(val) {
+      if (val && this.urlError) {
+        this.urlError = this.validateUrl(val);
+      }
+    },
+    $route(to) {
       const hash = to.hash.substring(1);
       if (hash) {
         this.targetScheme = hash;
@@ -270,11 +414,42 @@ export default {
     toUrl() {
       return encodeURI(window.location.origin + "/#" + this.url);
     },
+    filteredHistory() {
+      if (!this.searchQuery.trim()) return this.history;
+      const q = this.searchQuery.toLowerCase();
+      return this.history.filter((item) => item.scheme.toLowerCase().includes(q));
+    },
   },
 };
 </script>
 
 <style scoped>
+/* ─── CSS Custom Properties (Light — default) ─── */
+.box {
+  --card-bg: #efe9de;
+  --card-text: #141413;
+  --card-text-soft: #3d3d3a;
+  --card-text-muted: #8e8b82;
+  --surface-soft: #f5f0e8;
+  --surface-elevated: #faf9f5;
+  --hairline: #e6dfd8;
+  --hairline-strong: #c4bfb6;
+  --accent: #5b7fab;
+}
+
+/* ─── Dark Mode ─── */
+.box.dark {
+  --card-bg: #181715;
+  --card-text: #faf9f5;
+  --card-text-soft: #a09d96;
+  --card-text-muted: #6c6a64;
+  --surface-soft: #1f1e1b;
+  --surface-elevated: #252320;
+  --hairline: #3d3d3a;
+  --hairline-strong: #6c6a64;
+  --accent: #5b7fab;
+}
+
 /* ─── Layout ─── */
 .box {
   display: flex;
@@ -283,17 +458,49 @@ export default {
   justify-content: center;
   min-height: 100vh;
   padding: 32px 16px;
+  position: relative;
+  outline: none;
+  transition: background 0.3s ease;
+  background: #faf9f5;
+}
+
+.box.dark {
+  background: #131210;
+}
+
+/* ─── Theme Toggle ─── */
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: var(--card-bg);
+  color: var(--card-text);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
 }
 
 /* ─── Tool Card ─── */
 .tool-card {
   width: 100%;
   max-width: 560px;
-  background: #ffffff;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 32px;
-  color: #141413;
-  box-shadow: 0 1px 4px rgba(20, 20, 19, 0.06);
+  color: var(--card-text);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* ─── Header ─── */
@@ -301,15 +508,21 @@ export default {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+  gap: 12px;
+}
+
+.title-group {
+  flex: 1;
+  min-width: 0;
 }
 
 .tool-title {
   font-family: 'Cormorant Garamond', 'Times New Roman', serif;
   font-size: 28px;
   font-weight: 400;
-  letter-spacing: -0.02em;
-  color: #141413;
+  letter-spacing: -0.04em;
+  color: var(--card-text);
   margin: 0;
   cursor: pointer;
   position: relative;
@@ -320,8 +533,21 @@ export default {
   display: block;
   width: 48px;
   height: 3px;
-  background: #5b7fab;
+  background: var(--accent);
   margin-top: 6px;
+}
+
+.tool-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--card-text-muted);
+  margin: 8px 0 0;
+}
+
+.tool-subtitle strong {
+  font-weight: 500;
+  color: var(--accent);
 }
 
 /* ─── Mode Toggle ─── */
@@ -331,25 +557,26 @@ export default {
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #8e8b82;
+  color: var(--card-text-muted);
   background: transparent;
-  border: 1px solid #e6dfd8;
+  border: 1px solid var(--hairline);
   border-radius: 9999px;
   padding: 4px 14px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
   margin-top: 4px;
+  flex-shrink: 0;
 }
 
 .mode-toggle:hover {
-  color: #141413;
-  border-color: #c4bfb6;
+  color: var(--card-text);
+  border-color: var(--hairline-strong);
 }
 
 .mode-toggle.active {
-  color: #5b7fab;
-  border-color: #5b7fab;
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ─── Sections ─── */
@@ -378,14 +605,14 @@ export default {
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 1.55;
-  color: #3d3d3a;
+  color: var(--card-text-soft);
   margin-bottom: 8px;
 }
 
 .countdown-num {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 500;
-  color: #5b7fab;
+  color: var(--accent);
   font-size: 20px;
 }
 
@@ -393,36 +620,54 @@ export default {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
   line-height: 1.55;
-  color: #8e8b82;
+  color: var(--card-text-muted);
 }
 
 /* ─── Input Row ─── */
 .input-row {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.input-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .text-input {
-  flex: 1;
+  width: 100%;
   height: 40px;
   padding: 0 14px;
-  background: #faf9f5;
-  border: 1px solid #e6dfd8;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
   font-family: 'Inter', sans-serif;
   font-size: 15px;
-  color: #141413;
+  color: var(--card-text);
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.3s ease, color 0.3s ease;
 }
 
 .text-input::placeholder {
-  color: #8e8b82;
+  color: var(--card-text-muted);
 }
 
 .text-input:focus {
-  border-color: #5b7fab;
+  border-color: var(--accent);
+}
+
+.text-input.input-error {
+  border-color: #c64545;
+}
+
+.input-error-msg {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #c64545;
+  line-height: 1.4;
 }
 
 /* ─── Copy Button ─── */
@@ -431,27 +676,36 @@ export default {
   padding: 0 20px;
   border: none;
   border-radius: 8px;
-  background: #5b7fab;
+  background: var(--accent);
   color: #ffffff;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
+  transition: background 0.2s ease, transform 0.1s ease, opacity 0.2s ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.copy-btn:hover {
+.copy-btn:hover:not(:disabled) {
   background: #43658a;
 }
 
-.copy-btn:active {
+.copy-btn:active:not(:disabled) {
   transform: scale(0.97);
+}
+
+.copy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .copy-btn.copied {
   background: #5db872;
+}
+
+.copy-btn.failed {
+  background: #c64545;
 }
 
 /* ─── Generated URL ─── */
@@ -468,24 +722,24 @@ export default {
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #8e8b82;
+  color: var(--card-text-muted);
 }
 
 .url-text {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: #5b7fab;
+  color: var(--accent);
   cursor: pointer;
   word-break: break-all;
   padding: 8px 12px;
-  background: #faf9f5;
+  background: var(--surface-elevated);
   border-radius: 8px;
   transition: background 0.15s ease;
 }
 
 .url-text:hover {
-  background: #f5f0e8;
+  background: var(--surface-soft);
   text-decoration: underline;
 }
 
@@ -497,25 +751,29 @@ export default {
   gap: 6px;
 }
 
+.copied-header {
+  margin-bottom: 2px;
+}
+
 .copied-item {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #faf9f5;
+  background: var(--surface-elevated);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
 .copied-item:hover {
-  background: #f5f0e8;
+  background: var(--surface-soft);
 }
 
 .copied-icon {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
-  color: #5b7fab;
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -523,12 +781,39 @@ export default {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   line-height: 1.5;
-  color: #8e8b82;
+  color: var(--card-text-muted);
   word-break: break-all;
 }
 
 .copied-item:hover .copied-text {
-  color: #141413;
+  color: var(--card-text);
+}
+
+/* ─── Search ─── */
+.search-row {
+  margin-bottom: 12px;
+}
+
+.search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--card-text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.search-input::placeholder {
+  color: var(--card-text-muted);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
 }
 
 /* ─── History ─── */
@@ -543,16 +828,16 @@ export default {
   padding: 32px 0;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #8e8b82;
+  color: var(--card-text-muted);
 }
 
 .history-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   padding: 10px 12px;
-  background: #faf9f5;
+  background: var(--surface-elevated);
   border-radius: 8px;
   margin-bottom: 4px;
   cursor: pointer;
@@ -560,7 +845,7 @@ export default {
 }
 
 .history-item:hover {
-  background: #f5f0e8;
+  background: var(--surface-soft);
 }
 
 .history-scheme {
@@ -568,7 +853,7 @@ export default {
   min-width: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  color: #141413;
+  color: var(--card-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -577,7 +862,7 @@ export default {
 .history-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -588,57 +873,93 @@ export default {
   min-width: 22px;
   height: 20px;
   padding: 0 6px;
-  background: #e6dfd8;
+  background: var(--hairline);
   border-radius: 9999px;
   font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 500;
-  color: #6c6a64;
+  color: var(--card-text-muted);
 }
 
 .history-date {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
-  color: #8e8b82;
+  color: var(--card-text-muted);
   white-space: nowrap;
+}
+
+/* ─── Delete Item Button ─── */
+.delete-item-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--hairline-strong);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.history-item:hover .delete-item-btn {
+  opacity: 1;
+}
+
+.delete-item-btn:hover {
+  background: #c64545;
+  color: #ffffff;
 }
 
 /* ─── History Footer ─── */
 .history-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e6dfd8;
+  border-top: 1px solid var(--hairline);
 }
 
-.clear-btn {
+.history-footer-left {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clear-btn,
+.outline-btn {
   background: transparent;
-  border: 1px solid #e6dfd8;
+  border: 1px solid var(--hairline);
   border-radius: 8px;
-  padding: 6px 16px;
+  padding: 6px 14px;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #8e8b82;
+  color: var(--card-text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.clear-btn:hover {
-  color: #141413;
-  border-color: #c4bfb6;
+.clear-btn:hover,
+.outline-btn:hover {
+  color: var(--card-text);
+  border-color: var(--hairline-strong);
 }
 
 .history-note {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
-  color: #8e8b82;
+  color: var(--card-text-muted);
 }
 
 .history-note a {
-  color: #5b7fab;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -648,7 +969,7 @@ export default {
 
 /* ─── Text Link ─── */
 .text-link {
-  color: #5b7fab;
+  color: var(--accent);
   cursor: pointer;
   text-decoration: none;
 }
@@ -710,10 +1031,15 @@ export default {
     justify-content: space-between;
   }
 
-  .history-footer {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+  .history-footer-left {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .clear-btn,
+  .outline-btn {
+    flex: 1;
+    text-align: center;
   }
 }
 </style>
