@@ -8,7 +8,7 @@ const routes = [
 ]
 
 const router = createRouter({
-    history: createWebHistory('/s2u/'),
+    history: createWebHistory(),
     routes
 })
 
