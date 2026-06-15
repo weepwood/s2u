@@ -210,6 +210,7 @@ export default {
       syncTimer: null,
       lastSyncTime: null,
       showSettings: false,
+      GIST_FILENAME: "scheme-history.json",
     };
   },
 
@@ -356,7 +357,6 @@ export default {
       e.target.value = "";
     },
     // ─── GitHub Gist Sync ───
-    GIST_FILENAME: "scheme-history.json",
     loadCloudConfig() {
       try {
         const raw = localStorage.getItem("cloud_config");
