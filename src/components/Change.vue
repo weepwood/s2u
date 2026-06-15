@@ -76,12 +76,57 @@
             <button class="clear-btn" @click="invalidHistory">清空记录</button>
             <button class="outline-btn" @click="exportHistory">导出</button>
             <button class="outline-btn" @click="importHistory">导入</button>
+            <button class="outline-btn" @click="showSettings = !showSettings">
+              {{ showSettings ? '关闭' : '⚙' }}
+            </button>
             <input ref="importInput" type="file" accept=".json" class="sr-only" @change="onImportFile" />
           </div>
           <span class="history-note"
             >所有记录均存放在本地，
             <a href="https://github.com/weepwood/weepwood-scheme-to-url" target="_blank" rel="noopener">源代码</a></span
           >
+        </div>
+
+        <!-- Cloud Sync Settings -->
+        <div v-if="showSettings" class="settings-panel">
+          <div class="settings-header">GitHub Gist 同步</div>
+          <div class="settings-row">
+            <input
+              v-model="cloudToken"
+              class="text-input settings-input"
+              type="password"
+              placeholder="GitHub Personal Access Token (gist scope)"
+              :disabled="syncStatus === 'connected'"
+            />
+          </div>
+          <div class="settings-row settings-actions">
+            <button
+              v-if="syncStatus !== 'connected'"
+              class="copy-btn"
+              style="height:32px;font-size:13px;padding:0 14px"
+              @click="connectGist"
+              :disabled="syncStatus === 'connecting' || !cloudToken.trim()"
+            >
+              {{ syncStatus === 'connecting' ? '连接中…' : '连接' }}
+            </button>
+            <button
+              v-else
+              class="clear-btn"
+              @click="disconnectGist"
+            >
+              断开
+            </button>
+            <span class="sync-status" :class="syncStatus">
+              <span v-if="syncStatus === 'connected'">● 已连接</span>
+              <span v-else-if="syncStatus === 'connecting'">⟳ 连接中…</span>
+              <span v-else-if="syncStatus === 'error'">⚠ {{ syncError }}</span>
+              <span v-else>○ 未连接</span>
+            </span>
+          </div>
+          <div v-if="syncStatus === 'connected'" class="settings-row settings-info">
+            <span v-if="lastSyncTime">上次同步：{{ formatDate(lastSyncTime).data }}</span>
+            <button class="text-link" style="font-size:13px;background:none;border:none;cursor:pointer;padding:0" @click="syncToGist(history)">立即同步</button>
+          </div>
         </div>
       </div>
 
@@ -155,6 +200,13 @@ export default {
       darkMode: false,
       searchQuery: "",
       urlError: "",
+      cloudToken: "",
+      cloudGistId: "",
+      syncStatus: "", // '' | 'connecting' | 'connected' | 'error'
+      syncError: "",
+      syncTimer: null,
+      lastSyncTime: null,
+      showSettings: false,
     };
   },
 
@@ -173,6 +225,8 @@ export default {
         this.$refs.urlInput.focus();
       }
     });
+    // 加载云端配置并拉取数据
+    this.loadCloudConfig();
   },
   beforeUnmount() {
     if (this.countdownTimer) {
@@ -243,15 +297,18 @@ export default {
         this.history = this.sortByTime(scheme_history);
         localStorage.setItem("scheme_history", JSON.stringify(this.history));
       }
+      this.autoSync();
     },
     deleteHistoryItem(scheme) {
       this.history = this.history.filter((item) => item.scheme !== scheme);
       localStorage.setItem("scheme_history", JSON.stringify(this.history));
+      this.autoSync();
     },
     invalidHistory() {
       if (!confirm("确定清空所有历史记录？此操作不可撤销。")) return;
       this.history = [];
       localStorage.setItem("scheme_history", JSON.stringify([]));
+      this.autoSync();
     },
     exportHistory() {
       const data = JSON.stringify(this.history, null, 2);
@@ -294,6 +351,159 @@ export default {
       };
       reader.readAsText(file);
       e.target.value = "";
+    },
+    // ─── GitHub Gist Sync ───
+    GIST_FILENAME: "scheme-history.json",
+    loadCloudConfig() {
+      try {
+        const raw = localStorage.getItem("cloud_config");
+        if (raw) {
+          const cfg = JSON.parse(raw);
+          this.cloudToken = cfg.token || "";
+          this.cloudGistId = cfg.gistId || "";
+          if (this.cloudToken && this.cloudGistId) {
+            this.syncStatus = "connected";
+            this.syncFromGist();
+          }
+        }
+      } catch {
+        // ignore
+      }
+    },
+    saveCloudConfig() {
+      localStorage.setItem(
+        "cloud_config",
+        JSON.stringify({ token: this.cloudToken, gistId: this.cloudGistId })
+      );
+    },
+    async connectGist() {
+      const token = this.cloudToken.trim();
+      if (!token) return;
+      this.syncStatus = "connecting";
+      this.syncError = "";
+      try {
+        // 验证 token
+        const userRes = await fetch("https://api.github.com/user", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!userRes.ok) throw new Error("Token 无效或已过期");
+        // 查找已有 Gist 或创建新的
+        let gistId = this.cloudGistId;
+        if (!gistId) {
+          const createRes = await fetch("https://api.github.com/gists", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              description: "Scheme to URL - History Sync",
+              public: false,
+              files: {
+                [this.GIST_FILENAME]: { content: JSON.stringify(this.history, null, 2) },
+              },
+            }),
+          });
+          if (!createRes.ok) throw new Error("Gist 创建失败");
+          const gist = await createRes.json();
+          gistId = gist.id;
+        }
+        this.cloudGistId = gistId;
+        this.saveCloudConfig();
+        this.syncStatus = "connected";
+        this.lastSyncTime = Date.now();
+        // 如果已有 gistId 但首次连接，先拉取再推
+        if (this.cloudGistId && this.history.length === 0) {
+          await this.syncFromGist();
+        } else {
+          await this.syncToGist(this.history);
+        }
+      } catch (e) {
+        this.syncStatus = "error";
+        this.syncError = e.message || "连接失败";
+      }
+    },
+    disconnectGist() {
+      this.cloudToken = "";
+      this.cloudGistId = "";
+      this.syncStatus = "";
+      this.syncError = "";
+      this.lastSyncTime = null;
+      localStorage.removeItem("cloud_config");
+    },
+    async syncToGist(data) {
+      if (!this.cloudToken || !this.cloudGistId) return;
+      try {
+        const res = await fetch(`https://api.github.com/gists/${this.cloudGistId}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${this.cloudToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            files: {
+              [this.GIST_FILENAME]: { content: JSON.stringify(data, null, 2) },
+            },
+          }),
+        });
+        if (!res.ok) throw new Error("同步失败");
+        this.syncStatus = "connected";
+        this.lastSyncTime = Date.now();
+      } catch (e) {
+        this.syncStatus = "error";
+        this.syncError = e.message || "同步失败";
+      }
+    },
+    async syncFromGist() {
+      if (!this.cloudToken || !this.cloudGistId) return;
+      try {
+        const res = await fetch(`https://api.github.com/gists/${this.cloudGistId}`, {
+          headers: { Authorization: `Bearer ${this.cloudToken}` },
+        });
+        if (!res.ok) throw new Error("拉取失败");
+        const gist = await res.json();
+        const remoteContent = gist.files?.[this.GIST_FILENAME]?.content;
+        if (remoteContent) {
+          const remote = JSON.parse(remoteContent);
+          if (Array.isArray(remote)) {
+            this.mergeHistory(remote);
+            this.syncStatus = "connected";
+            this.lastSyncTime = Date.now();
+          }
+        }
+      } catch (e) {
+        this.syncStatus = "error";
+        this.syncError = e.message || "拉取失败";
+      }
+    },
+    mergeHistory(remote) {
+      if (!Array.isArray(remote) || remote.length === 0) return;
+      const local = this.history;
+      const map = new Map();
+      for (const item of local) {
+        map.set(item.scheme, item);
+      }
+      for (const item of remote) {
+        if (!item.scheme) continue;
+        const existing = map.get(item.scheme);
+        if (!existing) {
+          map.set(item.scheme, { ...item });
+        } else {
+          existing.count = Math.max(existing.count, item.count || 1);
+          existing.recently = Math.max(existing.recently, item.recently || 0);
+        }
+      }
+      this.history = this.sortByTime([...map.values()]);
+      localStorage.setItem("scheme_history", JSON.stringify(this.history));
+      // 推回云端合并后的结果
+      this.syncToGist(this.history);
+    },
+    autoSync() {
+      if (!this.cloudToken || !this.cloudGistId) return;
+      if (this.syncTimer) clearTimeout(this.syncTimer);
+      this.syncTimer = setTimeout(() => {
+        this.syncToGist(this.history);
+      }, 2000);
     },
     formatDate(timestamp) {
       function addLeadingZero(number) {
@@ -977,6 +1187,67 @@ export default {
 
 .history-note a:hover {
   text-decoration: underline;
+}
+
+/* ─── Settings Panel ─── */
+.settings-panel {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface-elevated);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 0.2s ease;
+}
+
+.settings-header {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--card-text);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-input {
+  height: 34px;
+  font-size: 13px;
+  width: 100%;
+}
+
+.settings-actions {
+  flex-wrap: wrap;
+}
+
+.settings-info {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--card-text-muted);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sync-status {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sync-status.connected {
+  color: #5db872;
+}
+
+.sync-status.connecting {
+  color: var(--accent);
+}
+
+.sync-status.error {
+  color: #c64545;
 }
 
 /* ─── Text Link ─── */
