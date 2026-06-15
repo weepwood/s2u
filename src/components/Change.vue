@@ -599,22 +599,23 @@ export default {
         });
     },
     handleKeydown(e) {
+      const isInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
+      const isContentEditable = e.target.isContentEditable;
+
       // Cmd/Ctrl + Enter → 复制
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         this.copy();
       }
-      // Escape → 清空输入
-      if (e.key === "Escape" && !this.isShowHistory) {
+      // Escape → 清空输入（仅在输入框聚焦时）
+      if (e.key === "Escape" && isInput && !this.isShowHistory) {
         this.url = "";
         this.urlError = "";
         this.$refs.urlInput?.focus();
       }
-      // H → 切换历史
-      if (e.key === "h" || e.key === "H") {
-        if (!e.metaKey && !e.ctrlKey && !e.altKey) {
-          this.isShowHistory = !this.isShowHistory;
-        }
+      // H → 切换历史（仅在非输入状态下触发）
+      if ((e.key === "h" || e.key === "H") && !isInput && !isContentEditable) {
+        this.isShowHistory = !this.isShowHistory;
       }
     },
   },
