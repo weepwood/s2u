@@ -13,8 +13,8 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "esbuild": "0.28.1",
     "@vitejs/plugin-vue": "^5.2.3",
+    "esbuild": "^0.28.1",
     "eslint": "8",
     "eslint-config-prettier": "9",
     "eslint-plugin-vue": "9",
