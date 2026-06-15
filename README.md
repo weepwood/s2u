@@ -6,6 +6,8 @@
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/weepwood/s2u)
 
+<img width="1608" height="770" alt="image" src="https://github.com/user-attachments/assets/06940286-b068-42f0-86f1-7c9a03152fe4" />
+
 ## 功能
 
 - **Scheme 转换** — 输入 `weixin://open`，生成 `https://s2u2.netlify.app/#weixin://open` 链接
@@ -79,15 +81,6 @@ npm run build
 | 字体 | Cormorant Garamond / Inter / JetBrains Mono |
 | 持久化 | localStorage + GitHub Gist API |
 | 部署 | Netlify |
-
-## 设计系统
-
-项目参考 [Anthropic Claude](https://claude.ai) 设计语言，详见 [DESIGN.md](./DESIGN.md)。
-
-- 暖调奶油画布 `#faf9f5`
-- 灰蓝主色 `#5b7fab`
-- 卡片色 `#efe9de`
-- 衬线标题 + 无衬线正文 + 等宽代码字体
 
 ## 项目结构
 
