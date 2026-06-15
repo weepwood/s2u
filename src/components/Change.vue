@@ -242,8 +242,8 @@ export default {
     // 将输入归一化为可跳转的 URL：补上 https://
     normalizeUrl(url) {
       if (!url) return url;
-      // 已有协议或为 URL Scheme → 原样返回
-      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) return url;
+      // 已有协议（:// 或 :\）→ 原样返回
+      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:(\\\\|\/\/)/.test(url)) return url;
       // 裸域名 或 localhost → 补 https://
       return "https://" + url;
     },
@@ -559,8 +559,8 @@ export default {
     },
     validateUrl(val) {
       if (!val.trim()) return "";
-      // 允许 URL Scheme（weixin://）、完整 URL（https://）、或裸域名（baidu.com）
-      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(val)) return "";
+      // 允许 URL Scheme（weixin:// 或 openfile:\）、完整 URL、或裸域名
+      if (/^[a-zA-Z][a-zA-Z0-9+.-]*:(\\\\|\/\/)/.test(val)) return "";
       if (/^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(\/|$|:)/.test(val)) return "";
       if (/^localhost(:\d+)?(\/|$)/.test(val)) return "";
       return "请输入有效的 URL、域名或 URL Scheme";
