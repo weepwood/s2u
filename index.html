@@ -2,9 +2,22 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scheme to URL</title>
+    <title>Scheme to URL — 将链接或 URL Scheme 转换为跳转链接</title>
+    <meta name="description" content="将 URL Scheme（如 weixin://）或任意网址转换为 HTTP 跳转链接。支持历史记录、深色模式、GitHub Gist 同步。" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Scheme to URL" />
+    <meta property="og:description" content="将 URL Scheme 或网址转换为可分享的 HTTP 跳转链接" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/favicon.svg" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Scheme to URL" />
+    <meta name="twitter:description" content="将 URL Scheme 或网址转换为可分享的 HTTP 跳转链接" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -29,6 +42,7 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
 </html>

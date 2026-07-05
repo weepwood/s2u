@@ -1,11 +1,7 @@
 <template>
-  <router-view></router-view>
+  <Change />
 </template>
 
 <script setup>
-
+import Change from './components/Change.vue'
 </script>
-
-<style scoped>
-
-</style>

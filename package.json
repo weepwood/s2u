@@ -1,7 +1,9 @@
 {
-  "name": "my-vue-app",
+  "name": "s2u",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Scheme to URL — 将 URL Scheme 或网址转换为 HTTP 跳转链接",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
