@@ -1,6 +1,6 @@
 <template>
   <section class="redirect-panel" aria-labelledby="redirect-title" aria-live="polite">
-    <div class="countdown-wrap" :style="{ '--progress': `${countDown / 5}` }" aria-hidden="true">
+    <div class="countdown-wrap" :style="{ '--offset': 144.5 * (1 - countDown / 5) }" aria-hidden="true">
       <svg viewBox="0 0 54 54">
         <circle class="track" cx="27" cy="27" r="23" />
         <circle class="progress" cx="27" cy="27" r="23" />
@@ -15,18 +15,18 @@
     </div>
 
     <div class="redirect-actions">
-      <button type="button" class="primary-action" @click="$emit('gotoOrigin')">
+      <a class="primary-action" :href="origin">
         返回创建页
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-      </button>
+      </a>
       <button type="button" class="secondary-action" @click="$emit('cancel')">留在当前页</button>
     </div>
 
-    <button type="button" class="origin-link" @click="$emit('gotoOrigin')">
+    <a class="origin-link" :href="origin">
       {{ origin }}
-    </button>
+    </a>
   </section>
 </template>
 
@@ -36,7 +36,7 @@ defineProps({
   origin: { type: String, required: true },
 })
 
-defineEmits(['gotoOrigin', 'cancel'])
+defineEmits(['cancel'])
 </script>
 
 <style scoped>
@@ -77,7 +77,7 @@ defineEmits(['gotoOrigin', 'cancel'])
   stroke: var(--accent);
   stroke-linecap: round;
   stroke-dasharray: 144.5;
-  stroke-dashoffset: calc(144.5 * (1 - var(--progress)));
+  stroke-dashoffset: var(--offset);
   transition: stroke-dashoffset 0.8s linear;
 }
 
@@ -129,6 +129,7 @@ defineEmits(['gotoOrigin', 'cancel'])
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .primary-action {
@@ -172,6 +173,7 @@ defineEmits(['gotoOrigin', 'cancel'])
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .origin-link:hover {

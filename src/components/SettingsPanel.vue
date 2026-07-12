@@ -60,7 +60,7 @@
         {{ syncStatus === 'connecting' ? '正在连接…' : '连接 Gist' }}
       </button>
       <template v-else>
-        <button type="button" class="primary-action" @click="$emit('sync')">
+        <button type="button" class="primary-action" @click="$emit('connect')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M20 7v5h-5M4 17v-5h5M6.1 8.2A7 7 0 0 1 18.7 10M17.9 15.8A7 7 0 0 1 5.3 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
