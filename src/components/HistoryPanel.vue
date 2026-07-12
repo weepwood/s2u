@@ -22,7 +22,6 @@
         aria-label="搜索历史记录"
         @input="$emit('update:searchQuery', $event.target.value)"
       />
-      <kbd>⌘ K</kbd>
       <button
         v-if="searchQuery"
         type="button"
@@ -103,6 +102,8 @@ defineEmits(['update:searchQuery', 'select', 'delete'])
 
 function formatDate(timestamp) {
   const date = new Date(timestamp)
+  if (!Number.isFinite(date.getTime())) return { relative: '未知时间', full: '' }
+
   const now = new Date()
   const diff = Math.max(0, now.getTime() - date.getTime())
   const minutes = Math.floor(diff / 60000)
@@ -215,17 +216,6 @@ function formatDate(timestamp) {
 
 .search-input::placeholder {
   color: var(--card-text-muted);
-}
-
-.search-wrap kbd {
-  margin-right: 8px;
-  padding: 2px 6px;
-  border: 1px solid var(--hairline);
-  border-radius: 6px;
-  background: var(--surface-soft);
-  color: var(--card-text-muted);
-  font: inherit;
-  font-size: 10px;
 }
 
 .search-clear {
@@ -430,8 +420,7 @@ function formatDate(timestamp) {
 }
 
 @media (max-width: 640px) {
-  .total-badge,
-  .search-wrap kbd {
+  .total-badge {
     display: none;
   }
 
