@@ -1,6 +1,6 @@
 <template>
   <section class="redirect-panel" aria-labelledby="redirect-title" aria-live="polite">
-    <div class="countdown-wrap" :style="{ '--progress': `${countDown / 5}` }" aria-hidden="true">
+    <div class="countdown-wrap" :style="{ '--offset': 144.5 * (1 - countDown / 5) }" aria-hidden="true">
       <svg viewBox="0 0 54 54">
         <circle class="track" cx="27" cy="27" r="23" />
         <circle class="progress" cx="27" cy="27" r="23" />
@@ -77,7 +77,7 @@ defineEmits(['gotoOrigin', 'cancel'])
   stroke: var(--accent);
   stroke-linecap: round;
   stroke-dasharray: 144.5;
-  stroke-dashoffset: calc(144.5 * (1 - var(--progress)));
+  stroke-dashoffset: var(--offset);
   transition: stroke-dashoffset 0.8s linear;
 }
 
