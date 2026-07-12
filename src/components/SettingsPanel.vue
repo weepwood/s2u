@@ -1,55 +1,98 @@
 <template>
-  <div class="settings-panel">
-    <div class="settings-header">
-      GitHub Gist 同步
-      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" class="settings-link">获取 Token</a>
+  <section class="settings-panel" aria-labelledby="sync-title">
+    <div class="settings-head">
+      <span class="settings-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M7.5 16A4.5 4.5 0 0 1 8 7.03 5.5 5.5 0 0 1 18.47 9 3.5 3.5 0 0 1 18 16H7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="m9 13 3-3 3 3M12 10v8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <div>
+        <h3 id="sync-title">GitHub Gist 同步</h3>
+        <p>在多个设备之间合并历史记录。Token 仅保存在当前浏览器。</p>
+      </div>
+      <span class="sync-status" :class="syncStatus || 'idle'">
+        <span aria-hidden="true"></span>
+        {{ statusLabel }}
+      </span>
+    </div>
+
+    <div class="token-field">
+      <div class="field-label">
+        <label for="gist-token">Personal Access Token</label>
+        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">
+          创建 Token
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+      <div class="token-input-wrap">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="8" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M12 12h9m-3 0v3m-3-3v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <input
+          id="gist-token"
+          :value="cloudToken"
+          type="password"
+          placeholder="ghp_••••••••••••••••"
+          autocomplete="off"
+          :disabled="syncStatus === 'connected'"
+          @input="$emit('update:cloudToken', $event.target.value)"
+        />
+      </div>
+      <p v-if="syncStatus === 'error'" class="sync-error" role="alert">{{ syncError || '连接失败，请检查 Token 权限。' }}</p>
+      <p v-else class="field-help">需要具备 Gist 读写权限；请勿在公共设备保存 Token。</p>
+    </div>
+
+    <div class="settings-actions">
+      <button
+        v-if="syncStatus !== 'connected'"
+        type="button"
+        class="primary-action"
+        :disabled="syncStatus === 'connecting' || !cloudToken.trim()"
+        @click="$emit('connect')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8.5 15.5 15.5 8.5M7 10H5.75A3.75 3.75 0 0 0 2 13.75v2.5A3.75 3.75 0 0 0 5.75 20h2.5A3.75 3.75 0 0 0 12 16.25V15m0-6V7.75A3.75 3.75 0 0 1 15.75 4h2.5A3.75 3.75 0 0 1 22 7.75v2.5A3.75 3.75 0 0 1 18.25 14H17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        {{ syncStatus === 'connecting' ? '正在连接…' : '连接 Gist' }}
+      </button>
+      <template v-else>
+        <button type="button" class="primary-action" @click="$emit('sync')">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 7v5h-5M4 17v-5h5M6.1 8.2A7 7 0 0 1 18.7 10M17.9 15.8A7 7 0 0 1 5.3 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          立即同步
+        </button>
+        <button type="button" class="secondary-action" @click="$emit('disconnect')">断开连接</button>
+      </template>
+
       <a
         v-if="cloudGistId"
+        class="gist-link"
         :href="'https://gist.github.com/' + cloudGistId"
         target="_blank"
         rel="noopener"
-        class="settings-link"
       >
-        Gist 仓库
+        打开 Gist
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </a>
     </div>
-    <div class="settings-row">
-      <input
-        :value="cloudToken"
-        @input="$emit('update:cloudToken', $event.target.value)"
-        class="text-input settings-input"
-        type="password"
-        placeholder="GitHub Personal Access Token (gist scope)"
-        :disabled="syncStatus === 'connected'"
-      />
-    </div>
-    <div class="settings-row settings-actions">
-      <button
-        v-if="syncStatus !== 'connected'"
-        class="copy-btn"
-        style="height:32px;font-size:13px;padding:0 14px"
-        @click="$emit('connect')"
-        :disabled="syncStatus === 'connecting' || !cloudToken.trim()"
-      >
-        {{ syncStatus === 'connecting' ? '连接中…' : '连接' }}
-      </button>
-      <button v-else class="clear-btn" @click="$emit('disconnect')">断开</button>
-      <span class="sync-status" :class="syncStatus">
-        <span v-if="syncStatus === 'connected'">● 已连接</span>
-        <span v-else-if="syncStatus === 'connecting'">⟳ 连接中…</span>
-        <span v-else-if="syncStatus === 'error'">⚠ {{ syncError }}</span>
-        <span v-else>○ 未连接</span>
-      </span>
-    </div>
-    <div v-if="syncStatus === 'connected'" class="settings-row settings-info">
-      <span v-if="lastSyncTime">上次同步：{{ formatDate(lastSyncTime) }}</span>
-      <button class="text-link" @click="$emit('sync')">立即同步</button>
-    </div>
-  </div>
+
+    <p v-if="lastSyncTime && syncStatus === 'connected'" class="last-sync">
+      上次同步：{{ formatDate(lastSyncTime) }}
+    </p>
+  </section>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   cloudToken: { type: String, default: '' },
   cloudGistId: { type: String, default: '' },
   syncStatus: { type: String, default: '' },
@@ -59,145 +102,284 @@ defineProps({
 
 defineEmits(['update:cloudToken', 'connect', 'disconnect', 'sync'])
 
+const statusLabel = computed(() => {
+  if (props.syncStatus === 'connected') return '已连接'
+  if (props.syncStatus === 'connecting') return '连接中'
+  if (props.syncStatus === 'error') return '连接异常'
+  return '未连接'
+})
+
 function formatDate(timestamp) {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  const sec = String(date.getSeconds()).padStart(2, '0')
-  return `${year}/${month}/${day} ${hour}:${min}:${sec}`
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(timestamp))
 }
 </script>
 
 <style scoped>
 .settings-panel {
-  margin-top: 16px;
-  padding: 16px;
+  margin-top: 18px;
+  padding: 18px;
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.settings-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 11px;
+}
+
+.settings-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 11px;
   background: var(--surface-elevated);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.settings-header {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--card-text);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.settings-link {
-  font-size: 12px;
-  font-weight: 400;
   color: var(--accent);
-  text-decoration: none;
 }
 
-.settings-link:hover { text-decoration: underline; }
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.settings-icon svg {
+  width: 19px;
+  height: 19px;
 }
 
-.settings-input {
-  height: 34px;
-  font-size: 13px;
-  width: 100%;
+.settings-head h3 {
+  margin: 1px 0 4px;
+  color: var(--card-text);
+  font-size: 14px;
 }
 
-.settings-actions { flex-wrap: wrap; }
-
-.settings-info {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
+.settings-head p {
+  margin: 0;
   color: var(--card-text-muted);
-  gap: 12px;
-  flex-wrap: wrap;
+  font-size: 10px;
+  line-height: 1.55;
 }
 
 .sync-status {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.sync-status.connected { color: #5db872; }
-.sync-status.connecting { color: var(--accent); }
-.sync-status.error { color: #c64545; }
-
-.text-input {
-  width: 100%;
-  padding: 0 12px;
-  background: var(--surface-elevated);
+  min-height: 26px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--hairline);
-  border-radius: 8px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: var(--card-text);
-  outline: none;
-  transition: border-color 0.2s ease;
+  border-radius: 999px;
+  color: var(--card-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.text-input::placeholder { color: var(--card-text-muted); }
-.text-input:focus { border-color: var(--accent); }
+.sync-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
 
-.copy-btn {
-  height: 32px;
-  padding: 0 14px;
-  font-size: 13px;
-  border: none;
-  border-radius: 8px;
+.sync-status.connected {
+  color: var(--success);
+}
+
+.sync-status.connecting {
+  color: var(--accent);
+}
+
+.sync-status.error {
+  color: var(--danger);
+}
+
+.token-field {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-label label {
+  color: var(--card-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.field-label a,
+.gist-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 680;
+  text-decoration: none;
+}
+
+.field-label a:hover,
+.gist-link:hover {
+  text-decoration: underline;
+}
+
+.field-label svg,
+.gist-link svg {
+  width: 13px;
+  height: 13px;
+}
+
+.token-input-wrap {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.token-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.token-input-wrap > svg {
+  width: 18px;
+  height: 18px;
+  margin: 0 11px 0 13px;
+  color: var(--card-text-muted);
+}
+
+.token-input-wrap input {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  padding-right: 12px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--card-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.token-input-wrap input::placeholder {
+  color: var(--card-text-muted);
+}
+
+.token-input-wrap input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.field-help,
+.sync-error,
+.last-sync {
+  margin: 0;
+  color: var(--card-text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.sync-error {
+  color: var(--danger);
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-action {
+  border: 0;
   background: var(--accent);
   color: #ffffff;
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease;
 }
 
-.copy-btn:hover:not(:disabled) { background: #43658a; }
-.copy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.primary-action:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
 
-.clear-btn {
-  background: transparent;
+.primary-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.primary-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.secondary-action {
   border: 1px solid var(--hairline);
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--card-text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: var(--surface-elevated);
+  color: var(--card-text-soft);
 }
 
-.clear-btn:hover { color: var(--card-text); border-color: var(--hairline-strong); }
-
-.text-link {
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: none;
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-family: inherit;
-  padding: 0;
+.secondary-action:hover {
+  border-color: var(--hairline-strong);
+  color: var(--card-text);
 }
 
-.text-link:hover { text-decoration: underline; }
+.gist-link {
+  margin-left: auto;
+}
+
+.last-sync {
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+@media (max-width: 560px) {
+  .settings-panel {
+    padding: 15px;
+  }
+
+  .settings-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .sync-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .settings-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .gist-link {
+    margin-left: 0;
+  }
+}
 </style>
