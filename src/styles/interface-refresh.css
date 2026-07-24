@@ -146,10 +146,8 @@
 }
 
 .app-shell .workspace-head h1 {
-  min-height: 70px;
-  display: grid;
-  place-content: center;
-  font-size: clamp(28px, 4.5vw, 40px);
+  min-height: 82px;
+  font-size: clamp(28px, 4.5vw, 38px);
   line-height: 1.08;
   letter-spacing: -0.045em;
   transition: color 220ms ease;
@@ -434,7 +432,7 @@
   }
 
   .app-shell .workspace-head h1 {
-    min-height: 62px;
+    min-height: 76px;
     font-size: clamp(27px, 9vw, 35px);
   }
 
