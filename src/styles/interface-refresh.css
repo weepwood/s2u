@@ -1,0 +1,475 @@
+.app-shell {
+  --motion-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-gentle: cubic-bezier(0.16, 1, 0.3, 1);
+  --panel-enter-x: 16px;
+  --panel-leave-x: -10px;
+  --tab-indicator-bg: var(--card-bg-solid);
+}
+
+.app-shell.dark {
+  --tab-indicator-bg: var(--surface-elevated);
+}
+
+.app-shell[data-switch-direction='backward'] {
+  --panel-enter-x: -16px;
+  --panel-leave-x: 10px;
+}
+
+.app-shell[data-switch-direction='forward'] {
+  --panel-enter-x: 16px;
+  --panel-leave-x: -10px;
+}
+
+/* 顶部只承担品牌与工具入口，不与主卡片争夺视觉重心。 */
+.app-shell .app-header {
+  width: min(960px, 100%);
+  animation: s2u-header-arrive 460ms var(--motion-gentle) both;
+}
+
+.app-shell .brand {
+  gap: 9px;
+  opacity: 0.78;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.app-shell .brand:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.app-shell .brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.app-shell.dark .brand-mark {
+  background: rgba(18, 24, 36, 0.46);
+}
+
+.app-shell .brand-mark svg {
+  width: 18px;
+  height: 18px;
+}
+
+.app-shell .brand-copy {
+  gap: 0;
+}
+
+.app-shell .brand-copy strong {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--card-text-soft);
+}
+
+.app-shell .brand-copy small {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  opacity: 0.72;
+}
+
+.app-shell .header-actions {
+  gap: 6px;
+}
+
+.app-shell .header-actions .github-link,
+.app-shell .header-actions .theme-toggle {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 10px;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.app-shell.dark .header-actions .github-link,
+.app-shell.dark .header-actions .theme-toggle {
+  background: rgba(18, 24, 36, 0.46);
+}
+
+.app-shell .header-actions .github-link span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-shell .header-actions .github-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.app-shell .header-actions .theme-toggle .icon-wrap {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+.app-shell .header-actions .theme-toggle .icon-wrap svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 压缩叙事区，为链接与历史卡片让出首屏空间。 */
+.app-shell .workspace {
+  width: min(820px, 100%);
+  margin-top: clamp(30px, 5.5vh, 58px);
+}
+
+.app-shell .workspace-head {
+  margin-bottom: 16px;
+  animation: s2u-heading-arrive 560ms 70ms var(--motion-gentle) both;
+}
+
+.app-shell .eyebrow {
+  margin-bottom: 9px;
+  gap: 7px;
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  opacity: 0.78;
+}
+
+.app-shell .status-dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 4px rgba(47, 157, 105, 0.1);
+}
+
+.app-shell .workspace-head h1 {
+  min-height: 70px;
+  display: grid;
+  place-content: center;
+  font-size: clamp(28px, 4.5vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+  transition: color 220ms ease;
+}
+
+.app-shell .hero-description {
+  min-height: 42px;
+  max-width: 560px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.62;
+  color: var(--card-text-muted);
+}
+
+/* 标签使用连续滑动的实体指示器，而不是两个背景互相闪烁。 */
+.app-shell .mode-tabs {
+  position: relative;
+  isolation: isolate;
+  margin-top: 16px;
+  padding: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(33, 45, 75, 0.06);
+}
+
+.app-shell .mode-tabs::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: var(--tab-indicator-width, 0px);
+  border-radius: 10px;
+  background: var(--tab-indicator-bg);
+  box-shadow: 0 3px 12px rgba(33, 45, 75, 0.11);
+  opacity: 0;
+  transform: translate3d(var(--tab-indicator-x, 0px), 0, 0);
+  transition:
+    transform 430ms var(--motion-standard),
+    width 430ms var(--motion-standard),
+    opacity 160ms ease,
+    background 220ms ease;
+  will-change: transform, width;
+}
+
+.app-shell.dark .mode-tabs::before {
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.24);
+}
+
+.app-shell .mode-tabs.tabs-ready::before {
+  opacity: 1;
+}
+
+.app-shell .mode-tabs button {
+  position: relative;
+  z-index: 1;
+  min-height: 36px;
+  padding: 0 13px;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: color 260ms ease, transform 180ms ease;
+}
+
+.app-shell .mode-tabs button:hover {
+  color: var(--card-text-soft);
+}
+
+.app-shell .mode-tabs button:active {
+  transform: scale(0.97);
+}
+
+.app-shell .mode-tabs button.active {
+  color: var(--card-text);
+}
+
+/* 主卡片成为页面中心，并在首次打开时自然落位。 */
+.app-shell .content-card {
+  position: relative;
+  min-height: 250px;
+  padding: clamp(22px, 4vw, 36px);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 26px 80px rgba(33, 45, 75, 0.14),
+    0 2px 0 rgba(255, 255, 255, 0.62) inset;
+  animation: s2u-card-arrive 660ms 130ms var(--motion-gentle) both;
+  transition:
+    border-color 220ms ease,
+    background 260ms ease,
+    box-shadow 300ms ease;
+}
+
+.app-shell.dark .content-card {
+  background: rgba(18, 24, 36, 0.91);
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.38),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.app-shell .content-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 10% auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(125, 150, 255, 0.45), transparent);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.app-shell.is-mode-switching .content-card {
+  animation: s2u-card-breathe 480ms var(--motion-standard);
+}
+
+/* 缩短退场、拉长入场，避免 out-in 产生明显空白停顿。 */
+.app-shell .content-card .panel-enter-active {
+  transition:
+    opacity 330ms ease-out,
+    transform 430ms var(--motion-standard),
+    filter 280ms ease-out !important;
+}
+
+.app-shell .content-card .panel-leave-active {
+  transition:
+    opacity 120ms ease-in,
+    transform 160ms ease-in,
+    filter 120ms ease-in !important;
+}
+
+.app-shell .content-card .panel-enter-from {
+  opacity: 0;
+  filter: blur(6px);
+  transform: translate3d(var(--panel-enter-x), 10px, 0) scale(0.985);
+}
+
+.app-shell .content-card .panel-leave-to {
+  opacity: 0;
+  filter: blur(3px);
+  transform: translate3d(var(--panel-leave-x), -3px, 0) scale(0.993);
+}
+
+.app-shell .panel-enter-active .history-item,
+.app-shell .panel-enter-active .recent-item {
+  animation: s2u-row-arrive 380ms var(--motion-standard) both;
+}
+
+.app-shell .panel-enter-active .history-item:nth-child(2),
+.app-shell .panel-enter-active .recent-item:nth-child(2) {
+  animation-delay: 35ms;
+}
+
+.app-shell .panel-enter-active .history-item:nth-child(3),
+.app-shell .panel-enter-active .recent-item:nth-child(3) {
+  animation-delay: 65ms;
+}
+
+.app-shell .panel-enter-active .history-item:nth-child(4),
+.app-shell .panel-enter-active .recent-item:nth-child(4) {
+  animation-delay: 90ms;
+}
+
+.app-shell .panel-enter-active .history-item:nth-child(5),
+.app-shell .panel-enter-active .recent-item:nth-child(5) {
+  animation-delay: 110ms;
+}
+
+.app-shell .panel-enter-active .history-item:nth-child(6),
+.app-shell .panel-enter-active .recent-item:nth-child(6) {
+  animation-delay: 125ms;
+}
+
+.app-shell .history-item,
+.app-shell .recent-item,
+.app-shell .preview-card,
+.app-shell .input-wrap {
+  transition-duration: 220ms;
+  transition-timing-function: var(--motion-standard);
+}
+
+.app-shell .history-item:hover,
+.app-shell .recent-item:hover {
+  transform: translateY(-2px);
+}
+
+.app-shell .ambient-one {
+  animation: s2u-ambient-one 16s ease-in-out infinite alternate;
+}
+
+.app-shell .ambient-two {
+  animation: s2u-ambient-two 18s ease-in-out infinite alternate;
+}
+
+.app-shell .workspace-footer {
+  margin-top: 13px;
+  opacity: 0.72;
+  animation: s2u-footer-arrive 560ms 360ms ease-out both;
+}
+
+@keyframes s2u-header-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes s2u-heading-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes s2u-card-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes s2u-card-breathe {
+  0%,
+  100% {
+    box-shadow: var(--shadow-lg);
+  }
+  45% {
+    box-shadow: 0 30px 90px rgba(33, 45, 75, 0.18);
+  }
+}
+
+@keyframes s2u-row-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes s2u-footer-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.72;
+  }
+}
+
+@keyframes s2u-ambient-one {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-34px, 28px, 0) scale(1.08);
+  }
+}
+
+@keyframes s2u-ambient-two {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(38px, -24px, 0) scale(1.1);
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell .workspace {
+    margin-top: 34px;
+  }
+
+  .app-shell .workspace-head h1 {
+    min-height: 62px;
+    font-size: clamp(27px, 9vw, 35px);
+  }
+
+  .app-shell .hero-description {
+    min-height: 0;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+  .app-shell .content-card {
+    min-height: 230px;
+    padding: 20px 16px;
+    border-radius: 21px;
+  }
+
+  .app-shell .brand-copy strong {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .app-header,
+  .app-shell .workspace-head,
+  .app-shell .content-card,
+  .app-shell .workspace-footer,
+  .app-shell .ambient-one,
+  .app-shell .ambient-two,
+  .app-shell .panel-enter-active .history-item,
+  .app-shell .panel-enter-active .recent-item {
+    animation: none !important;
+  }
+
+  .app-shell .mode-tabs::before,
+  .app-shell .content-card .panel-enter-active,
+  .app-shell .content-card .panel-leave-active {
+    transition-duration: 0.01ms !important;
+  }
+}
