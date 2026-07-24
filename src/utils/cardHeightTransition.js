@@ -27,135 +27,166 @@ export function installCardHeightTransition() {
 
 function setupAutoHeight(card) {
   if (card.dataset.autoHeightTransition === 'true') return () => {}
-  card.dataset.autoHeightTransition = 'true'
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-  let stableHeight = card.getBoundingClientRect().height
-  let firstFrame = null
-  let secondFrame = null
-  let finishTimer = null
+  let animationFrame = null
   let resizeTimer = null
-  let isAnimating = false
+  let activeAnimation = null
+  let observedPanel = null
   let isDestroyed = false
 
-  const clearFrames = () => {
-    if (firstFrame) window.cancelAnimationFrame(firstFrame)
-    if (secondFrame) window.cancelAnimationFrame(secondFrame)
-    firstFrame = null
-    secondFrame = null
+  // 卡片从初始化开始就保持明确高度。这样新面板挂载时不会先以 auto 高度
+  // 完整展开，再被脚本锁回旧高度。
+  card.style.height = `${card.offsetHeight}px`
+  card.dataset.autoHeightTransition = 'true'
+
+  const getRenderedPanel = () =>
+    Array.from(card.children).find((child) => child.nodeType === Node.ELEMENT_NODE) ?? null
+
+  const readCurrentHeight = () => {
+    const height = Number.parseFloat(window.getComputedStyle(card).height)
+    return Number.isFinite(height) ? height : card.offsetHeight
   }
 
-  const clearFinishTimer = () => {
-    if (finishTimer) window.clearTimeout(finishTimer)
-    finishTimer = null
+  const measurePanelHeight = (panel) => {
+    if (!panel) return readCurrentHeight()
+
+    const cardStyle = window.getComputedStyle(card)
+    const panelStyle = window.getComputedStyle(panel)
+    const verticalChrome =
+      toPixels(cardStyle.paddingTop) +
+      toPixels(cardStyle.paddingBottom) +
+      toPixels(cardStyle.borderTopWidth) +
+      toPixels(cardStyle.borderBottomWidth)
+    const panelMargins = toPixels(panelStyle.marginTop) + toPixels(panelStyle.marginBottom)
+    const minHeight = toPixels(cardStyle.minHeight)
+    const panelHeight = Math.max(panel.scrollHeight, panel.offsetHeight)
+
+    return Math.max(minHeight, Math.ceil(panelHeight + panelMargins + verticalChrome))
   }
 
-  const hasRenderedPanel = () =>
-    Array.from(card.children).some((child) => child.nodeType === Node.ELEMENT_NODE)
-
-  const lockHeight = (height) => {
-    card.style.transition = 'none'
-    card.style.height = `${Math.max(0, height)}px`
-    card.style.overflow = 'hidden'
-    card.style.willChange = 'height'
-    void card.offsetHeight
-  }
-
-  const finish = () => {
-    clearFinishTimer()
-    card.style.removeProperty('height')
+  const finishAnimation = () => {
     card.style.removeProperty('overflow')
     card.style.removeProperty('will-change')
-    card.style.removeProperty('transition')
-    isAnimating = false
-    stableHeight = card.getBoundingClientRect().height
   }
 
-  const measureNaturalHeight = () => {
-    const previousHeight = card.style.height
-    const previousTransition = card.style.transition
-    card.style.transition = 'none'
-    card.style.height = 'auto'
-    const height = card.getBoundingClientRect().height
-    card.style.height = previousHeight
-    card.style.transition = previousTransition
-    return height
+  const cancelActiveAnimation = () => {
+    if (!activeAnimation) return
+
+    const currentHeight = readCurrentHeight()
+    activeAnimation.cancel()
+    activeAnimation = null
+    card.style.height = `${currentHeight}px`
   }
 
-  const animateToContent = () => {
-    if (isDestroyed || !hasRenderedPanel()) return
+  const animateToPanel = () => {
+    animationFrame = null
+    if (isDestroyed) return
 
-    if (reducedMotion.matches) {
-      finish()
-      return
-    }
+    const panel = getRenderedPanel()
+    if (!panel) return
 
-    const currentHeight = isAnimating ? card.getBoundingClientRect().height : stableHeight
-    lockHeight(currentHeight)
-    const targetHeight = measureNaturalHeight()
-    lockHeight(currentHeight)
+    cancelActiveAnimation()
+
+    const currentHeight = readCurrentHeight()
+    const targetHeight = measurePanelHeight(panel)
 
     if (Math.abs(targetHeight - currentHeight) < 1) {
-      finish()
+      card.style.height = `${targetHeight}px`
+      finishAnimation()
       return
     }
 
-    isAnimating = true
-    stableHeight = targetHeight
-    card.style.transition = `height ${TRANSITION_DURATION}ms ${TRANSITION_EASING}`
+    card.style.overflow = 'hidden'
+    card.style.willChange = 'height'
     card.style.height = `${targetHeight}px`
-    finishTimer = window.setTimeout(finish, TRANSITION_DURATION + 80)
+
+    if (reducedMotion.matches || typeof card.animate !== 'function') {
+      finishAnimation()
+      return
+    }
+
+    const animation = card.animate(
+      [{ height: `${currentHeight}px` }, { height: `${targetHeight}px` }],
+      {
+        duration: TRANSITION_DURATION,
+        easing: TRANSITION_EASING,
+      },
+    )
+
+    activeAnimation = animation
+    animation.onfinish = () => {
+      if (activeAnimation !== animation) return
+      activeAnimation = null
+      finishAnimation()
+    }
+    animation.oncancel = () => {
+      if (activeAnimation === animation) activeAnimation = null
+    }
   }
 
   const scheduleAnimation = () => {
-    clearFrames()
-    clearFinishTimer()
+    if (isDestroyed) return
+    if (animationFrame) window.cancelAnimationFrame(animationFrame)
 
-    firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(animateToContent)
-    })
+    // 在下一帧统一读取新面板的完整布局高度。此时外层卡片仍保持旧高度，
+    // 因而不会把新内容的自然高度提前暴露到页面中。
+    card.style.overflow = 'hidden'
+    animationFrame = window.requestAnimationFrame(animateToPanel)
   }
 
-  const observer = new MutationObserver(() => {
-    if (!hasRenderedPanel()) {
-      const currentHeight = isAnimating ? card.getBoundingClientRect().height : stableHeight
-      lockHeight(currentHeight)
-      isAnimating = false
-      return
-    }
-    scheduleAnimation()
+  const panelResizeObserver =
+    'ResizeObserver' in window ? new ResizeObserver(scheduleAnimation) : null
+
+  const observeCurrentPanel = () => {
+    const panel = getRenderedPanel()
+    if (panel === observedPanel) return panel
+
+    if (observedPanel) panelResizeObserver?.unobserve(observedPanel)
+    observedPanel = panel
+    if (observedPanel) panelResizeObserver?.observe(observedPanel)
+    return panel
+  }
+
+  const mutationObserver = new MutationObserver(() => {
+    const panel = observeCurrentPanel()
+    if (panel) scheduleAnimation()
   })
 
-  observer.observe(card, {
+  mutationObserver.observe(card, {
     childList: true,
     subtree: true,
     characterData: true,
   })
 
-  const handleTransitionEnd = (event) => {
-    if (event.target === card && event.propertyName === 'height') finish()
-  }
+  observeCurrentPanel()
 
   const handleResize = () => {
     window.clearTimeout(resizeTimer)
-    resizeTimer = window.setTimeout(() => {
-      clearFrames()
-      finish()
-    }, 120)
+    resizeTimer = window.setTimeout(scheduleAnimation, 80)
   }
 
-  card.addEventListener('transitionend', handleTransitionEnd)
   window.addEventListener('resize', handleResize, { passive: true })
+  document.fonts?.ready.then(() => {
+    if (!isDestroyed) scheduleAnimation()
+  })
 
   return () => {
     isDestroyed = true
-    observer.disconnect()
-    clearFrames()
-    clearFinishTimer()
+    mutationObserver.disconnect()
+    panelResizeObserver?.disconnect()
+    if (animationFrame) window.cancelAnimationFrame(animationFrame)
     window.clearTimeout(resizeTimer)
-    card.removeEventListener('transitionend', handleTransitionEnd)
+    activeAnimation?.cancel()
     window.removeEventListener('resize', handleResize)
-    finish()
+    card.style.removeProperty('height')
+    card.style.removeProperty('overflow')
+    card.style.removeProperty('will-change')
     delete card.dataset.autoHeightTransition
   }
+}
+
+function toPixels(value) {
+  const pixels = Number.parseFloat(value)
+  return Number.isFinite(pixels) ? pixels : 0
 }
