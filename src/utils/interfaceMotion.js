@@ -2,7 +2,6 @@ const ROOT_SELECTOR = '.app-shell'
 const TAB_SELECTOR = '.mode-tabs'
 const ACTIVE_TAB_SELECTOR = 'button.active'
 const NARRATIVE_SELECTOR = '#page-title, .hero-description'
-const SWITCH_CLASS_DURATION = 520
 
 export function installInterfaceMotion() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
@@ -49,23 +48,12 @@ function setupMotion(root, tabs) {
   let activeIndex = getActiveIndex(tabs)
   let indicatorFrame = null
   let readyFrame = null
-  let switchingTimer = null
   let resizeObserver = null
   let destroyed = false
 
   const setDirection = (nextIndex) => {
     if (nextIndex < 0 || nextIndex === activeIndex) return
     root.dataset.switchDirection = nextIndex > activeIndex ? 'forward' : 'backward'
-  }
-
-  const markSwitching = () => {
-    window.clearTimeout(switchingTimer)
-    root.classList.remove('is-mode-switching')
-    void root.offsetWidth
-    root.classList.add('is-mode-switching')
-    switchingTimer = window.setTimeout(() => {
-      root.classList.remove('is-mode-switching')
-    }, SWITCH_CLASS_DURATION)
   }
 
   const updateIndicator = ({ initial = false } = {}) => {
@@ -133,7 +121,6 @@ function setupMotion(root, tabs) {
 
     setDirection(nextIndex)
     activeIndex = nextIndex
-    markSwitching()
     updateIndicator()
     animateNarrative()
   })
@@ -168,11 +155,9 @@ function setupMotion(root, tabs) {
     window.removeEventListener('resize', updateIndicator)
     if (indicatorFrame) window.cancelAnimationFrame(indicatorFrame)
     if (readyFrame) window.cancelAnimationFrame(readyFrame)
-    window.clearTimeout(switchingTimer)
     tabs.classList.remove('tabs-ready')
     tabs.style.removeProperty('--tab-indicator-x')
     tabs.style.removeProperty('--tab-indicator-width')
-    root.classList.remove('is-mode-switching')
     delete root.dataset.motionReady
     delete root.dataset.switchDirection
   }
