@@ -8,24 +8,38 @@ export function installInterfaceMotion() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
 
   let mountFrame = null
+  let waitingObserver = null
   let disposeMotion = null
+
+  const attachToTabs = (root) => {
+    const tabs = root.querySelector(TAB_SELECTOR)
+    if (!tabs) return false
+
+    waitingObserver?.disconnect()
+    waitingObserver = null
+    disposeMotion = setupMotion(root, tabs)
+    return true
+  }
 
   const attach = () => {
     const root = document.querySelector(ROOT_SELECTOR)
-    const tabs = root?.querySelector(TAB_SELECTOR)
 
-    if (!root || !tabs) {
+    if (!root) {
       mountFrame = window.requestAnimationFrame(attach)
       return
     }
 
-    disposeMotion = setupMotion(root, tabs)
+    if (attachToTabs(root)) return
+
+    waitingObserver = new MutationObserver(() => attachToTabs(root))
+    waitingObserver.observe(root, { childList: true, subtree: true })
   }
 
   mountFrame = window.requestAnimationFrame(attach)
 
   return () => {
     if (mountFrame) window.cancelAnimationFrame(mountFrame)
+    waitingObserver?.disconnect()
     disposeMotion?.()
   }
 }
@@ -97,13 +111,14 @@ function setupMotion(root, tabs) {
           duration: index === 0 ? 360 : 420,
           delay: index * 28,
           easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-          fill: 'both',
         },
       )
     })
   }
 
   const handleTabClick = (event) => {
+    if (!(event.target instanceof Element)) return
+
     const button = event.target.closest('button')
     if (!button || !tabs.contains(button)) return
 
