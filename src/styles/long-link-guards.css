@@ -1,0 +1,90 @@
+/* 防止超长 URL、Scheme 和编码后的分享链接撑破页面。 */
+html,
+body,
+#app {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.app-shell,
+.app-shell .workspace,
+.app-shell .content-card,
+.app-shell .url-input-panel,
+.app-shell .field-group,
+.app-shell .input-row,
+.app-shell .input-wrap,
+.app-shell .preview-card,
+.app-shell .recent-section,
+.app-shell .recent-list,
+.app-shell .history-view,
+.app-shell .history-panel,
+.app-shell .history-list,
+.app-shell .history-item,
+.app-shell .history-main,
+.app-shell .history-content,
+.app-shell .redirect-panel,
+.app-shell .redirect-copy {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.app-shell .content-card,
+.app-shell .preview-card,
+.app-shell .recent-item,
+.app-shell .history-item,
+.app-shell .redirect-panel {
+  overflow: hidden;
+}
+
+.app-shell .text-input,
+.app-shell .search-input,
+.app-shell .preview-url,
+.app-shell .recent-url,
+.app-shell .history-content strong,
+.app-shell .origin-link {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 生成结果保留足够上下文，但最多占两行。 */
+.app-shell .preview-url {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  text-overflow: clip;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* 列表项保持紧凑，用省略号截断连续长字符串。 */
+.app-shell .recent-item,
+.app-shell .history-main {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-shell .recent-url,
+.app-shell .history-content strong,
+.app-shell .origin-link {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .history-content > span {
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .app-shell .preview-url {
+    -webkit-line-clamp: 3;
+  }
+}
