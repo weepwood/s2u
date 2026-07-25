@@ -29,7 +29,6 @@
 
     <section class="workspace" aria-label="链接转换工作区">
       <div class="workspace-head">
-
         <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式">
           <button
             id="create-tab"
