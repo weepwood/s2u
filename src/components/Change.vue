@@ -27,28 +27,8 @@
       </div>
     </header>
 
-    <section class="workspace" aria-labelledby="page-title">
+    <section class="workspace" aria-label="链接转换工作区">
       <div class="workspace-head">
-        <div class="eyebrow">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>{{ showCloseMsg ? 'Redirecting' : isShowHistory ? `${history.length} saved links` : 'Private · Local first' }}</span>
-        </div>
-
-        <h1 id="page-title">
-          <template v-if="showCloseMsg">正在打开目标链接</template>
-          <template v-else-if="isShowHistory">管理你的跳转历史</template>
-          <template v-else>把任意链接变成<br /><span>可分享的跳转入口</span></template>
-        </h1>
-
-        <p v-if="!showCloseMsg" class="hero-description">
-          <template v-if="isShowHistory">
-            搜索、重新打开或同步曾经创建过的链接，所有记录默认只保存在当前浏览器。
-          </template>
-          <template v-else>
-            支持普通网址与 <code>weixin://</code> 等 URL Scheme。生成后即可复制、分享，并在需要时直接唤起对应应用。
-          </template>
-        </p>
-
         <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式">
           <button
             id="create-tab"
@@ -147,14 +127,16 @@
           />
         </Transition>
       </div>
-
-      <footer class="workspace-footer">
-        <span>快捷键</span>
-        <kbd>Ctrl / ⌘</kbd><span>+</span><kbd>Enter</kbd><span>复制</span>
-        <span class="divider" aria-hidden="true"></span>
-        <kbd>H</kbd><span>切换历史</span>
-      </footer>
     </section>
+
+    <footer class="workspace-footer" aria-label="快捷键提示">
+      <span class="shortcut-label">快捷键</span>
+      <span class="shortcut-group">
+        <kbd>Ctrl / ⌘</kbd><span>+</span><kbd>Enter</kbd><span>复制</span>
+      </span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="shortcut-group"><kbd>H</kbd><span>切换历史</span></span>
+    </footer>
 
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
