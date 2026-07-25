@@ -1,6 +1,7 @@
 const MAX_TARGET_LENGTH = 4096
 const PROTOCOL_PATTERN = /^([a-zA-Z][a-zA-Z0-9+.-]*):/
 const HOST_WITHOUT_PROTOCOL_PATTERN = /^(?:localhost|(?:\d{1,3}\.){3}\d{1,3}|\[[0-9a-f:]+\])(?::\d+)?(?:[/?#]|$)/i
+const DOMAIN_WITH_PORT_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+:\d+(?:[/?#]|$)/i
 const BLOCKED_PROTOCOLS = new Set(['javascript:', 'data:', 'vbscript:', 'file:', 'blob:'])
 
 export function normalizeTarget(input) {
@@ -11,7 +12,7 @@ export function normalizeTarget(input) {
   if (target.length > MAX_TARGET_LENGTH) return invalid('目标地址过长，请缩短后重试')
   if (hasControlCharacters(target)) return invalid('目标地址包含无效控制字符')
 
-  if (HOST_WITHOUT_PROTOCOL_PATTERN.test(target)) {
+  if (HOST_WITHOUT_PROTOCOL_PATTERN.test(target) || DOMAIN_WITH_PORT_PATTERN.test(target)) {
     return normalizeHttpUrl(`https://${target}`)
   }
 
