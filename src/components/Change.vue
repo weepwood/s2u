@@ -29,19 +29,6 @@
 
     <section class="workspace" aria-label="链接转换工作区">
       <div class="workspace-head">
-        <div class="eyebrow">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>{{ showCloseMsg ? 'Redirecting' : isShowHistory ? `${history.length} saved links` : 'Private · Local first' }}</span>
-        </div>
-
-        <p v-if="!showCloseMsg" class="hero-description">
-          <template v-if="isShowHistory">
-            搜索、重新打开或同步曾经创建过的链接，所有记录默认只保存在当前浏览器。
-          </template>
-          <template v-else>
-            支持普通网址与 <code>weixin://</code> 等 URL Scheme。生成后即可复制、分享，并在需要时直接唤起对应应用。
-          </template>
-        </p>
 
         <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式">
           <button

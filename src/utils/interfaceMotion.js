@@ -1,7 +1,6 @@
 const ROOT_SELECTOR = '.app-shell'
 const TAB_SELECTOR = '.mode-tabs'
 const ACTIVE_TAB_SELECTOR = 'button.active'
-const NARRATIVE_SELECTOR = '.hero-description'
 
 export function installInterfaceMotion() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
@@ -76,34 +75,6 @@ function setupMotion(root, tabs) {
     })
   }
 
-  const animateNarrative = () => {
-    if (reducedMotion.matches) return
-
-    const direction = root.dataset.switchDirection === 'backward' ? -1 : 1
-    root.querySelectorAll(NARRATIVE_SELECTOR).forEach((element, index) => {
-      element.getAnimations().forEach((animation) => animation.cancel())
-      element.animate(
-        [
-          {
-            opacity: 0.25,
-            transform: `translate3d(${direction * 10}px, 4px, 0)`,
-            filter: 'blur(3px)',
-          },
-          {
-            opacity: 1,
-            transform: 'translate3d(0, 0, 0)',
-            filter: 'blur(0)',
-          },
-        ],
-        {
-          duration: index === 0 ? 360 : 420,
-          delay: index * 28,
-          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-        },
-      )
-    })
-  }
-
   const handleTabClick = (event) => {
     if (!(event.target instanceof Element)) return
 
@@ -122,7 +93,6 @@ function setupMotion(root, tabs) {
     setDirection(nextIndex)
     activeIndex = nextIndex
     updateIndicator()
-    animateNarrative()
   })
 
   observer.observe(tabs, {

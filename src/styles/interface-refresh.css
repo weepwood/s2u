@@ -131,37 +131,6 @@
   animation: s2u-heading-arrive 560ms 70ms var(--motion-gentle) both;
 }
 
-.app-shell .eyebrow {
-  margin-bottom: 9px;
-  gap: 7px;
-  font-size: 9px;
-  letter-spacing: 0.11em;
-  opacity: 0.78;
-}
-
-.app-shell .status-dot {
-  width: 6px;
-  height: 6px;
-  box-shadow: 0 0 0 4px rgba(47, 157, 105, 0.1);
-}
-
-.app-shell .workspace-head h1 {
-  min-height: 82px;
-  font-size: clamp(28px, 4.5vw, 38px);
-  line-height: 1.08;
-  letter-spacing: -0.045em;
-  transition: color 220ms ease;
-}
-
-.app-shell .hero-description {
-  min-height: 42px;
-  max-width: 560px;
-  margin-top: 10px;
-  font-size: 13px;
-  line-height: 1.62;
-  color: var(--card-text-muted);
-}
-
 /* 标签使用连续滑动的实体指示器，而不是两个背景互相闪烁。 */
 .app-shell .mode-tabs {
   position: relative;
@@ -429,17 +398,6 @@
 @media (max-width: 640px) {
   .app-shell .workspace {
     margin-top: 34px;
-  }
-
-  .app-shell .workspace-head h1 {
-    min-height: 76px;
-    font-size: clamp(27px, 9vw, 35px);
-  }
-
-  .app-shell .hero-description {
-    min-height: 0;
-    margin-top: 8px;
-    font-size: 12px;
   }
 
   .app-shell .content-card {
