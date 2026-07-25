@@ -43,7 +43,6 @@ export function installInterfaceMotion() {
 }
 
 function setupMotion(root, tabs) {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   let activeIndex = getActiveIndex(tabs)
   let indicatorFrame = null
   let readyFrame = null
