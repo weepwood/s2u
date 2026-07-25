@@ -280,6 +280,7 @@ export function useCloudSync() {
 }
 
 function clonePayload(data) {
-  if (typeof structuredClone === 'function') return structuredClone(data)
+  const clone = globalThis.structuredClone
+  if (typeof clone === 'function') return clone(data)
   return JSON.parse(JSON.stringify(data))
 }
