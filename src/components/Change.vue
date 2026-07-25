@@ -239,7 +239,13 @@ const toUrl = computed(() => {
 })
 
 const recentLinks = computed(() =>
-  history.value.slice(0, 20).map((item) => encodeShareLink(origin, item.scheme)),
+  history.value.slice(0, 20).flatMap((item) => {
+    try {
+      return [encodeShareLink(origin, item.scheme)]
+    } catch {
+      return []
+    }
+  }),
 )
 
 const filteredHistory = computed(() => filterHistory())
@@ -391,20 +397,30 @@ function autoSync() {
 async function syncGist({ silent = false } = {}) {
   if (!cloudToken.value || !cloudGistId.value) return false
 
-  const remote = await pullFromGist()
-  if (remote) mergeHistory(remote)
-  notifyStorageError()
-  await pushToGist(historySnapshot())
+  try {
+    const remote = await pullFromGist()
+    if (remote === null) {
+      if (!silent) showToast(syncError.value || '同步失败', 'error', 4000)
+      return false
+    }
 
-  if (!silent) showToast('历史记录已同步', 'success')
-  return true
+    mergeHistory(remote)
+    notifyStorageError()
+    await pushToGist(historySnapshot())
+
+    if (!silent) showToast('历史记录已同步', 'success')
+    return true
+  } catch (error) {
+    if (!silent) showToast(syncError.value || error.message || '同步失败', 'error', 4000)
+    return false
+  }
 }
 
 async function connectGist() {
   try {
     await connect(historySnapshot())
-    await syncGist({ silent: true })
-    showToast('已连接 GitHub Gist', 'success')
+    const synced = await syncGist({ silent: true })
+    if (synced) showToast('已连接 GitHub Gist', 'success')
   } catch {
     // 错误状态由 composable 维护。
   }
@@ -450,6 +466,12 @@ function handleKeydown(event) {
 onMounted(() => {
   loadHistory()
   notifyStorageError()
+
+  try {
+    localStorage.removeItem('url_list')
+  } catch {
+    // 忽略无法清理的旧缓存。
+  }
 
   if (loadConfig()) {
     syncGist({ silent: true }).catch(() => {})
