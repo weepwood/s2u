@@ -53,6 +53,7 @@ test('删除记录会生成同步删除标记', () => {
 })
 
 test('远端删除标记可以删除本地旧记录', () => {
+  const now = Date.now()
   const store = useHistory()
   store.load()
   store.merge({
@@ -62,8 +63,8 @@ test('远端删除标记可以删除本地旧记录', () => {
       {
         scheme: 'https://example.com/',
         count: 1,
-        recently: 1000,
-        updatedAt: 1000,
+        recently: now - 1000,
+        updatedAt: now - 1000,
       },
     ],
     tombstones: [],
@@ -73,11 +74,11 @@ test('远端删除标记可以删除本地旧记录', () => {
     format: 's2u-history',
     version: 2,
     records: [],
-    tombstones: [{ scheme: 'https://example.com/', deletedAt: 2000 }],
+    tombstones: [{ scheme: 'https://example.com/', deletedAt: now }],
   })
 
   assert.equal(store.history.value.length, 0)
-  assert.equal(store.tombstones.value[0].deletedAt, 2000)
+  assert.equal(store.tombstones.value[0].deletedAt, now)
 })
 
 test('删除后重新使用链接会以更新记录覆盖旧删除标记', () => {
@@ -87,7 +88,7 @@ test('删除后重新使用链接会以更新记录覆盖旧删除标记', () =>
     format: 's2u-history',
     version: 2,
     records: [],
-    tombstones: [{ scheme: 'weixin://open', deletedAt: 1 }],
+    tombstones: [{ scheme: 'weixin://open', deletedAt: Date.now() - 1 }],
   })
 
   assert.equal(store.add('weixin://open'), true)
