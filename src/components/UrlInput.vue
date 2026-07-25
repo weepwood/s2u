@@ -33,7 +33,7 @@
             spellcheck="false"
             :aria-invalid="Boolean(urlError)"
             :aria-describedby="urlError ? 'url-error' : 'url-help'"
-            @keydown.enter="emitCopy"
+            @keydown.enter="handleEnter"
             @input="emitError('')"
           />
           <button
@@ -79,7 +79,7 @@
       </p>
     </div>
 
-    <div v-if="urlValue && !urlError" class="preview-card">
+    <div v-if="urlValue && !urlError && shareUrl" class="preview-card">
       <div class="preview-head">
         <div>
           <span class="preview-label">生成结果</span>
@@ -88,15 +88,15 @@
             可以分享
           </span>
         </div>
-        <button type="button" class="preview-open" @click="$emit('goto', toUrl)">
+        <button type="button" class="preview-open" @click="$emit('goto', shareUrl)">
           打开测试
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
       </div>
-      <button type="button" class="preview-url" :title="safeDecode(toUrl)" @click="$emit('goto', toUrl)">
-        {{ safeDecode(toUrl) }}
+      <button type="button" class="preview-url" :title="safeDecode(shareUrl)" @click="$emit('goto', shareUrl)">
+        {{ safeDecode(shareUrl) }}
       </button>
     </div>
 
@@ -135,13 +135,12 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 const props = defineProps({
   url: { type: String, default: '' },
   urlList: { type: Array, default: () => [] },
+  shareUrl: { type: String, default: '' },
   copyText: { type: String, default: 'Copy' },
   urlError: { type: String, default: '' },
-  origin: { type: String, required: true },
 })
 
 const emit = defineEmits(['update:url', 'copy', 'goto', 'update:urlError'])
-
 const urlInput = ref(null)
 
 const urlValue = computed({
@@ -149,7 +148,6 @@ const urlValue = computed({
   set: (value) => emit('update:url', value),
 })
 
-const toUrl = computed(() => encodeURI(props.origin + '/#' + props.url))
 const recentUrls = computed(() => props.urlList.slice(0, 6))
 
 const buttonLabel = computed(() => {
@@ -166,6 +164,11 @@ function emitCopy() {
   emit('copy')
 }
 
+function handleEnter(event) {
+  if (event.isComposing) return
+  emitCopy()
+}
+
 function clearInput() {
   emit('update:url', '')
   emitError('')
@@ -174,428 +177,17 @@ function clearInput() {
 
 function safeDecode(value) {
   try {
-    return decodeURI(value)
+    return decodeURIComponent(value)
   } catch {
     return value
   }
 }
 
 onMounted(() => {
-  urlInput.value?.focus()
+  if (window.matchMedia('(pointer: fine)').matches) {
+    urlInput.value?.focus()
+  }
 })
 </script>
 
-<style scoped>
-.url-input-panel {
-  display: grid;
-  gap: 26px;
-}
-
-.section-heading,
-.recent-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.section-kicker,
-.preview-label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--card-text-muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.section-heading h2,
-.recent-head h3 {
-  margin: 0;
-  color: var(--card-text);
-  letter-spacing: -0.025em;
-}
-
-.section-heading h2 {
-  font-size: 21px;
-}
-
-.recent-head h3 {
-  font-size: 16px;
-}
-
-.privacy-badge {
-  min-height: 30px;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: var(--surface-soft);
-  color: var(--card-text-muted);
-  font-size: 11px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.privacy-badge svg {
-  width: 14px;
-  height: 14px;
-  color: var(--success);
-}
-
-.field-group {
-  display: grid;
-  gap: 9px;
-}
-
-.field-group > label {
-  color: var(--card-text-soft);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.input-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-}
-
-.input-wrap {
-  min-width: 0;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--hairline);
-  border-radius: 14px;
-  background: var(--surface-elevated);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-
-.input-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
-}
-
-.input-wrap.error {
-  border-color: var(--danger);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 10%, transparent);
-}
-
-.input-icon {
-  width: 44px;
-  display: grid;
-  place-items: center;
-  color: var(--card-text-muted);
-  flex: 0 0 auto;
-}
-
-.input-wrap:focus-within .input-icon,
-.input-wrap.filled .input-icon {
-  color: var(--accent);
-}
-
-.input-icon svg {
-  width: 19px;
-  height: 19px;
-}
-
-.text-input {
-  min-width: 0;
-  flex: 1;
-  height: 100%;
-  padding: 0 4px 0 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--card-text);
-  font: inherit;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-}
-
-.text-input::placeholder {
-  color: var(--card-text-muted);
-  font-family: 'Inter', sans-serif;
-}
-
-.input-clear {
-  width: 38px;
-  height: 38px;
-  margin-right: 6px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--card-text-muted);
-  cursor: pointer;
-}
-
-.input-clear:hover {
-  background: var(--surface-soft);
-  color: var(--card-text);
-}
-
-.input-clear svg {
-  width: 16px;
-  height: 16px;
-}
-
-.copy-btn {
-  min-width: 126px;
-  height: 52px;
-  padding: 0 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--accent);
-  color: #ffffff;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 750;
-  cursor: pointer;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 28%, transparent);
-  transition: transform 0.16s ease, background 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
-}
-
-.copy-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  background: var(--accent-hover);
-  box-shadow: 0 14px 28px color-mix(in srgb, var(--accent) 32%, transparent);
-}
-
-.copy-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.copy-btn:disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.copy-btn.copied {
-  background: var(--success);
-}
-
-.copy-btn.failed {
-  background: var(--danger);
-}
-
-.copy-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.field-message {
-  min-height: 18px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--card-text-muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.field-message kbd {
-  padding: 1px 4px;
-  border: 1px solid var(--hairline);
-  border-radius: 4px;
-  color: var(--card-text-soft);
-  font: inherit;
-  font-weight: 650;
-}
-
-.error-message {
-  color: var(--danger);
-}
-
-.error-message svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-
-.preview-card {
-  padding: 15px;
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
-  background:
-    linear-gradient(135deg, var(--accent-soft), transparent 52%),
-    var(--surface-soft);
-}
-
-.preview-head {
-  margin-bottom: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.preview-head > div {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.preview-label {
-  margin: 0;
-}
-
-.preview-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--success);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.preview-state > span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.preview-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.preview-open:hover {
-  text-decoration: underline;
-}
-
-.preview-open svg {
-  width: 14px;
-  height: 14px;
-}
-
-.preview-url {
-  width: 100%;
-  padding: 0;
-  overflow: hidden;
-  border: 0;
-  background: transparent;
-  color: var(--card-text);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.recent-section {
-  padding-top: 4px;
-  display: grid;
-  gap: 12px;
-}
-
-.recent-head {
-  align-items: flex-end;
-}
-
-.recent-head > span {
-  color: var(--card-text-muted);
-  font-size: 11px;
-}
-
-.recent-list {
-  display: grid;
-  gap: 6px;
-}
-
-.recent-item {
-  width: 100%;
-  min-height: 45px;
-  padding: 0 12px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 11px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: var(--surface-soft);
-  color: var(--card-text);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
-}
-
-.recent-item:hover {
-  border-color: var(--hairline);
-  background: var(--surface-hover);
-  transform: translateX(2px);
-}
-
-.recent-index {
-  color: var(--card-text-muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-}
-
-.recent-url {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--card-text-soft);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.recent-item > svg {
-  width: 15px;
-  height: 15px;
-  color: var(--card-text-muted);
-}
-
-.recent-item:hover > svg {
-  color: var(--accent);
-}
-
-@media (max-width: 640px) {
-  .url-input-panel {
-    gap: 22px;
-  }
-
-  .input-row {
-    grid-template-columns: 1fr;
-  }
-
-  .copy-btn {
-    width: 100%;
-  }
-
-  .field-message {
-    align-items: flex-start;
-  }
-
-  .field-message kbd {
-    display: none;
-  }
-
-  .privacy-badge {
-    display: none;
-  }
-}
-</style>
+<style scoped src="../styles/url-input.css"></style>
