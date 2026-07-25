@@ -1,8 +1,11 @@
 import { ref } from 'vue'
 
-const CONFIG_KEY = 'cloud_config'
+const LEGACY_CONFIG_KEY = 'cloud_config'
+const GIST_ID_KEY = 'cloud_gist_id'
+const TOKEN_SESSION_KEY = 'cloud_token_session'
 const GIST_FILENAME = 'scheme-history.json'
 const API_BASE = 'https://api.github.com'
+const REQUEST_TIMEOUT = 12000
 
 export function useCloudSync() {
   const cloudToken = ref('')
@@ -10,136 +13,178 @@ export function useCloudSync() {
   const syncStatus = ref('') // '' | 'connecting' | 'connected' | 'error'
   const syncError = ref('')
   const lastSyncTime = ref(null)
+
   let syncTimer = null
+  let pushPromise = null
+  let pendingPayload = null
+  const activeControllers = new Set()
 
   function loadConfig() {
+    migrateLegacyConfig()
+
     try {
-      const raw = localStorage.getItem(CONFIG_KEY)
-      if (raw) {
-        const cfg = JSON.parse(raw)
-        cloudToken.value = cfg.token || ''
-        cloudGistId.value = cfg.gistId || ''
-        if (cloudToken.value && cloudGistId.value) {
-          syncStatus.value = 'connected'
-          return true
-        }
-      }
+      cloudToken.value = sessionStorage.getItem(TOKEN_SESSION_KEY) || ''
+      cloudGistId.value = localStorage.getItem(GIST_ID_KEY) || ''
     } catch {
-      /* ignore */
+      cloudToken.value = ''
+      cloudGistId.value = ''
     }
+
+    if (cloudToken.value && cloudGistId.value) {
+      syncStatus.value = 'connected'
+      return true
+    }
+
+    syncStatus.value = ''
     return false
   }
 
   function saveConfig() {
-    localStorage.setItem(
-      CONFIG_KEY,
-      JSON.stringify({ token: cloudToken.value, gistId: cloudGistId.value })
-    )
+    try {
+      sessionStorage.setItem(TOKEN_SESSION_KEY, cloudToken.value)
+      localStorage.setItem(GIST_ID_KEY, cloudGistId.value)
+      localStorage.removeItem(LEGACY_CONFIG_KEY)
+      return true
+    } catch {
+      syncStatus.value = 'error'
+      syncError.value = '浏览器无法保存同步配置'
+      return false
+    }
   }
 
   async function connect(historyData) {
     const token = cloudToken.value.trim()
-    if (!token) return
+    if (!token) throw new Error('请输入 GitHub Token')
+
     syncStatus.value = 'connecting'
     syncError.value = ''
-    try {
-      const userRes = await fetch(`${API_BASE}/user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!userRes.ok) throw new Error('Token 无效或已过期')
 
-      let gistId = cloudGistId.value
+    try {
+      await githubRequest('/user', { token })
+
+      let gistId = cloudGistId.value.trim()
       if (!gistId) {
-        const createRes = await fetch(`${API_BASE}/gists`, {
+        const gist = await githubRequest('/gists', {
+          token,
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+          body: {
             description: 'Scheme to URL - History Sync',
             public: false,
             files: {
               [GIST_FILENAME]: { content: JSON.stringify(historyData, null, 2) },
             },
-          }),
+          },
         })
-        if (!createRes.ok) throw new Error('Gist 创建失败')
-        const gist = await createRes.json()
         gistId = gist.id
       }
 
+      cloudToken.value = token
       cloudGistId.value = gistId
-      saveConfig()
+      if (!saveConfig()) throw new Error(syncError.value)
+
       syncStatus.value = 'connected'
+      syncError.value = ''
       lastSyncTime.value = Date.now()
-    } catch (e) {
-      syncStatus.value = 'error'
-      syncError.value = e.message || '连接失败'
-      throw e
+      return gistId
+    } catch (error) {
+      setSyncError(error, '连接失败')
+      throw error
     }
   }
 
   function disconnect() {
+    cleanup()
     cloudToken.value = ''
     cloudGistId.value = ''
     syncStatus.value = ''
     syncError.value = ''
     lastSyncTime.value = null
-    localStorage.removeItem(CONFIG_KEY)
+
+    try {
+      sessionStorage.removeItem(TOKEN_SESSION_KEY)
+      localStorage.removeItem(GIST_ID_KEY)
+      localStorage.removeItem(LEGACY_CONFIG_KEY)
+    } catch {
+      // 存储不可用时，内存状态仍然已经清除。
+    }
   }
 
-  async function pushToGist(data) {
-    if (!cloudToken.value || !cloudGistId.value) return
-    try {
-      const res = await fetch(`${API_BASE}/gists/${cloudGistId.value}`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${cloudToken.value}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          files: {
-            [GIST_FILENAME]: { content: JSON.stringify(data, null, 2) },
-          },
-        }),
+  function pushToGist(data) {
+    if (!cloudToken.value || !cloudGistId.value) return Promise.resolve(false)
+
+    pendingPayload = clonePayload(data)
+    if (!pushPromise) {
+      pushPromise = drainPushQueue().finally(() => {
+        pushPromise = null
       })
-      if (!res.ok) throw new Error('同步失败')
-      syncStatus.value = 'connected'
-      lastSyncTime.value = Date.now()
-    } catch (e) {
-      syncStatus.value = 'error'
-      syncError.value = e.message || '同步失败'
     }
+
+    return pushPromise
+  }
+
+  async function drainPushQueue() {
+    let pushed = false
+
+    while (pendingPayload) {
+      const payload = pendingPayload
+      pendingPayload = null
+
+      try {
+        await githubRequest(`/gists/${encodeURIComponent(cloudGistId.value)}`, {
+          token: cloudToken.value,
+          method: 'PATCH',
+          body: {
+            files: {
+              [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+            },
+          },
+        })
+        pushed = true
+        syncStatus.value = 'connected'
+        syncError.value = ''
+        lastSyncTime.value = Date.now()
+      } catch (error) {
+        pendingPayload = null
+        setSyncError(error, '同步失败')
+        throw error
+      }
+    }
+
+    return pushed
   }
 
   async function pullFromGist() {
     if (!cloudToken.value || !cloudGistId.value) return null
+
     try {
-      const res = await fetch(`${API_BASE}/gists/${cloudGistId.value}`, {
-        headers: { Authorization: `Bearer ${cloudToken.value}` },
+      const gist = await githubRequest(`/gists/${encodeURIComponent(cloudGistId.value)}`, {
+        token: cloudToken.value,
       })
-      if (!res.ok) throw new Error('拉取失败')
-      const gist = await res.json()
       const remoteContent = gist.files?.[GIST_FILENAME]?.content
-      if (remoteContent) {
-        const remote = JSON.parse(remoteContent)
-        syncStatus.value = 'connected'
-        lastSyncTime.value = Date.now()
-        return remote
-      }
-    } catch (e) {
-      syncStatus.value = 'error'
-      syncError.value = e.message || '拉取失败'
+      if (!remoteContent) throw new Error(`Gist 中缺少 ${GIST_FILENAME}`)
+
+      const remote = JSON.parse(remoteContent)
+      syncStatus.value = 'connected'
+      syncError.value = ''
+      lastSyncTime.value = Date.now()
+      return remote
+    } catch (error) {
+      setSyncError(error, '拉取失败')
+      return null
     }
-    return null
   }
 
-  function scheduleAutoSync(data, delay = 2000) {
-    if (!cloudToken.value || !cloudGistId.value) return
+  function scheduleAutoSync(task, delay = 2000) {
+    if (!cloudToken.value || !cloudGistId.value || typeof task !== 'function') return
     if (syncTimer) clearTimeout(syncTimer)
-    syncTimer = setTimeout(() => {
-      pushToGist(data)
+
+    syncTimer = setTimeout(async () => {
+      syncTimer = null
+      try {
+        await task()
+      } catch {
+        // 同步状态和错误信息由 composable 维护。
+      }
     }, delay)
   }
 
@@ -148,11 +193,93 @@ export function useCloudSync() {
       clearTimeout(syncTimer)
       syncTimer = null
     }
+
+    pendingPayload = null
+    for (const controller of activeControllers) controller.abort()
+    activeControllers.clear()
+  }
+
+  async function githubRequest(path, { token, method = 'GET', body } = {}) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+    activeControllers.add(controller)
+
+    try {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method,
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      })
+
+      if (!response.ok) {
+        let detail = ''
+        try {
+          const errorBody = await response.json()
+          detail = errorBody.message ? `：${errorBody.message}` : ''
+        } catch {
+          // 非 JSON 错误响应使用状态码信息。
+        }
+        throw new Error(`GitHub API 请求失败（${response.status}）${detail}`)
+      }
+
+      if (response.status === 204) return null
+      return response.json()
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('GitHub API 请求超时')
+      throw error
+    } finally {
+      clearTimeout(timeout)
+      activeControllers.delete(controller)
+    }
+  }
+
+  function migrateLegacyConfig() {
+    try {
+      const raw = localStorage.getItem(LEGACY_CONFIG_KEY)
+      if (!raw) return
+
+      const config = JSON.parse(raw)
+      if (config?.token) sessionStorage.setItem(TOKEN_SESSION_KEY, config.token)
+      if (config?.gistId) localStorage.setItem(GIST_ID_KEY, config.gistId)
+      localStorage.removeItem(LEGACY_CONFIG_KEY)
+    } catch {
+      try {
+        localStorage.removeItem(LEGACY_CONFIG_KEY)
+      } catch {
+        // 忽略不可用的浏览器存储。
+      }
+    }
+  }
+
+  function setSyncError(error, fallback) {
+    syncStatus.value = 'error'
+    syncError.value = error?.message || fallback
   }
 
   return {
-    cloudToken, cloudGistId, syncStatus, syncError, lastSyncTime,
-    loadConfig, saveConfig, connect, disconnect, pushToGist, pullFromGist,
-    scheduleAutoSync, cleanup,
+    cloudToken,
+    cloudGistId,
+    syncStatus,
+    syncError,
+    lastSyncTime,
+    loadConfig,
+    saveConfig,
+    connect,
+    disconnect,
+    pushToGist,
+    pullFromGist,
+    scheduleAutoSync,
+    cleanup,
   }
+}
+
+function clonePayload(data) {
+  if (typeof structuredClone === 'function') return structuredClone(data)
+  return JSON.parse(JSON.stringify(data))
 }
