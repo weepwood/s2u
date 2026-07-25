@@ -1,7 +1,7 @@
 const ROOT_SELECTOR = '.app-shell'
 const TAB_SELECTOR = '.mode-tabs'
 const ACTIVE_TAB_SELECTOR = 'button.active'
-const NARRATIVE_SELECTOR = '#page-title, .hero-description'
+const NARRATIVE_SELECTOR = '.hero-description'
 
 export function installInterfaceMotion() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
