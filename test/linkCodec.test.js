@@ -16,6 +16,14 @@ test('普通域名自动补全 https', () => {
   assert.equal(result.target, 'https://example.com/path?q=1')
 })
 
+test('带端口域名不会被误判为自定义 Scheme', () => {
+  const result = normalizeTarget('example.com:8080/path')
+
+  assert.equal(result.ok, true)
+  assert.equal(result.target, 'https://example.com:8080/path')
+  assert.equal(result.protocol, 'https:')
+})
+
 test('允许常见自定义 URL Scheme', () => {
   const result = normalizeTarget('weixin://open?scene=1')
 
