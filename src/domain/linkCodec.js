@@ -9,7 +9,7 @@ export function normalizeTarget(input) {
   const target = input.trim()
   if (!target) return invalid('请输入目标地址')
   if (target.length > MAX_TARGET_LENGTH) return invalid('目标地址过长，请缩短后重试')
-  if (/[\u0000-\u001f\u007f]/.test(target)) return invalid('目标地址包含无效控制字符')
+  if (hasControlCharacters(target)) return invalid('目标地址包含无效控制字符')
 
   if (HOST_WITHOUT_PROTOCOL_PATTERN.test(target)) {
     return normalizeHttpUrl(`https://${target}`)
@@ -30,11 +30,7 @@ export function normalizeTarget(input) {
     return { ok: true, target, protocol }
   }
 
-  try {
-    return normalizeHttpUrl(`https://${target}`)
-  } catch {
-    return invalid('请输入有效的 URL、域名或 URL Scheme')
-  }
+  return normalizeHttpUrl(`https://${target}`)
 }
 
 export function validateTarget(input) {
@@ -80,9 +76,13 @@ export function getAppBaseUrl(currentHref = globalThis.location?.href ?? 'http:/
 }
 
 function normalizeHttpUrl(value) {
-  const url = new URL(value)
-  if (!url.hostname) return invalid('请输入包含有效域名或主机名的网址')
-  return { ok: true, target: url.toString(), protocol: url.protocol }
+  try {
+    const url = new URL(value)
+    if (!url.hostname) return invalid('请输入包含有效域名或主机名的网址')
+    return { ok: true, target: url.toString(), protocol: url.protocol }
+  } catch {
+    return invalid('请输入有效的 URL、域名或 URL Scheme')
+  }
 }
 
 function normalizeBaseUrl(value) {
@@ -90,6 +90,14 @@ function normalizeBaseUrl(value) {
   url.search = ''
   url.hash = ''
   return url.toString().replace(/\/+$/, '')
+}
+
+function hasControlCharacters(value) {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index)
+    if (code <= 31 || code === 127) return true
+  }
+  return false
 }
 
 function invalid(error) {
