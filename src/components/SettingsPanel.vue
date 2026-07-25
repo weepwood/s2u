@@ -9,7 +9,7 @@
       </span>
       <div>
         <h3 id="sync-title">GitHub Gist 同步</h3>
-        <p>在多个设备之间合并历史记录。Token 仅保存在当前浏览器。</p>
+        <p>在多个设备之间合并历史记录。Token 仅保存在当前标签页会话。</p>
       </div>
       <span class="sync-status" :class="syncStatus || 'idle'">
         <span aria-hidden="true"></span>
@@ -43,7 +43,7 @@
         />
       </div>
       <p v-if="syncStatus === 'error'" class="sync-error" role="alert">{{ syncError || '连接失败，请检查 Token 权限。' }}</p>
-      <p v-else class="field-help">需要具备 Gist 读写权限；请勿在公共设备保存 Token。</p>
+      <p v-else class="field-help">需要具备 Gist 读写权限；关闭当前标签页后需要重新输入 Token。</p>
     </div>
 
     <div class="settings-actions">
@@ -60,7 +60,7 @@
         {{ syncStatus === 'connecting' ? '正在连接…' : '连接 Gist' }}
       </button>
       <template v-else>
-        <button type="button" class="primary-action" @click="$emit('connect')">
+        <button type="button" class="primary-action" @click="$emit('sync')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M20 7v5h-5M4 17v-5h5M6.1 8.2A7 7 0 0 1 18.7 10M17.9 15.8A7 7 0 0 1 5.3 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -102,6 +102,14 @@ const props = defineProps({
 
 defineEmits(['update:cloudToken', 'connect', 'disconnect', 'sync'])
 
+const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
 const statusLabel = computed(() => {
   if (props.syncStatus === 'connected') return '已连接'
   if (props.syncStatus === 'connecting') return '连接中'
@@ -110,13 +118,7 @@ const statusLabel = computed(() => {
 })
 
 function formatDate(timestamp) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(timestamp))
+  return dateFormatter.format(new Date(timestamp))
 }
 </script>
 
