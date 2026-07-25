@@ -4,8 +4,8 @@
       v-if="visible"
       class="toast"
       :class="type"
-      role="status"
-      aria-live="polite"
+      :role="type === 'error' ? 'alert' : 'status'"
+      :aria-live="type === 'error' ? 'assertive' : 'polite'"
       aria-atomic="true"
     >
       <span class="toast-icon" aria-hidden="true">
@@ -52,7 +52,7 @@ watch(
       visible.value = false
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 onBeforeUnmount(() => {

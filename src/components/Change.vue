@@ -1,10 +1,10 @@
 <template>
-  <main class="app-shell" :class="{ dark: darkMode }" @keydown="handleKeydown" tabindex="-1">
+  <main class="app-shell" :class="{ dark: darkMode }" tabindex="-1" @keydown="handleKeydown">
     <div class="ambient ambient-one" aria-hidden="true"></div>
     <div class="ambient ambient-two" aria-hidden="true"></div>
 
     <header class="app-header">
-      <a class="brand" :href="origin" aria-label="Scheme to URL 首页">
+      <a class="brand" :href="`${origin}/`" aria-label="Scheme to URL 首页">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
             <path d="M8.5 15.5 15.5 8.5M7 10H5.75A3.75 3.75 0 0 0 2 13.75v2.5A3.75 3.75 0 0 0 5.75 20h2.5A3.75 3.75 0 0 0 12 16.25V15m0-6V7.75A3.75 3.75 0 0 1 15.75 4h2.5A3.75 3.75 0 0 1 22 7.75v2.5A3.75 3.75 0 0 1 18.25 14H17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -49,11 +49,14 @@
           </template>
         </p>
 
-        <nav v-if="!showCloseMsg" class="mode-tabs" aria-label="页面模式">
+        <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式">
           <button
+            id="create-tab"
             type="button"
+            role="tab"
             :class="{ active: !isShowHistory }"
-            :aria-current="!isShowHistory ? 'page' : undefined"
+            :aria-selected="!isShowHistory"
+            aria-controls="create-panel"
             @click="isShowHistory = false"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -62,9 +65,12 @@
             创建链接
           </button>
           <button
+            id="history-tab"
             type="button"
+            role="tab"
             :class="{ active: isShowHistory }"
-            :aria-current="isShowHistory ? 'page' : undefined"
+            :aria-selected="isShowHistory"
+            aria-controls="history-panel"
             @click="isShowHistory = true"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -83,11 +89,17 @@
             key="redirect"
             :count-down="countDown"
             :origin="origin"
-            @goto-origin="changeUrl(origin)"
             @cancel="cancelClose"
           />
 
-          <div v-else-if="isShowHistory" key="history" class="history-view" role="region" aria-label="历史记录">
+          <div
+            v-else-if="isShowHistory"
+            id="history-panel"
+            key="history"
+            class="history-view"
+            role="tabpanel"
+            aria-labelledby="history-tab"
+          >
             <HistoryPanel
               :history="history"
               :search-query="searchQuery"
@@ -113,18 +125,21 @@
               @update:cloud-token="cloudToken = $event"
               @connect="connectGist"
               @disconnect="disconnectGist"
-              @sync="syncToGist(history)"
+              @sync="syncGist"
             />
           </div>
 
           <UrlInput
             v-else
+            id="create-panel"
             key="input"
+            role="tabpanel"
+            aria-labelledby="create-tab"
             :url="url"
-            :url-list="urlList"
+            :url-list="recentLinks"
+            :share-url="toUrl"
             :copy-text="copyText"
             :url-error="urlError"
-            :origin="origin"
             @update:url="url = $event"
             @update:url-error="urlError = $event"
             @copy="copy"
@@ -158,19 +173,30 @@ import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
 import { useClipboard } from '../composables/useClipboard.js'
+import {
+  decodeShareTarget,
+  encodeShareLink,
+  getAppBaseUrl,
+  normalizeTarget,
+} from '../domain/linkCodec.js'
 
+const MAX_IMPORT_SIZE = 2 * 1024 * 1024
 const { darkMode, toggle: toggleDark } = useDarkMode()
 
 const {
   history,
   searchQuery,
+  storageError,
   load: loadHistory,
   add: addHistory,
   remove: removeHistory,
   clear: clearHistory,
   merge: mergeHistory,
   mergeImport: mergeImportHistory,
+  inspectImport,
+  snapshot: historySnapshot,
   exportJSON: exportHistory,
+  filtered: filterHistory,
 } = useHistory()
 
 const { copyText, copyToClipboard, cleanup: cleanupClipboard } = useClipboard()
@@ -191,172 +217,212 @@ const {
 } = useCloudSync()
 
 const url = ref('')
-const urlList = ref([])
 const urlError = ref('')
 const isShowHistory = ref(false)
 const showSettings = ref(false)
 const showCloseMsg = ref(false)
 const countDown = ref(5)
-const origin = window.location.origin
+const origin = getAppBaseUrl()
+const targetScheme = decodeShareTarget(window.location.hash)
 let countdownTimer = null
-const targetScheme = window.location.hash.substring(1)
 
 const toast = ref({ message: '', type: 'info', duration: 2500, key: 0 })
 let toastKey = 0
+
+const toUrl = computed(() => {
+  if (!url.value.trim()) return ''
+  try {
+    return encodeShareLink(origin, url.value)
+  } catch {
+    return ''
+  }
+})
+
+const recentLinks = computed(() =>
+  history.value.slice(0, 20).flatMap((item) => {
+    try {
+      return [encodeShareLink(origin, item.scheme)]
+    } catch {
+      return []
+    }
+  }),
+)
+
+const filteredHistory = computed(() => filterHistory())
 
 function showToast(message, type = 'info', duration = 2500) {
   toastKey++
   toast.value = { message, type, duration, key: toastKey }
 }
 
-function normalizeUrl(input) {
-  if (!input) return input
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) return input
-  return 'https://' + input
+function notifyStorageError() {
+  if (!storageError.value) return
+  showToast(storageError.value, 'error', 4000)
 }
-
-function validateUrl(value) {
-  if (!value.trim()) return ''
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(value)) return ''
-  if (/^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(\/|$|:)/.test(value)) return ''
-  if (/^localhost(:\d+)?(\/|$)/.test(value)) return ''
-  return '请输入有效的 URL、域名或 URL Scheme'
-}
-
-const toUrl = computed(() => encodeURI(origin + '/#' + url.value))
-
-const filteredHistory = computed(() => {
-  if (!searchQuery.value.trim()) return history.value
-  const query = searchQuery.value.toLowerCase()
-  return history.value.filter((item) => item.scheme.toLowerCase().includes(query))
-})
 
 function changeUrl(inputUrl) {
-  if (countdownTimer) {
-    clearInterval(countdownTimer)
-    countdownTimer = null
+  stopCountdown()
+
+  const normalized = normalizeTarget(inputUrl)
+  if (!normalized.ok) {
+    urlError.value = normalized.error
+    showToast(normalized.error, 'error', 4000)
+    return
   }
 
-  const normalizedUrl = normalizeUrl(inputUrl)
-  if (normalizedUrl) {
-    window.location.replace(normalizedUrl)
-    addHistory(inputUrl)
-  }
+  const saved = addHistory(normalized.target)
+  if (!saved) notifyStorageError()
+  autoSync()
+  startCountdown()
+  window.location.replace(normalized.target)
+}
 
-  if (window.location.hash.substring(1)) {
-    showCloseMsg.value = true
-    countDown.value = 5
-    countdownTimer = setInterval(() => {
-      countDown.value--
-      if (countDown.value <= 0) {
-        clearInterval(countdownTimer)
-        countdownTimer = null
-        try {
-          window.close()
-        } catch {
-          // 非脚本打开的窗口无法关闭
-        }
-      }
-    }, 1000)
-  }
+function startCountdown() {
+  showCloseMsg.value = true
+  countDown.value = 5
+  countdownTimer = setInterval(() => {
+    countDown.value--
+    if (countDown.value > 0) return
+
+    stopCountdown()
+    try {
+      window.close()
+    } catch {
+      // 非脚本打开的窗口无法关闭。
+    }
+  }, 1000)
+}
+
+function stopCountdown() {
+  if (!countdownTimer) return
+  clearInterval(countdownTimer)
+  countdownTimer = null
 }
 
 function cancelClose() {
-  if (countdownTimer) {
-    clearInterval(countdownTimer)
-    countdownTimer = null
-  }
+  stopCountdown()
   showCloseMsg.value = false
+  window.history.replaceState(null, '', `${origin}/`)
 }
 
 function gotoUrl(fullUrl) {
+  if (!fullUrl) return
   navigator.clipboard.writeText(fullUrl).catch(() => {})
   window.open(fullUrl, '_blank', 'noopener,noreferrer')
 }
 
 function toHistoryUrl(scheme) {
-  navigator.clipboard.writeText(origin + '/#' + scheme).catch(() => {})
-  window.open(normalizeUrl(scheme), '_blank', 'noopener,noreferrer')
+  const normalized = normalizeTarget(scheme)
+  if (!normalized.ok) {
+    showToast(normalized.error, 'error', 4000)
+    return
+  }
+
+  navigator.clipboard.writeText(encodeShareLink(origin, normalized.target)).catch(() => {})
+  window.open(normalized.target, '_blank', 'noopener,noreferrer')
 }
 
 function deleteHistoryItem(scheme) {
-  removeHistory(scheme)
+  if (!removeHistory(scheme)) {
+    notifyStorageError()
+    return
+  }
   autoSync()
   showToast('已删除记录', 'info')
 }
 
 function invalidHistory() {
   if (!confirm('确定清空所有历史记录？此操作不可撤销。')) return
-  clearHistory()
+  if (!clearHistory()) {
+    notifyStorageError()
+    return
+  }
   autoSync()
   showToast('历史记录已清空', 'info')
 }
 
 function onImportFile(event) {
-  const file = event.target.files[0]
+  const file = event.target.files?.[0]
+  event.target.value = ''
   if (!file) return
+
+  if (file.size > MAX_IMPORT_SIZE) {
+    showToast('导入失败：文件不能超过 2 MB', 'error')
+    return
+  }
 
   const reader = new FileReader()
   reader.onload = (loadEvent) => {
     try {
-      const imported = JSON.parse(loadEvent.target.result)
-      if (!Array.isArray(imported)) throw new Error('格式错误')
-      if (!confirm(`将合并 ${imported.length} 条记录，是否继续？`)) return
+      const imported = JSON.parse(String(loadEvent.target?.result ?? ''))
+      const summary = inspectImport(imported)
+      if (summary.valid === 0) throw new Error('文件中没有有效记录')
+
+      const invalidHint = summary.invalid ? `，忽略 ${summary.invalid} 条无效记录` : ''
+      if (!confirm(`将合并 ${summary.valid} 条有效记录${invalidHint}，是否继续？`)) return
 
       const added = mergeImportHistory(imported)
+      notifyStorageError()
       autoSync()
       showToast(`导入完成，新增 ${added} 条记录`, 'success')
-    } catch {
-      showToast('导入失败：文件格式不正确', 'error')
+    } catch (error) {
+      showToast(`导入失败：${error.message || '文件格式不正确'}`, 'error', 4000)
     }
   }
+  reader.onerror = () => showToast('导入失败：无法读取文件', 'error')
   reader.readAsText(file)
-  event.target.value = ''
 }
 
 function copy() {
-  const scheme = url.value
-  if (!scheme.trim()) return
-
-  const error = validateUrl(scheme)
-  if (error) {
-    urlError.value = error
+  const normalized = normalizeTarget(url.value)
+  if (!normalized.ok) {
+    urlError.value = normalized.error
     return
   }
 
-  copyToClipboard(toUrl.value, () => {
-    const fullUrl = origin + '/#' + scheme
-    urlList.value = urlList.value.filter((item) => item !== fullUrl)
-    urlList.value.unshift(fullUrl)
-    if (urlList.value.length > 20) urlList.value.pop()
-    localStorage.setItem('url_list', JSON.stringify(urlList.value))
-    addHistory(scheme)
+  const shareLink = encodeShareLink(origin, normalized.target)
+  copyToClipboard(shareLink, () => {
+    const saved = addHistory(normalized.target)
+    if (!saved) notifyStorageError()
     url.value = ''
+    urlError.value = ''
     autoSync()
   })
 }
 
 function autoSync() {
-  scheduleAutoSync(history.value)
+  scheduleAutoSync(() => syncGist({ silent: true }))
+}
+
+async function syncGist({ silent = false } = {}) {
+  if (!cloudToken.value || !cloudGistId.value) return false
+
+  try {
+    const remote = await pullFromGist()
+    if (remote === null) {
+      if (!silent) showToast(syncError.value || '同步失败', 'error', 4000)
+      return false
+    }
+
+    mergeHistory(remote)
+    notifyStorageError()
+    await pushToGist(historySnapshot())
+
+    if (!silent) showToast('历史记录已同步', 'success')
+    return true
+  } catch (error) {
+    if (!silent) showToast(syncError.value || error.message || '同步失败', 'error', 4000)
+    return false
+  }
 }
 
 async function connectGist() {
   try {
-    await connect(history.value)
-    if (cloudGistId.value) {
-      if (history.value.length === 0) {
-        const remote = await pullFromGist()
-        if (remote && Array.isArray(remote)) {
-          mergeHistory(remote)
-          await pushToGist(history.value)
-        }
-      } else {
-        await pushToGist(history.value)
-      }
-    }
-    showToast('已连接 GitHub Gist', 'success')
+    await connect(historySnapshot())
+    const synced = await syncGist({ silent: true })
+    if (synced) showToast('已连接 GitHub Gist', 'success')
   } catch {
-    // 错误状态由 composable 维护
+    // 错误状态由 composable 维护。
   }
 }
 
@@ -366,454 +432,59 @@ function disconnectGist() {
 }
 
 function handleKeydown(event) {
-  const isInput = event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA'
-  const isContentEditable = event.target.isContentEditable
+  if (event.isComposing) return
+
+  const target = event.target
+  const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+  const isContentEditable = target instanceof HTMLElement && target.isContentEditable
 
   if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
     event.preventDefault()
     copy()
+    return
   }
 
   if (event.key === 'Escape' && isInput && !isShowHistory.value) {
     url.value = ''
     urlError.value = ''
+    return
   }
 
-  if ((event.key === 'h' || event.key === 'H') && !isInput && !isContentEditable) {
+  if (
+    event.key.toLowerCase() === 'h' &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !isInput &&
+    !isContentEditable
+  ) {
+    event.preventDefault()
     isShowHistory.value = !isShowHistory.value
   }
 }
 
 onMounted(() => {
   loadHistory()
+  notifyStorageError()
 
   try {
-    const saved = JSON.parse(localStorage.getItem('url_list'))
-    if (Array.isArray(saved)) urlList.value = saved
+    localStorage.removeItem('url_list')
   } catch {
-    // 忽略损坏的本地缓存
+    // 忽略无法清理的旧缓存。
   }
 
-  const connected = loadConfig()
-  if (connected) {
-    pullFromGist().then((remote) => {
-      if (remote && Array.isArray(remote)) {
-        mergeHistory(remote)
-        pushToGist(history.value)
-      }
-    })
+  if (loadConfig()) {
+    syncGist({ silent: true }).catch(() => {})
   }
 
   if (targetScheme) changeUrl(targetScheme)
 })
 
 onBeforeUnmount(() => {
-  if (countdownTimer) {
-    clearInterval(countdownTimer)
-    countdownTimer = null
-  }
+  stopCountdown()
   cleanupClipboard()
   cleanupSync()
 })
 </script>
 
-<style scoped>
-.app-shell {
-  --page-bg: #f3f5f9;
-  --page-bg-soft: rgba(255, 255, 255, 0.72);
-  --card-bg: rgba(255, 255, 255, 0.82);
-  --card-bg-solid: #ffffff;
-  --surface-soft: #f5f7fa;
-  --surface-elevated: #ffffff;
-  --surface-hover: #eef2f7;
-  --card-text: #172033;
-  --card-text-soft: #46536a;
-  --card-text-muted: #7c879b;
-  --hairline: rgba(23, 32, 51, 0.1);
-  --hairline-strong: rgba(23, 32, 51, 0.18);
-  --accent: #4f6ef7;
-  --accent-hover: #3f5de0;
-  --accent-soft: rgba(79, 110, 247, 0.1);
-  --danger: #d84b55;
-  --success: #2f9d69;
-  --shadow-lg: 0 24px 80px rgba(33, 45, 75, 0.13);
-  --shadow-sm: 0 8px 24px rgba(33, 45, 75, 0.08);
-
-  min-height: 100vh;
-  padding: 24px clamp(16px, 4vw, 48px) 40px;
-  color: var(--card-text);
-  background:
-    radial-gradient(circle at 12% 12%, rgba(116, 143, 255, 0.14), transparent 30%),
-    radial-gradient(circle at 88% 84%, rgba(89, 202, 174, 0.12), transparent 28%),
-    var(--page-bg);
-  position: relative;
-  overflow: hidden;
-  outline: none;
-  transition: color 0.25s ease, background 0.25s ease;
-}
-
-.app-shell.dark {
-  --page-bg: #0d111a;
-  --page-bg-soft: rgba(18, 24, 36, 0.74);
-  --card-bg: rgba(18, 24, 36, 0.82);
-  --card-bg-solid: #121824;
-  --surface-soft: #171e2c;
-  --surface-elevated: #1b2332;
-  --surface-hover: #222c3d;
-  --card-text: #f2f5fb;
-  --card-text-soft: #b7c0d1;
-  --card-text-muted: #7f8aa0;
-  --hairline: rgba(229, 235, 248, 0.1);
-  --hairline-strong: rgba(229, 235, 248, 0.2);
-  --accent: #7d96ff;
-  --accent-hover: #93a8ff;
-  --accent-soft: rgba(125, 150, 255, 0.14);
-  --danger: #ff747d;
-  --success: #62c995;
-  --shadow-lg: 0 24px 90px rgba(0, 0, 0, 0.34);
-  --shadow-sm: 0 8px 28px rgba(0, 0, 0, 0.24);
-}
-
-.ambient {
-  position: fixed;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.28;
-  pointer-events: none;
-}
-
-.ambient-one {
-  top: -180px;
-  right: 10%;
-  background: #8298ff;
-}
-
-.ambient-two {
-  left: -200px;
-  bottom: -180px;
-  background: #6ed7bc;
-}
-
-.app-header {
-  width: min(1080px, 100%);
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  z-index: 2;
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.brand-mark {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--hairline);
-  border-radius: 13px;
-  background: var(--page-bg-soft);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(16px);
-}
-
-.brand-mark svg {
-  width: 22px;
-  height: 22px;
-  color: var(--accent);
-}
-
-.brand-copy {
-  display: grid;
-  gap: 1px;
-}
-
-.brand-copy strong {
-  font-size: 14px;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-
-.brand-copy small {
-  font-size: 10px;
-  color: var(--card-text-muted);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.github-link {
-  min-height: 40px;
-  padding: 0 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
-  background: var(--page-bg-soft);
-  color: var(--card-text-soft);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  backdrop-filter: blur(16px);
-  transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
-}
-
-.github-link svg {
-  width: 17px;
-  height: 17px;
-}
-
-.github-link:hover {
-  color: var(--card-text);
-  border-color: var(--hairline-strong);
-  transform: translateY(-1px);
-}
-
-.workspace {
-  width: min(760px, 100%);
-  margin: clamp(54px, 9vh, 100px) auto 0;
-  position: relative;
-  z-index: 1;
-}
-
-.workspace-head {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-  color: var(--card-text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--success) 14%, transparent);
-}
-
-h1 {
-  margin: 0;
-  font-size: clamp(34px, 6vw, 58px);
-  line-height: 1.04;
-  letter-spacing: -0.055em;
-  font-weight: 680;
-}
-
-h1 span {
-  color: var(--accent);
-}
-
-.hero-description {
-  max-width: 590px;
-  margin: 18px auto 0;
-  color: var(--card-text-soft);
-  font-size: 15px;
-  line-height: 1.75;
-}
-
-.hero-description code {
-  padding: 2px 6px;
-  border: 1px solid var(--hairline);
-  border-radius: 6px;
-  background: var(--page-bg-soft);
-  color: var(--accent);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.88em;
-}
-
-.mode-tabs {
-  width: fit-content;
-  margin: 26px auto 0;
-  padding: 4px;
-  display: flex;
-  gap: 4px;
-  border: 1px solid var(--hairline);
-  border-radius: 14px;
-  background: var(--page-bg-soft);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(18px);
-}
-
-.mode-tabs button {
-  min-height: 38px;
-  padding: 0 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--card-text-muted);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-}
-
-.mode-tabs button svg {
-  width: 16px;
-  height: 16px;
-}
-
-.mode-tabs button.active {
-  background: var(--card-bg-solid);
-  color: var(--card-text);
-  box-shadow: 0 2px 10px rgba(33, 45, 75, 0.1);
-}
-
-.dark .mode-tabs button.active {
-  background: var(--surface-elevated);
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
-}
-
-.tab-count {
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 10px;
-}
-
-.content-card {
-  min-height: 220px;
-  padding: clamp(20px, 4vw, 34px);
-  border: 1px solid var(--hairline);
-  border-radius: 24px;
-  background: var(--card-bg);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(24px) saturate(145%);
-}
-
-.history-view {
-  min-width: 0;
-}
-
-.workspace-footer {
-  margin-top: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  color: var(--card-text-muted);
-  font-size: 11px;
-}
-
-.workspace-footer kbd {
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid var(--hairline);
-  border-bottom-color: var(--hairline-strong);
-  border-radius: 6px;
-  background: var(--page-bg-soft);
-  color: var(--card-text-soft);
-  font: inherit;
-  font-weight: 650;
-  box-shadow: 0 2px 0 var(--hairline);
-}
-
-.divider {
-  width: 1px;
-  height: 12px;
-  margin: 0 4px;
-  background: var(--hairline-strong);
-}
-
-.panel-enter-active,
-.panel-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.panel-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.panel-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-@media (max-width: 640px) {
-  .app-shell {
-    padding: 16px 14px 28px;
-    overflow-y: auto;
-  }
-
-  .brand-copy small,
-  .github-link span {
-    display: none;
-  }
-
-  .github-link {
-    width: 40px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .workspace {
-    margin-top: 54px;
-  }
-
-  h1 {
-    font-size: clamp(32px, 11vw, 44px);
-  }
-
-  .hero-description {
-    font-size: 14px;
-    line-height: 1.65;
-  }
-
-  .content-card {
-    padding: 20px 16px;
-    border-radius: 20px;
-  }
-
-  .workspace-footer {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app-shell *,
-  .app-shell *::before,
-  .app-shell *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-</style>
+<style scoped src="../styles/change.css"></style>

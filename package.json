@@ -8,7 +8,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --ext .js,.vue",
+    "lint:fix": "eslint . --ext .js,.vue --fix",
+    "test": "node --test",
+    "format": "prettier --write .",
+    "check": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "vue": "^3.5.38",
