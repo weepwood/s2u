@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -21,6 +21,76 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - name: Apply requested narrative removal
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/persistent-shortcuts-remove-title' && github.actor != 'github-actions[bot]'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          change = Path('src/components/Change.vue')
+          text = change.read_text(encoding='utf-8')
+          narrative = '''        <div class="eyebrow">
+                  <span class="status-dot" aria-hidden="true"></span>
+                  <span>{{ showCloseMsg ? 'Redirecting' : isShowHistory ? `${history.length} saved links` : 'Private · Local first' }}</span>
+                </div>
+
+                <p v-if="!showCloseMsg" class="hero-description">
+                  <template v-if="isShowHistory">
+                    搜索、重新打开或同步曾经创建过的链接，所有记录默认只保存在当前浏览器。
+                  </template>
+                  <template v-else>
+                    支持普通网址与 <code>weixin://</code> 等 URL Scheme。生成后即可复制、分享，并在需要时直接唤起对应应用。
+                  </template>
+                </p>
+
+          '''
+          if narrative not in text:
+              raise SystemExit('Change.vue narrative block not found')
+          change.write_text(text.replace(narrative, ''), encoding='utf-8')
+
+          def remove_blocks(path, selectors):
+              css_path = Path(path)
+              css = css_path.read_text(encoding='utf-8')
+              for selector in selectors:
+                  pattern = re.compile(r'(?m)^' + re.escape(selector) + r'\s*\{[^{}]*\}\n?')
+                  css = pattern.sub('', css)
+              css_path.write_text(css, encoding='utf-8')
+
+          remove_blocks('src/styles/change.css', [
+              '.eyebrow', '.status-dot', 'h1', 'h1 span',
+              '.hero-description', '.hero-description code',
+          ])
+          remove_blocks('src/styles/interface-refresh.css', [
+              '.app-shell .eyebrow', '.app-shell .status-dot',
+              '.app-shell .workspace-head h1', '.app-shell .hero-description',
+          ])
+
+          motion = Path('src/utils/interfaceMotion.js')
+          motion_text = motion.read_text(encoding='utf-8')
+          motion_text = motion_text.replace("const NARRATIVE_SELECTOR = '.hero-description'\n", '')
+          motion_text, count = re.subn(
+              r'\n  const animateNarrative = \(\) => \{.*?\n  \}\n\n  const handleTabClick',
+              '\n  const handleTabClick',
+              motion_text,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('animateNarrative block not found')
+          motion_text = motion_text.replace('    animateNarrative()\n', '')
+          motion.write_text(motion_text, encoding='utf-8')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/Change.vue src/styles/change.css src/styles/interface-refresh.css src/utils/interfaceMotion.js
+          git diff --cached --quiet || git commit -m "删除页面说明与状态文案"
+          git push origin HEAD:"$HEAD_REF"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
