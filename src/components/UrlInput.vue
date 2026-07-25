@@ -33,7 +33,7 @@
             spellcheck="false"
             :aria-invalid="Boolean(urlError)"
             :aria-describedby="urlError ? 'url-error' : 'url-help'"
-            @keydown.enter="handleEnter"
+            @keydown.enter.exact="handleEnter"
             @input="emitError('')"
           />
           <button
