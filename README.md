@@ -6,6 +6,8 @@
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/weepwood/s2u)
 
+> AI 或自动化参与开发前必须先阅读 [`AGENTS.md`](AGENTS.md)，不得绕过危险协议、Token 存储、历史合并与 Gist 同步边界。
+
 ## 功能
 
 - **Scheme 转换** — 支持 `weixin://`、`mailto:`、`tel:` 等自定义 Scheme
