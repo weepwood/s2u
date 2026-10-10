@@ -30,6 +30,8 @@
 - `vbscript:`
 - `file:`
 - `blob:`
+- `filesystem:`
+- 浏览器内部及扩展协议，如 `about:`、`chrome:`、`edge:`、`view-source:` 和扩展专用协议
 
 GitHub Token 只保存在当前标签页的 `sessionStorage` 中；关闭标签页后需要重新输入。Gist ID 会保存在本地，方便下次继续连接。
 
