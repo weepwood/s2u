@@ -18,6 +18,7 @@ export function useCloudSync() {
   let pushPromise = null
   let pendingPayload = null
   const activeControllers = new Set()
+  const intentionallyCancelledControllers = new WeakSet()
 
   function loadConfig() {
     migrateLegacyConfig()
@@ -144,7 +145,9 @@ export function useCloudSync() {
         syncError.value = ''
         lastSyncTime.value = Date.now()
       } catch (error) {
-        pendingPayload = null
+        // 请求失败时保留更新期间排入的最新快照，并优先尝试写入它。
+        // 只有没有更新快照可继续时才把失败交给调用方。
+        if (pendingPayload) continue
         setSyncError(error, '同步失败')
         throw error
       }
@@ -169,7 +172,7 @@ export function useCloudSync() {
       lastSyncTime.value = Date.now()
       return remote
     } catch (error) {
-      setSyncError(error, '拉取失败')
+      if (!isIntentionalCancellation(error)) setSyncError(error, '拉取失败')
       return null
     }
   }
@@ -195,13 +198,20 @@ export function useCloudSync() {
     }
 
     pendingPayload = null
-    for (const controller of activeControllers) controller.abort()
+    for (const controller of activeControllers) {
+      intentionallyCancelledControllers.add(controller)
+      controller.abort()
+    }
     activeControllers.clear()
   }
 
   async function githubRequest(path, { token, method = 'GET', body } = {}) {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+    let timedOut = false
+    const timeout = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, REQUEST_TIMEOUT)
     activeControllers.add(controller)
 
     try {
@@ -231,7 +241,12 @@ export function useCloudSync() {
       if (response.status === 204) return null
       return response.json()
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('GitHub API 请求超时')
+      if (controller.signal.aborted && intentionallyCancelledControllers.has(controller)) {
+        const cancelled = new Error('请求已取消')
+        cancelled.name = 'AbortError'
+        throw cancelled
+      }
+      if (timedOut || error.name === 'AbortError') throw new Error('GitHub API 请求超时')
       throw error
     } finally {
       clearTimeout(timeout)
@@ -258,6 +273,7 @@ export function useCloudSync() {
   }
 
   function setSyncError(error, fallback) {
+    if (isIntentionalCancellation(error)) return
     syncStatus.value = 'error'
     syncError.value = error?.message || fallback
   }
@@ -277,6 +293,10 @@ export function useCloudSync() {
     scheduleAutoSync,
     cleanup,
   }
+}
+
+function isIntentionalCancellation(error) {
+  return error?.name === 'AbortError' && error?.message === '请求已取消'
 }
 
 function clonePayload(data) {
