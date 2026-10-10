@@ -376,26 +376,80 @@ function autoSync() {
   scheduleAutoSync(() => syncGist({ silent: true }))
 }
 
-async function syncGist({ silent = false } = {}) {
-  if (!cloudToken.value || !cloudGistId.value) return false
+let syncPromise = null
+let syncRequested = false
+let syncToastWanted = false
 
-  try {
-    const remote = await pullFromGist()
-    if (remote === null) {
-      if (!silent) showToast(syncError.value || '同步失败', 'error', 4000)
-      return false
-    }
+function syncGist({ silent = false } = {}) {
+  if (!cloudToken.value || !cloudGistId.value) return Promise.resolve(false)
 
-    mergeHistory(remote)
-    notifyStorageError()
-    await pushToGist(historySnapshot())
-
-    if (!silent) showToast('历史记录已同步', 'success')
-    return true
-  } catch (error) {
-    if (!silent) showToast(syncError.value || error.message || '同步失败', 'error', 4000)
-    return false
+  // 同一标签页只允许一个完整的拉取—合并—推送流程。
+  // 并发触发会请求当前流程结束后再跑一轮，避免遗漏期间的新本地修改。
+  if (syncPromise) {
+    syncRequested = true
+    syncToastWanted ||= !silent
+    return syncPromise
   }
+
+  syncRequested = false
+  syncToastWanted = !silent
+
+  const task = (async () => {
+    do {
+      syncRequested = false
+      if (!cloudToken.value || !cloudGistId.value) return false
+
+      const remote = await pullFromGist()
+      if (remote === null) {
+        if (!cloudToken.value || !cloudGistId.value) return false
+        if (syncRequested) continue
+        if (syncToastWanted) showToast(syncError.value || '同步失败', 'error', 4000)
+        return false
+      }
+
+      // 拉取返回后再次检查连接状态，避免断开后继续合并或写入。
+      if (!cloudToken.value || !cloudGistId.value) return false
+
+      mergeHistory(remote)
+      notifyStorageError()
+
+      let pushed = false
+      try {
+        pushed = await pushToGist(historySnapshot())
+      } catch (error) {
+        if (!cloudToken.value || !cloudGistId.value) return false
+        if (syncRequested) continue
+        if (syncToastWanted) {
+          showToast(syncError.value || error.message || '同步失败', 'error', 4000)
+        }
+        return false
+      }
+
+      if (!pushed) {
+        if (!cloudToken.value || !cloudGistId.value) return false
+        if (syncRequested) continue
+        if (syncToastWanted) showToast(syncError.value || '同步失败', 'error', 4000)
+        return false
+      }
+    } while (syncRequested && cloudToken.value && cloudGistId.value)
+
+    if (syncToastWanted) showToast('历史记录已同步', 'success')
+    return true
+  })().catch((error) => {
+    if (cloudToken.value && cloudGistId.value && syncToastWanted) {
+      showToast(syncError.value || error.message || '同步失败', 'error', 4000)
+    }
+    return false
+  })
+
+  let wrapped
+  wrapped = task.finally(() => {
+    if (syncPromise === wrapped) syncPromise = null
+    syncRequested = false
+    syncToastWanted = false
+  })
+  syncPromise = wrapped
+  return wrapped
 }
 
 async function connectGist() {
