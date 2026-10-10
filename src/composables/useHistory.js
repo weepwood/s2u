@@ -5,7 +5,10 @@ const HISTORY_FORMAT = 's2u-history'
 const HISTORY_VERSION = 2
 const MAX_HISTORY_ITEMS = 500
 const MAX_TOMBSTONES = 1000
+const MAX_PAYLOAD_RECORDS = 10000
+const MAX_PAYLOAD_TOMBSTONES = 20000
 const MAX_SCHEME_LENGTH = 4096
+const MAX_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000
 const TOMBSTONE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
 
 export function useHistory() {
@@ -89,6 +92,7 @@ export function useHistory() {
   }
 
   function merge(remoteData) {
+    validateExternalPayload(remoteData)
     const before = new Set(history.value.map((item) => item.scheme))
     const incoming = normalizePayload(remoteData)
     applyMergedState(
@@ -108,19 +112,7 @@ export function useHistory() {
   }
 
   function inspectImport(imported) {
-    const rawRecords = Array.isArray(imported) ? imported : imported?.records
-    if (!Array.isArray(rawRecords)) {
-      throw new TypeError('不支持的历史记录文件格式')
-    }
-
-    if (!Array.isArray(imported) && imported.format && imported.format !== HISTORY_FORMAT) {
-      throw new TypeError('不是 Scheme to URL 的历史记录文件')
-    }
-
-    if (!Array.isArray(imported) && Number(imported.version) > HISTORY_VERSION) {
-      throw new TypeError('历史记录文件版本过新，请升级应用后重试')
-    }
-
+    const rawRecords = validateExternalPayload(imported)
     const normalized = normalizePayload(imported)
     return {
       total: rawRecords.length,
@@ -239,8 +231,55 @@ export function useHistory() {
   }
 }
 
+function validateExternalPayload(input) {
+  if (Array.isArray(input)) {
+    if (input.length > MAX_PAYLOAD_RECORDS) {
+      throw new TypeError(`记录数量不能超过 ${MAX_PAYLOAD_RECORDS} 条`)
+    }
+    return input
+  }
+
+  if (!input || typeof input !== 'object') {
+    throw new TypeError('不支持的历史记录文件格式')
+  }
+
+  // 保留旧版 { items: [...] } 格式，但不接受缺少版本信息的 records 对象。
+  const isLegacyItems = input.format == null && input.version == null && Array.isArray(input.items)
+  if (!isLegacyItems) {
+    if (input.format !== HISTORY_FORMAT) {
+      throw new TypeError('不是 Scheme to URL 的历史记录文件')
+    }
+    if (!Number.isInteger(input.version) || input.version < 1) {
+      throw new TypeError('历史记录文件缺少有效版本号')
+    }
+    if (input.version > HISTORY_VERSION) {
+      throw new TypeError('历史记录文件版本过新，请升级应用后重试')
+    }
+    if (!Array.isArray(input.records)) {
+      throw new TypeError('历史记录文件缺少 records 数组')
+    }
+  }
+
+  const records = isLegacyItems ? input.items : input.records
+  if (records.length > MAX_PAYLOAD_RECORDS) {
+    throw new TypeError(`记录数量不能超过 ${MAX_PAYLOAD_RECORDS} 条`)
+  }
+
+  if (input.tombstones != null && !Array.isArray(input.tombstones)) {
+    throw new TypeError('历史记录文件的 tombstones 必须为数组')
+  }
+  if ((input.tombstones?.length ?? 0) > MAX_PAYLOAD_TOMBSTONES) {
+    throw new TypeError(`删除标记数量不能超过 ${MAX_PAYLOAD_TOMBSTONES} 条`)
+  }
+
+  return records
+}
+
 function normalizePayload(input) {
   if (Array.isArray(input)) {
+    if (input.length > MAX_PAYLOAD_RECORDS) {
+      throw new TypeError(`记录数量不能超过 ${MAX_PAYLOAD_RECORDS} 条`)
+    }
     return { records: normalizeHistory(input), tombstones: [] }
   }
 
@@ -253,10 +292,18 @@ function normalizePayload(input) {
     : Array.isArray(input.items)
       ? input.items
       : []
+  const tombstones = Array.isArray(input.tombstones) ? input.tombstones : []
+
+  if (records.length > MAX_PAYLOAD_RECORDS) {
+    throw new TypeError(`记录数量不能超过 ${MAX_PAYLOAD_RECORDS} 条`)
+  }
+  if (tombstones.length > MAX_PAYLOAD_TOMBSTONES) {
+    throw new TypeError(`删除标记数量不能超过 ${MAX_PAYLOAD_TOMBSTONES} 条`)
+  }
 
   return {
     records: normalizeHistory(records),
-    tombstones: normalizeTombstones(input.tombstones),
+    tombstones: normalizeTombstones(tombstones),
   }
 }
 
@@ -282,7 +329,8 @@ function normalizeHistory(items) {
     })
   }
 
-  return sortByTime([...map.values()]).slice(0, MAX_HISTORY_ITEMS)
+  // 不在这里裁剪到 MAX_HISTORY_ITEMS：必须先应用 tombstone，再做容量限制。
+  return sortByTime([...map.values()])
 }
 
 function normalizeHistoryItem(item) {
@@ -291,16 +339,29 @@ function normalizeHistoryItem(item) {
   const scheme = normalizeScheme(item.scheme)
   if (!scheme) return null
 
+  const now = Date.now()
   const count = Number(item.count)
   const recently = Number(item.recently)
-  const safeRecently = Number.isFinite(recently) && recently > 0 ? recently : Date.now()
   const updatedAt = Number(item.updatedAt)
+
+  // 明显超前的时间戳不能用于覆盖删除标记，否则可能让已删除记录复活。
+  if (
+    (Number.isFinite(recently) && recently > now + MAX_FUTURE_SKEW_MS) ||
+    (Number.isFinite(updatedAt) && updatedAt > now + MAX_FUTURE_SKEW_MS)
+  ) {
+    return null
+  }
+
+  const safeRecently = Number.isFinite(recently) && recently > 0 ? recently : now
+  const safeUpdatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : safeRecently
 
   return {
     scheme,
-    count: Number.isFinite(count) ? Math.max(1, Math.trunc(count)) : 1,
+    count: Number.isFinite(count)
+      ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.trunc(count)))
+      : 1,
     recently: safeRecently,
-    updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : safeRecently,
+    updatedAt: safeUpdatedAt,
   }
 }
 
@@ -312,7 +373,12 @@ function normalizeTombstones(items) {
     if (!item || typeof item !== 'object') continue
     const scheme = normalizeScheme(item.scheme)
     const deletedAt = Number(item.deletedAt)
-    if (!scheme || !Number.isFinite(deletedAt) || deletedAt <= 0) continue
+    if (
+      !scheme ||
+      !Number.isFinite(deletedAt) ||
+      deletedAt <= 0 ||
+      deletedAt > Date.now() + MAX_FUTURE_SKEW_MS
+    ) continue
 
     const existing = map.get(scheme)
     if (!existing || deletedAt > existing.deletedAt) {
