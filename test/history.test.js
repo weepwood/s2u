@@ -110,3 +110,87 @@ test('导入检查兼容旧数组并报告无效条目', () => {
     tombstones: 0,
   })
 })
+
+
+test('先应用删除标记再限制 500 条容量，不会丢掉被删除项之后的有效记录', () => {
+  const now = Date.now()
+  const records = Array.from({ length: 500 }, (_, index) => ({
+    scheme: `https://example.com/${index}`,
+    count: 1,
+    recently: now - index * 1000,
+    updatedAt: now - index * 1000,
+  }))
+  const store = useHistory()
+
+  store.load()
+  store.merge({
+    format: 's2u-history',
+    version: 2,
+    records,
+    tombstones: [],
+  })
+
+  const oldestScheme = records[records.length - 1].scheme
+  store.merge({
+    format: 's2u-history',
+    version: 2,
+    records: [{
+      scheme: 'https://example.com/new-then-deleted',
+      count: 1,
+      recently: now + 1000,
+      updatedAt: now + 1000,
+    }],
+    tombstones: [{
+      scheme: 'https://example.com/new-then-deleted',
+      deletedAt: now + 2000,
+    }],
+  })
+
+  assert.equal(store.history.value.length, 500)
+  assert.ok(store.history.value.some((item) => item.scheme === oldestScheme))
+  assert.ok(!store.history.value.some((item) => item.scheme === 'https://example.com/new-then-deleted'))
+})
+
+test('拒绝缺少版本号的版本化历史对象', () => {
+  const store = useHistory()
+
+  assert.throws(
+    () => store.inspectImport({
+      format: 's2u-history',
+      records: [{ scheme: 'weixin://open', count: 1, recently: 1000 }],
+      tombstones: [],
+    }),
+    /有效版本号/,
+  )
+})
+
+test('拒绝超出允许范围的导入记录数量', () => {
+  const store = useHistory()
+  const tooManyRecords = Array.from({ length: 10001 }, (_, index) => ({
+    scheme: `weixin://open/${index}`,
+    count: 1,
+    recently: 1000,
+  }))
+
+  assert.throws(() => store.inspectImport(tooManyRecords), /记录数量不能超过 10000/)
+})
+
+test('忽略明显位于未来的时间戳，避免异常记录覆盖删除标记', () => {
+  const store = useHistory()
+  const now = Date.now()
+
+  store.load()
+  store.merge({
+    format: 's2u-history',
+    version: 2,
+    records: [{
+      scheme: 'weixin://future-record',
+      count: 1,
+      recently: now + 365 * 24 * 60 * 60 * 1000,
+      updatedAt: now + 365 * 24 * 60 * 60 * 1000,
+    }],
+    tombstones: [],
+  })
+
+  assert.equal(store.history.value.some((item) => item.scheme === 'weixin://future-record'), false)
+})
