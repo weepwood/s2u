@@ -2,7 +2,23 @@ const MAX_TARGET_LENGTH = 4096
 const PROTOCOL_PATTERN = /^([a-zA-Z][a-zA-Z0-9+.-]*):/
 const HOST_WITHOUT_PROTOCOL_PATTERN = /^(?:localhost|(?:\d{1,3}\.){3}\d{1,3}|\[[0-9a-f:]+\])(?::\d+)?(?:[/?#]|$)/i
 const DOMAIN_WITH_PORT_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+:\d+(?:[/?#]|$)/i
-const BLOCKED_PROTOCOLS = new Set(['javascript:', 'data:', 'vbscript:', 'file:', 'blob:'])
+const BLOCKED_PROTOCOLS = new Set([
+  'javascript:',
+  'data:',
+  'vbscript:',
+  'file:',
+  'blob:',
+  'filesystem:',
+  'about:',
+  'chrome:',
+  'chrome-extension:',
+  'chrome-search:',
+  'edge:',
+  'devtools:',
+  'view-source:',
+  'resource:',
+  'moz-extension:',
+])
 
 export function normalizeTarget(input) {
   if (typeof input !== 'string') return invalid('请输入有效的 URL、域名或 URL Scheme')
