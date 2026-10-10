@@ -1,0 +1,23 @@
+name: Temporary Vite integrity lookup
+
+on:
+  push:
+    branches:
+      - chore/lookup-vite-integrity
+
+permissions:
+  contents: read
+
+jobs:
+  lookup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read published npm integrity
+        run: |
+          npm view vite@6.4.4 dist.integrity
+          npm view vite@6.4.4 dist.tarball
