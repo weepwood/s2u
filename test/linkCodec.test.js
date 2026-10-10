@@ -39,6 +39,11 @@ test('拒绝可执行或本地资源协议', () => {
     'file:///etc/passwd',
     'vbscript:msgbox(1)',
     'blob:https://example.com/id',
+    'about:blank',
+    'chrome://settings',
+    'chrome-extension://extension-id/page.html',
+    'view-source:https://example.com',
+    'filesystem:https://example.com/temporary/file',
   ]) {
     assert.notEqual(validateTarget(value), '')
   }
