@@ -51,7 +51,7 @@
 - `data:`；
 - `vbscript:`；
 - `file:`；
-- `blob:`。
+- `blob:`、`filesystem:` 以及浏览器内部/扩展协议（如 `about:`、`chrome:`、`edge:`、`view-source:`）。
 
 普通网页协议与明确支持的自定义应用 Scheme 可以继续使用，但必须经过统一规范化和测试。
 
