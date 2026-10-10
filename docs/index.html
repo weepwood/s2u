@@ -1,128 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>URL Scheme To Http</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Scheme to URL 已迁移</title>
     <style>
-      body {
-        background-color: #212121;
-        color: #f2f2f2;
-      }
-
-      a {
-        color: #6c94b8;
-      }
-
-      .hello {
-        position: relative;
-        font-size: 25px;
-        font-weight: 700;
-        margin-bottom: 20px;
-        z-index: 1;
-      }
-
-      .hello::after {
-        position: absolute;
-        content: " ";
-        display: block;
-        height: 15px;
-        width: 90px;
-        background-color: #6c94b8;
-        transform: translateY(-15px);
-        z-index: -1;
-      }
-
-      .box {
-        background-color: #333333;
-        color: #f2f2f2;
-        padding: 20px;
-
-        margin-top: 20px;
-        border-radius: 12px;
-        width: 500px;
-        word-wrap: break-word;
-
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-      }
+      :root { color-scheme: light dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+      body { max-width: 42rem; margin: 12vh auto; padding: 0 1.25rem; line-height: 1.7; }
+      a { display: inline-block; margin-top: 0.75rem; padding: 0.65rem 1rem; border-radius: 0.5rem; background: #426b9b; color: #fff; text-decoration: none; }
+      a:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
     </style>
   </head>
-
   <body>
-    <div class="box">
-      <div class="hello" id="hello">HELLO</div>
-      <div id="hash"></div>
-      <div id="history"></div>
-    </div>
-
-    <script>
-      // 获取当前时间
-      let time = Date.now();
-      // 获取跳转的 scheme
-      let scheme = window.location.hash.substring(1);
-
-      toScheme(scheme);
-
-      // URL 跳转
-      function toScheme(scheme) {
-        let hash = document.getElementById("hash");
-        if (scheme) {
-          window.location.replace(scheme);
-          // window.open(scheme);
-          hash.innerHTML = `URL Scheme Link: <a href=${scheme}>${decodeURIComponent(
-            scheme
-          )}</a>`;
-          update_history();
-        } else {
-          hash.innerHTML = `URL Scheme Link: NONE`;
-        }
-      }
-
-      // 监听 url 中 hash 变化，变化后跳转
-      window.addEventListener("hashchange", function (event) {
-        scheme = window.location.hash.substring(1);
-        toScheme(scheme);
-      });
-
-      // 更新历史记录
-      function update_history() {
-        let scheme_history = JSON.parse(localStorage.getItem("scheme_history"));
-        // 如果没有历史记录
-        if (!scheme_history) {
-          const scheme_info = {
-            scheme: scheme,
-            count: 1,
-            recently: time,
-          };
-          localStorage.setItem("scheme_history", JSON.stringify([scheme_info]));
-        } else {
-          let scheme_index = scheme_history.findIndex(
-            (obj) => obj.scheme === scheme
-          );
-          if (scheme_index === -1) {
-            // 历史记录不存在 scheme 对象，则创建新对象并添加到数组中
-            scheme_history.push({ scheme: scheme, count: 1, recently: time });
-          } else {
-            // 更新历史记录
-            scheme_history[scheme_index].count++;
-            scheme_history[scheme_index].recently = time;
-          }
-
-          // 保存到 localStorage
-          localStorage.setItem(
-            "scheme_history",
-            JSON.stringify(scheme_history)
-          );
-        }
-      }
-
-      let historyDiv = document.getElementById("history");
-      let scheme_history = JSON.parse(localStorage.getItem("scheme_history"));
-      historyDiv.innerHTML = JSON.stringify(scheme_history);
-    </script>
+    <main>
+      <h1>旧版入口已停用</h1>
+      <p>此页面不再处理 URL Hash 或执行跳转。请使用新版 Scheme to URL。</p>
+      <a href="https://s2u2.netlify.app/">打开新版应用</a>
+    </main>
   </body>
 </html>
