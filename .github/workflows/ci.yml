@@ -57,8 +57,8 @@ jobs:
       - name: Install project dependencies
         run: npm ci
 
-      - name: Install isolated browser-test dependency
-        run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+      - name: Verify locked Playwright version
+        run: npm ls @playwright/test playwright playwright-core
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

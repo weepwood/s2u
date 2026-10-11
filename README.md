@@ -164,3 +164,8 @@ MIT
 ### 直接打开应用与风险提示
 
 常用链接中的“打开”会在点击时直接访问**原始目标**，不会创建 s2u 分享链接。Obsidian、VS Code、微信、网易云音乐等常用协议可直接尝试启动；未列为常用的其它合法应用 Scheme 会先弹出风险确认，避免误唤起陌生程序。不能确定是否启动成功，浏览器可能屏蔽协议或设备没有安装程序。卡片右上角提供“复制原始链接”作为回退；不改变已有 URL Scheme 的兼容与安全拦截规则。
+
+
+### 自动化浏览器测试
+
+Playwright 1.56.1 作为锁定的 devDependency 与 `package-lock.json` 同步维护，CI 使用 `npm ci` 后直接安装对应浏览器，不再临时修改 node_modules。每次 PR 测试 Chromium（根路径与 `/s2u/`），每周一单独运行 Firefox/WebKit 冒烟测试，不阻塞普通 PR；分支保护（至少必需 `quality` 与 `browser-smoke` 检查、禁止 force push）需由 GitHub 仓库管理员在 Settings 中设置，不能仅靠 CI YAML 实现。
