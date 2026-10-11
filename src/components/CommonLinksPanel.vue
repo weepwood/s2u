@@ -46,8 +46,19 @@
       </form>
     </dialog>
 
-    <div v-if="items.length" class="common-grid">
-      <article v-for="item in items" :key="item.id" class="common-card">
+    <div class="common-toolbar">
+      <label class="common-search">
+        <span>搜索常用链接</span>
+        <input v-model="search" type="search" placeholder="搜索应用名称或 URL" aria-label="搜索常用链接" />
+      </label>
+      <div class="common-tools">
+        <button type="button" @click="$emit('export')">导出 JSON</button>
+        <button type="button" @click="triggerImport">导入 JSON</button>
+        <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden-import" aria-label="选择常用链接备份文件" @change="selectImport" />
+      </div>
+    </div>
+    <div v-if="visibleItems.length" class="common-grid">
+      <article v-for="item in visibleItems" :key="item.id" class="common-card">
         <div class="card-main">
           <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item.target) }">
             <img v-if="getIcon(item.target)" :src="getIcon(item.target)" :alt="item.name + ' 图标'" width="48" height="48" />
@@ -58,6 +69,8 @@
             <span :title="item.target">{{ item.target }}</span>
           </div>
           <div class="card-actions">
+            <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
+            <button type="button" :disabled="items[items.length - 1]?.id === item.id" :aria-label="'下移 ' + item.name" title="下移" @click="$emit('move', item.id, 1)">↓</button>
             <button type="button" :aria-label="'编辑 ' + item.name" title="编辑" @click="beginEdit(item)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 16 11-11 4 4L8 20H4v-4Zm9-9 4 4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
             </button>
@@ -73,8 +86,8 @@
       </article>
     </div>
     <div v-else class="empty-common">
-      <strong>还没有常用链接</strong>
-      <p>可添加你经常使用的应用 Scheme 或网址。</p>
+      <strong>{{ items.length ? '没有匹配的链接' : '还没有常用链接' }}</strong>
+      <p>{{ items.length ? '尝试更换搜索关键词。' : '可添加你经常使用的应用 Scheme 或网址。' }}</p>
     </div>
 
     <footer class="common-footer">
@@ -85,13 +98,27 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { normalizeTarget } from '../domain/linkCodec.js'
 
-defineProps({
+const props = defineProps({
   items: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy'])
+const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'move', 'import', 'export'])
+const search = ref('')
+const visibleItems = computed(() => {
+  const term = search.value.trim().toLowerCase()
+  return term ? props.items.filter((item) =>
+    item.name.toLowerCase().includes(term) || item.target.toLowerCase().includes(term)) : props.items
+})
+const importInput = ref(null)
+
+function triggerImport() { importInput.value?.click() }
+function selectImport(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (file) emit('import', file)
+}
 
 const editorDialog = ref(null)
 const editingId = ref(null)
@@ -182,6 +209,12 @@ defineExpose({ cancelEdit, showError: (value) => { formError.value = value } })
 button { font: inherit; cursor: pointer; }
 .add-button, .editor-actions button, .card-buttons button { border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); min-height: 36px; padding: 0 12px; font-size: 12px; font-weight: 650; }
 .add-button:hover, .card-buttons button:hover { border-color: var(--accent); }
+.common-toolbar { display: flex; align-items: end; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.common-search { display: grid; gap: 6px; min-width: 170px; flex: 1; color: var(--card-text-muted); font-size: 11px; }
+.common-search input { width: 100%; min-width: 0; height: 38px; border: 1px solid var(--hairline); border-radius: 10px; padding: 0 10px; background: var(--surface-elevated); color: var(--card-text); }
+.common-tools { display: flex; flex-wrap: wrap; gap: 7px; }
+.common-tools button { min-height: 38px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); font: inherit; font-size: 11px; font-weight: 650; }
+.visually-hidden-import { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .common-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .common-card { padding: 17px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-soft); min-width: 0; display: flex; flex-direction: column; gap: 13px; transition: border-color .2s, transform .2s; }
 .common-card:hover { border-color: var(--accent); transform: translateY(-1px); }
@@ -192,6 +225,7 @@ button { font: inherit; cursor: pointer; }
 .card-actions { display: flex; gap: 3px; flex-shrink: 0; align-self: flex-start; }
 .card-actions button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
 .card-actions button:hover { background: var(--surface-elevated); color: var(--card-text); }
+.card-actions button:disabled { opacity: .3; cursor: not-allowed; }
 .card-actions svg { width: 16px; height: 16px; }
 .card-meta { display: grid; gap: 5px; min-width: 0; flex: 1; }
 .card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
