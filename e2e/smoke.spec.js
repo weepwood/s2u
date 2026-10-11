@@ -315,3 +315,34 @@ test('连接后远端被另一设备修改时不会覆盖 Gist', async ({ page }
   await expect(page.getByRole('alert')).toContainText('已被其它设备修改')
   expect(patches).toBe(0)
 })
+
+
+test('常用链接可以搜索、持久化排序及安全追加导入 JSON', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('obsidian')
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('')
+  await page.getByRole('button', { name: '下移 Obsidian' }).click()
+  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: '导出 JSON' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toMatch(/^s2u-common-links-.*\.json$/)
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByLabel('选择常用链接备份文件').setInputFiles({
+    name: 'links.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      format: 's2u-common-links',
+      version: 1,
+      items: [{ id: 'import-safe', name: '我的网页', target: 'https://example.com/import' }],
+    })),
+  })
+  await expect(page.getByText('我的网页')).toBeVisible()
+})
