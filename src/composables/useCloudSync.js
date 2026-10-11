@@ -6,6 +6,8 @@ const TOKEN_SESSION_KEY = 'cloud_token_session'
 const GIST_FILENAME = 'scheme-history.json'
 const API_BASE = 'https://api.github.com'
 const REQUEST_TIMEOUT = 12000
+const BACKUP_PREFIX = 's2u_gist_backup_v1_'
+const MAX_BACKUPS = 3
 
 export function useCloudSync() {
   const cloudToken = ref('')
@@ -17,6 +19,8 @@ export function useCloudSync() {
   let syncTimer = null
   let pushPromise = null
   let pendingPayload = null
+  // 每次成功拉取时记住源文件的确切文本，写入前据此校验远端是否被其它设备修改。
+  let lastObservedContent = null
   const activeControllers = new Set()
   const intentionallyCancelledControllers = new WeakSet()
 
@@ -100,6 +104,7 @@ export function useCloudSync() {
     syncStatus.value = ''
     syncError.value = ''
     lastSyncTime.value = null
+    lastObservedContent = null
 
     try {
       sessionStorage.removeItem(TOKEN_SESSION_KEY)
@@ -131,15 +136,32 @@ export function useCloudSync() {
       pendingPayload = null
 
       try {
-        await githubRequest(`/gists/${encodeURIComponent(cloudGistId.value)}`, {
+        const gistPath = `/gists/${encodeURIComponent(cloudGistId.value)}`
+        // GitHub Gist PATCH 不支持 If-Match / CAS：此检查仅缩小竞态窗口。
+        const fresh = await githubRequest(gistPath, { token: cloudToken.value })
+        const freshContent = fresh?.files?.[GIST_FILENAME]?.content
+        if (typeof freshContent !== 'string') {
+          throw new Error('Gist 历史文件缺失，已停止写入，避免覆盖现有数据')
+        }
+        if (lastObservedContent !== null && freshContent !== lastObservedContent) {
+          const conflict = new Error('云端记录已被其它设备修改，本次写入已暂停；请重新同步以合并最新记录')
+          conflict.name = 'GistConflictError'
+          throw conflict
+        }
+
+        // 在覆盖远端内容之前，将远端原始快照写到本地；备份失败则中止 PATCH。
+        saveRecoveryBackup(freshContent)
+        const writtenContent = JSON.stringify(payload, null, 2)
+        await githubRequest(gistPath, {
           token: cloudToken.value,
           method: 'PATCH',
           body: {
             files: {
-              [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+              [GIST_FILENAME]: { content: writtenContent },
             },
           },
         })
+        lastObservedContent = writtenContent
         pushed = true
         syncStatus.value = 'connected'
         syncError.value = ''
@@ -147,7 +169,7 @@ export function useCloudSync() {
       } catch (error) {
         // 请求失败时保留更新期间排入的最新快照，并优先尝试写入它。
         // 只有没有更新快照可继续时才把失败交给调用方。
-        if (pendingPayload) continue
+        if (pendingPayload && error?.name !== 'GistConflictError') continue
         setSyncError(error, '同步失败')
         throw error
       }
@@ -167,6 +189,7 @@ export function useCloudSync() {
       if (!remoteContent) throw new Error(`Gist 中缺少 ${GIST_FILENAME}`)
 
       const remote = JSON.parse(remoteContent)
+      lastObservedContent = remoteContent
       syncStatus.value = 'connected'
       syncError.value = ''
       lastSyncTime.value = Date.now()
@@ -175,6 +198,35 @@ export function useCloudSync() {
       if (!isIntentionalCancellation(error)) setSyncError(error, '拉取失败')
       return null
     }
+  }
+
+  function recoveryKey() {
+    if (!cloudGistId.value) throw new Error('尚未选择 Gist')
+    return BACKUP_PREFIX + cloudGistId.value
+  }
+
+  function saveRecoveryBackup(remoteContent) {
+    let previous
+    try {
+      previous = JSON.parse(localStorage.getItem(recoveryKey()) || '[]')
+      if (!Array.isArray(previous)) throw new TypeError('同步备份格式不正确')
+    } catch {
+      throw new Error('本地同步备份不可读取，为保护历史记录已中止云端写入')
+    }
+    try {
+      const items = [...previous, { savedAt: Date.now(), remoteContent }].slice(-MAX_BACKUPS)
+      localStorage.setItem(recoveryKey(), JSON.stringify(items))
+    } catch {
+      throw new Error('无法保存同步前备份，为保护远端数据已中止写入')
+    }
+  }
+
+  // 返回标准历史文件，可通过现有“历史记录 → 导入”功能恢复。
+  function getLatestRecovery() {
+    const items = JSON.parse(localStorage.getItem(recoveryKey()) || '[]')
+    if (!Array.isArray(items) || !items.length) return null
+    const latest = items[items.length - 1]
+    return JSON.parse(latest.remoteContent)
   }
 
   function scheduleAutoSync(task, delay = 2000) {
@@ -290,6 +342,7 @@ export function useCloudSync() {
     disconnect,
     pushToGist,
     pullFromGist,
+    getLatestRecovery,
     scheduleAutoSync,
     cleanup,
   }
