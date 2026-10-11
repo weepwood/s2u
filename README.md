@@ -169,3 +169,8 @@ MIT
 ### 自动化浏览器测试
 
 Playwright 1.56.1 作为锁定的 devDependency 与 `package-lock.json` 同步维护，CI 使用 `npm ci` 后直接安装对应浏览器，不再临时修改 node_modules。每次 PR 测试 Chromium（根路径与 `/s2u/`），每周一单独运行 Firefox/WebKit 冒烟测试，不阻塞普通 PR；分支保护（至少必需 `quality` 与 `browser-smoke` 检查、禁止 force push）需由 GitHub 仓库管理员在 Settings 中设置，不能仅靠 CI YAML 实现。
+
+
+### 依赖清理（#32）
+
+已核查入口 `src/main.js` 和 `src/App.vue` 不注册 Vue Router，仓库没有任何实际页面使用 Vue Router 的导航。Vite 8 采用 Rolldown，`esbuild` 作为 Vite 的可选对等依赖，不需要项目直接安装。移除这两个显式依赖及闲置路由文件，以 npm 重新生成的锁文件为准；不更改页面行为。
