@@ -140,6 +140,7 @@
               @reset="resetCommonLinks"
               @open="openCommonLink"
               @copy="copyCommonLink"
+              @copy-raw="copyCommonRaw"
               @move="moveCommonLink"
               @export="exportCommonLinks"
               @import="importCommonLinks"
@@ -471,6 +472,20 @@ async function importCommonLinks(file) {
     showToast(`已导入 ${added} 条常用链接`, 'success')
   } catch (error) {
     showToast(error?.message || '备份导入失败', 'error', 4000)
+  }
+}
+
+async function copyCommonRaw(target) {
+  const normalized = normalizeTarget(target)
+  if (!normalized.ok) {
+    showToast(normalized.error, 'error', 4000)
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(normalized.target)
+    showToast('原始链接已复制', 'success')
+  } catch {
+    showToast('复制原始链接失败，请检查剪贴板权限', 'error', 4000)
   }
 }
 

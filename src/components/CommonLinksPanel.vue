@@ -46,6 +46,24 @@
       </form>
     </dialog>
 
+    <dialog
+      ref="openWarningDialog"
+      class="editor-dialog open-warning-dialog"
+      aria-labelledby="unknown-scheme-title"
+      @close="pendingTarget = ''"
+    >
+      <section class="open-warning-body">
+        <h3 id="unknown-scheme-title">打开未知应用协议？</h3>
+        <p>此地址会尝试唤起设备上的应用。请仅打开来自可信来源的自定义协议；浏览器无法保证应用已成功启动。</p>
+        <code class="open-warning-target">{{ pendingTarget }}</code>
+        <div class="editor-actions">
+          <button type="button" @click="openWarningDialog?.close()">取消</button>
+          <button type="button" @click="copyPendingRaw">复制原始链接</button>
+          <button class="primary" type="button" @click="confirmOpen">继续打开</button>
+        </div>
+      </section>
+    </dialog>
+
     <div class="common-toolbar">
       <label class="common-search">
         <span>搜索常用链接</span>
@@ -71,6 +89,9 @@
           <div class="card-actions">
             <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
             <button type="button" :disabled="items[items.length - 1]?.id === item.id" :aria-label="'下移 ' + item.name" title="下移" @click="$emit('move', item.id, 1)">↓</button>
+            <button type="button" :aria-label="'复制 ' + item.name + ' 原始链接'" title="复制原始链接" @click="$emit('copy-raw', item.target)">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.7"/></svg>
+            </button>
             <button type="button" :aria-label="'编辑 ' + item.name" title="编辑" @click="beginEdit(item)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 16 11-11 4 4L8 20H4v-4Zm9-9 4 4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
             </button>
@@ -80,7 +101,7 @@
           </div>
         </div>
         <div class="card-buttons">
-          <button type="button" @click="$emit('open', item.target)" :aria-label="'打开 ' + item.name">打开</button>
+          <button type="button" @click="requestOpen(item.target)" :aria-label="'打开 ' + item.name">打开</button>
           <button class="primary" type="button" @click="$emit('copy', item)" :aria-label="'复制 ' + item.name + ' 分享链接'">复制分享链接</button>
         </div>
       </article>
@@ -91,7 +112,7 @@
     </div>
 
     <footer class="common-footer">
-      <p>常用链接仅保存在当前浏览器，不会随历史记录或 Gist 自动同步。应用 Scheme 需要本机安装对应软件才能打开。</p>
+      <p>常用链接仅保存在当前浏览器，不会通过 Gist 同步。应用 Scheme 需设备安装并注册对应应用；浏览器不一定能获知是否启动成功，可使用“复制原始链接”作为回退。</p>
       <button type="button" @click="resetItems">恢复默认应用</button>
     </footer>
   </section>
@@ -99,12 +120,39 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { normalizeTarget } from '../domain/linkCodec.js'
+import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'move', 'import', 'export'])
+const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'import', 'export'])
+const openWarningDialog = ref(null)
+const pendingTarget = ref('')
+
+function requestOpen(target) {
+  const policy = getTargetOpenPolicy(target)
+  if (!policy.ok) {
+    emit('open', target)
+    return
+  }
+  if (policy.needsConfirmation) {
+    pendingTarget.value = policy.target
+    openWarningDialog.value?.showModal()
+    return
+  }
+  emit('open', policy.target)
+}
+
+function confirmOpen() {
+  const target = pendingTarget.value
+  openWarningDialog.value?.close()
+  if (target) emit('open', target)
+}
+
+function copyPendingRaw() {
+  if (pendingTarget.value) emit('copy-raw', pendingTarget.value)
+}
+
 const search = ref('')
 const visibleItems = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -223,7 +271,7 @@ button { font: inherit; cursor: pointer; }
 .app-icon img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .fallback-icon { color: #fff; background: linear-gradient(135deg, #298ae5, #165cad); font-size: 16px; font-weight: 750; }
 .card-actions { display: flex; gap: 3px; flex-shrink: 0; align-self: flex-start; }
-.card-actions button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
+.card-actions button { width: 27px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
 .card-actions button:hover { background: var(--surface-elevated); color: var(--card-text); }
 .card-actions button:disabled { opacity: .3; cursor: not-allowed; }
 .card-actions svg { width: 16px; height: 16px; }
@@ -249,6 +297,12 @@ button { font: inherit; cursor: pointer; }
   box-shadow: 0 28px 88px rgba(15, 23, 42, .3);
 }
 .editor-dialog::backdrop { background: rgba(12, 18, 32, .6); backdrop-filter: blur(5px); }
+.open-warning-body { padding: clamp(18px, 4vw, 25px); display: grid; gap: 15px; }
+.open-warning-body h3 { font-size: 19px; margin: 0; }
+.open-warning-body p { font-size: 13px; line-height: 1.7; color: var(--card-text-muted); margin: 0; }
+.open-warning-target { padding: 11px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-soft); overflow-wrap: anywhere; font-size: 12px; }
+.open-warning-body .editor-actions { flex-wrap: wrap; }
+.open-warning-body .editor-actions button { min-height: 36px; border: 1px solid var(--hairline); border-radius: 10px; padding: 0 12px; background: var(--surface-elevated); color: var(--card-text); font: inherit; font-size: 12px; cursor: pointer; }
 .editor { display: grid; gap: 18px; padding: clamp(18px, 4vw, 25px); }
 .dialog-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .dialog-heading h3 { font-size: 20px; margin: 0; }
@@ -268,6 +322,6 @@ button { font: inherit; cursor: pointer; }
 .common-footer button { flex-shrink: 0; border: 0; background: transparent; color: var(--card-text-muted); font-size: 12px; cursor: pointer; }
 .common-footer button:hover { color: var(--accent); }
 @media (max-width: 620px) { .common-grid { grid-template-columns: 1fr; } .common-footer { flex-direction: column; } }
-@media (max-width: 360px) { .card-main { gap: 8px; } .app-icon { width: 44px; height: 44px; } .card-actions button { width: 27px; } }
+@media (max-width: 360px) { .card-main { gap: 6px; } .app-icon { width: 40px; height: 40px; } .card-actions { gap: 0; } .card-actions button { width: 24px; } }
 @media (prefers-reduced-motion: reduce) { .common-card { transition: none; transform: none !important; } }
 </style>
