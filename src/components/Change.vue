@@ -537,8 +537,10 @@ function syncGist({ silent = false } = {}) {
     if (syncToastWanted) showToast('历史记录已同步', 'success')
     return true
   })().catch((error) => {
-    if (cloudToken.value && cloudGistId.value && syncToastWanted) {
-      showToast(syncError.value || error.message || '同步失败', 'error', 4000)
+    if (cloudToken.value && cloudGistId.value) {
+      syncStatus.value = 'error'
+      syncError.value = error?.message || '同步失败'
+      if (syncToastWanted) showToast(syncError.value, 'error', 4000)
     }
     return false
   })

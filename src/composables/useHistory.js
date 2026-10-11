@@ -43,63 +43,87 @@ export function useHistory() {
     }
   }
 
+  // 同步本地存储失败时将历史及删除标记一并回滚，防止只更新内存的假成功。
+  function mutateAndSave(update) {
+    const previousHistory = history.value.map((item) => ({ ...item }))
+    const previousTombstones = tombstones.value.map((item) => ({ ...item }))
+    try {
+      update()
+      if (save()) return true
+    } catch (error) {
+      history.value = previousHistory
+      tombstones.value = previousTombstones
+      throw error
+    }
+    history.value = previousHistory
+    tombstones.value = previousTombstones
+    return false
+  }
+
   function add(scheme) {
     const normalizedScheme = normalizeScheme(scheme)
     if (!normalizedScheme) return false
 
-    const time = Date.now()
-    const idx = history.value.findIndex((item) => item.scheme === normalizedScheme)
+    return mutateAndSave(() => {
+      const time = Date.now()
+      const idx = history.value.findIndex((item) => item.scheme === normalizedScheme)
 
-    if (idx === -1) {
-      history.value.push({
-        scheme: normalizedScheme,
-        count: 1,
-        recently: time,
-        updatedAt: time,
-      })
-    } else {
-      const current = history.value[idx]
-      history.value[idx] = {
-        ...current,
-        count: current.count + 1,
-        recently: time,
-        updatedAt: time,
+      if (idx === -1) {
+        history.value.push({
+          scheme: normalizedScheme,
+          count: 1,
+          recently: time,
+          updatedAt: time,
+        })
+      } else {
+        const current = history.value[idx]
+        history.value[idx] = {
+          ...current,
+          count: current.count + 1,
+          recently: time,
+          updatedAt: time,
+        }
       }
-    }
-
-    tombstones.value = tombstones.value.filter((item) => item.scheme !== normalizedScheme)
-    history.value = sortByTime(history.value).slice(0, MAX_HISTORY_ITEMS)
-    return save()
+      tombstones.value = tombstones.value.filter((item) => item.scheme !== normalizedScheme)
+      history.value = sortByTime(history.value).slice(0, MAX_HISTORY_ITEMS)
+    })
   }
 
   function remove(scheme) {
     const normalizedScheme = normalizeScheme(scheme)
-    if (!normalizedScheme) return false
+    if (!normalizedScheme || !history.value.some((item) => item.scheme === normalizedScheme)) {
+      return false
+    }
 
-    const previousLength = history.value.length
-    history.value = history.value.filter((item) => item.scheme !== normalizedScheme)
-    if (history.value.length === previousLength) return false
-
-    upsertTombstone(normalizedScheme, Date.now())
-    return save()
+    return mutateAndSave(() => {
+      history.value = history.value.filter((item) => item.scheme !== normalizedScheme)
+      upsertTombstone(normalizedScheme, Date.now())
+    })
   }
 
   function clear() {
-    const deletedAt = Date.now()
-    for (const item of history.value) upsertTombstone(item.scheme, deletedAt)
-    history.value = []
-    return save()
+    return mutateAndSave(() => {
+      const deletedAt = Date.now()
+      for (const item of history.value) upsertTombstone(item.scheme, deletedAt)
+      history.value = []
+    })
   }
 
   function merge(remoteData) {
     validateExternalPayload(remoteData)
     const before = new Set(history.value.map((item) => item.scheme))
     const incoming = normalizePayload(remoteData)
-    applyMergedState(
-      [...history.value, ...incoming.records],
-      [...tombstones.value, ...incoming.tombstones],
-    )
-    save()
+
+    const saved = mutateAndSave(() => {
+      applyMergedState(
+        [...history.value, ...incoming.records],
+        [...tombstones.value, ...incoming.tombstones],
+      )
+    })
+    if (!saved) {
+      // 此错误会传递给 Gist 同步流程：绝不能继续 PATCH 远端内容。
+      throw new Error(storageError.value || '本地历史记录无法保存，同步已中止')
+    }
 
     return history.value.reduce(
       (count, item) => count + (before.has(item.scheme) ? 0 : 1),
