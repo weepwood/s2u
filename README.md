@@ -58,7 +58,7 @@ npm run build
 npm run check
 ```
 
-CI 会在提交到 `master` 或创建 Pull Request 时执行 ESLint、Node 单元测试和生产构建。
+CI 会在提交到 `master` 或创建 Pull Request 时执行 ESLint、Node 单元测试、生产构建与 Chromium 浏览器回归。更多视觉与验收要求参见 [`DESIGN.md`](DESIGN.md) 和 [`docs/device-qa.md`](docs/device-qa.md)。
 
 ## 使用说明
 
@@ -127,7 +127,7 @@ CI 分别构建并使用 Chromium 检查根路径与 `/s2u/` 的页面、favicon
 | 构建 | Vite 8 |
 | 持久化 | localStorage + sessionStorage |
 | 云同步 | GitHub Gist API |
-| 测试 | Node.js Test Runner |
+| 测试 | Node.js Test Runner + Playwright Chromium（每周 Firefox/WebKit 冒烟） |
 | 代码检查 | ESLint |
 | 部署 | Netlify |
 
@@ -159,7 +159,7 @@ MIT
 
 ### 常用链接的排序与迁移
 
-在常用链接页签中，可以按名称或 URL 搜索，用上移/下移按钮调整卡片顺序，并导出 `s2u-common-links` 版本化 JSON。导入时先检查文件大小（最多 2 MB）、版本、50 条数量上限、危险协议与重复项，再展示预计新增数量供确认。导入采用追加合并，不覆盖现有收藏、历史或 Gist；排序和新收藏仍保存在本机 `localStorage`。自定义图标上传将另行评估与实现。
+在常用链接页签中，可以按名称或 URL 搜索，用上移/下移按钮调整卡片顺序，并导出 `s2u-common-links` 版本化 JSON。导入时先检查文件大小（最多 2 MB）、版本、50 条数量上限、危险协议与重复项，再展示预计新增数量供确认。导入采用追加合并，不覆盖现有收藏、历史或 Gist；排序和新收藏仍保存在本机 `localStorage`。自定义图标上传已经实现，并包含在独立 JSON 备份中。
 
 ### 直接打开应用与风险提示
 
