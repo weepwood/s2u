@@ -194,3 +194,37 @@ test('忽略明显位于未来的时间戳，避免异常记录覆盖删除标�
 
   assert.equal(store.history.value.some((item) => item.scheme === 'weixin://future-record'), false)
 })
+
+
+test('本地保存失败时新增/删除/清空回滚内存及 tombstone', () => {
+  const store = useHistory()
+  store.load()
+  assert.equal(store.add('weixin://open'), true)
+  const previous = store.history.value.map((item) => ({ ...item }))
+  const previousTombstones = store.tombstones.value.map((item) => ({ ...item }))
+  localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+
+  assert.equal(store.add('obsidian://'), false)
+  assert.equal(store.remove('weixin://open'), false)
+  assert.equal(store.clear(), false)
+  assert.deepEqual(store.history.value, previous)
+  assert.deepEqual(store.tombstones.value, previousTombstones)
+  assert.match(store.storageError.value, /不足|不可用/)
+})
+
+test('合并远端记录如不能落盘则抛错且恢复合并前数据', () => {
+  const store = useHistory()
+  store.load()
+  assert.equal(store.add('weixin://open'), true)
+  const beforeRecords = store.history.value.map((item) => ({ ...item }))
+  const beforeDeleted = store.tombstones.value.map((item) => ({ ...item }))
+  localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+
+  assert.throws(() => store.merge([{
+    scheme: 'https://example.com/',
+    count: 1,
+    recently: Date.now(),
+  }]), /本地存储空间不足|不可用/)
+  assert.deepEqual(store.history.value, beforeRecords)
+  assert.deepEqual(store.tombstones.value, beforeDeleted)
+})

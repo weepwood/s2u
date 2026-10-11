@@ -78,3 +78,51 @@ test('模拟 Gist 同步不接触真实 Token/API', async ({ page }) => {
   await page.getByRole('button', { name: '断开连接' }).click()
   await expect(page.getByRole('button', { name: '连接 Gist' })).toBeVisible()
 })
+
+
+test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', async ({ page }) => {
+  let patchCount = 0
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function (key, value) {
+      if (this === localStorage && key === 'scheme_history') {
+        throw new DOMException('quota', 'QuotaExceededError')
+      }
+      return original.call(this, key, value)
+    }
+  })
+  await page.route('https://api.github.com/**', async (route) => {
+    const url = new URL(route.request().url())
+    const method = route.request().method()
+    if (url.pathname === '/user') return route.fulfill({ json: { login: 'test-user' } })
+    if (url.pathname === '/gists' && method === 'POST') {
+      return route.fulfill({ json: { id: 'test-sync-id' } })
+    }
+    if (url.pathname === '/gists/test-sync-id' && method === 'GET') {
+      return route.fulfill({ json: {
+        files: {
+          'scheme-history.json': {
+            content: JSON.stringify({
+              format: 's2u-history',
+              version: 2,
+              records: [{ scheme: 'https://example.com/', count: 1, recently: Date.now() }],
+              tombstones: [],
+            }),
+          },
+        },
+      } })
+    }
+    if (method === 'PATCH') {
+      patchCount++
+      return route.fulfill({ json: { id: 'test-sync-id' } })
+    }
+    return route.fulfill({ status: 404, json: { message: 'unexpected request' } })
+  })
+  await page.goto('/')
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await page.getByRole('button', { name: '云端同步' }).click()
+  await page.locator('#gist-token').fill('fake-token-for-test')
+  await page.getByRole('button', { name: '连接 Gist' }).click()
+  await expect(page.getByRole('alert')).toContainText('本地存储空间不足')
+  expect(patchCount).toBe(0)
+})
