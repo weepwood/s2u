@@ -281,3 +281,37 @@ test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', asyn
   await expect(page.getByRole('alert')).toContainText('本地存储空间不足')
   expect(patchCount).toBe(0)
 })
+
+
+test('连接后远端被另一设备修改时不会覆盖 Gist', async ({ page }) => {
+  let reads = 0
+  let patches = 0
+  const history = (url) => JSON.stringify({
+    format: 's2u-history', version: 2,
+    records: [{ scheme: url, count: 1, recently: Date.now() }],
+    tombstones: [],
+  })
+  await page.route('https://api.github.com/**', (route) => {
+    const request = route.request()
+    const { pathname } = new URL(request.url())
+    if (pathname === '/user') return route.fulfill({ json: { login: 'test-user' } })
+    if (pathname === '/gists' && request.method() === 'POST') {
+      return route.fulfill({ json: { id: 'test-race' } })
+    }
+    if (pathname === '/gists/test-race' && request.method() === 'GET') {
+      reads++
+      return route.fulfill({ json: { files: {
+        'scheme-history.json': { content: history(reads > 1 ? 'https://external.example/new' : 'https://initial.example/') },
+      } } })
+    }
+    if (request.method() === 'PATCH') patches++
+    return route.fulfill({ status: 200, json: { id: 'test-race' } })
+  })
+  await page.goto('/')
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await page.getByRole('button', { name: '云端同步' }).click()
+  await page.locator('#gist-token').fill('fake-token-for-test')
+  await page.getByRole('button', { name: '连接 Gist' }).click()
+  await expect(page.getByRole('alert')).toContainText('已被其它设备修改')
+  expect(patches).toBe(0)
+})

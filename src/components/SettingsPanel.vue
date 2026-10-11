@@ -66,6 +66,7 @@
           </svg>
           立即同步
         </button>
+        <button type="button" class="secondary-action" @click="$emit('exportBackup')">导出同步前备份</button>
         <button type="button" class="secondary-action" @click="$emit('disconnect')">断开连接</button>
       </template>
 
@@ -100,7 +101,7 @@ const props = defineProps({
   lastSyncTime: { type: Number, default: null },
 })
 
-defineEmits(['update:cloudToken', 'connect', 'disconnect', 'sync'])
+defineEmits(['update:cloudToken', 'connect', 'disconnect', 'sync', 'exportBackup'])
 
 const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',

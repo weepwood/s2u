@@ -121,6 +121,7 @@
               @connect="connectGist"
               @disconnect="disconnectGist"
               @sync="syncGist"
+              @export-backup="exportGistRecovery"
             />
           </div>
 
@@ -240,6 +241,7 @@ const {
   pullFromGist,
   scheduleAutoSync,
   cleanup: cleanupSync,
+  getLatestRecovery,
 } = useCloudSync()
 
 const url = ref('')
@@ -562,6 +564,29 @@ async function connectGist() {
     if (synced) showToast('已连接 GitHub Gist', 'success')
   } catch {
     // 错误状态由 composable 维护。
+  }
+}
+
+function exportGistRecovery() {
+  try {
+    const snapshot = getLatestRecovery()
+    if (!snapshot) {
+      showToast('目前没有同步前备份，首次成功推送后会自动保留', 'info', 4000)
+      return
+    }
+    // 导出标准 s2u-history JSON，可用历史记录“导入”功能尝试恢复。
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' })
+    const href = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.download = 's2u-gist-backup-' + new Date().toISOString().slice(0, 10) + '.json'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+    showToast('同步前备份已导出，请妥善保管历史数据', 'success')
+  } catch (error) {
+    showToast(error?.message || '无法导出同步备份', 'error', 4000)
   }
 }
 
