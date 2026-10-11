@@ -215,3 +215,22 @@ test('320px 手机视口中编辑弹窗不超出边界', async ({ page }) => {
   await dialog.getByRole('button', { name: '关闭弹窗' }).click()
   await expect(dialog).not.toBeVisible()
 })
+
+
+test('编辑弹窗快捷键不触发隐藏创建页复制或历史页切换', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('#url').fill('https://example.com/should-not-be-copied')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  const modal = page.getByRole('dialog', { name: '编辑常用链接' })
+  await expect(modal).toBeVisible()
+  await modal.getByRole('button', { name: '关闭弹窗' }).focus()
+  await page.keyboard.press('Control+Enter')
+  await page.keyboard.press('h')
+  await expect(modal).toBeVisible()
+  await expect(page.getByRole('tab', { name: /常用链接/ })).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('Escape')
+  await expect(modal).not.toBeVisible()
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByText('还没有创建过链接')).toBeVisible()
+})

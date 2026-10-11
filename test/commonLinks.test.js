@@ -75,3 +75,52 @@ test('损坏存储回退默认数据且不覆盖原始内容', () => {
     mock.restore()
   }
 })
+
+
+test('localStorage 配额不足时新增、编辑、删除、重置均不产生假成功', () => {
+  const mock = useFakeStorage()
+  try {
+    const links = useCommonLinks()
+    links.load()
+    assert.equal(links.save({ name: '笔记', target: 'obsidian://open?vault=one' }), true)
+    const before = JSON.stringify(links.links.value)
+    const persisted = localStorage.getItem('s2u_common_links_v1')
+    const originalSetItem = localStorage.setItem
+    localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+
+    assert.equal(links.save({ name: '浏览器', target: 'https://example.com' }), false)
+    assert.equal(links.save({ id: 'obsidian', name: '另一个', target: 'obsidian://other' }), false)
+    assert.equal(links.remove('vscode'), false)
+    assert.equal(links.restoreDefaults(), false)
+    assert.equal(JSON.stringify(links.links.value), before)
+    assert.equal(localStorage.getItem('s2u_common_links_v1'), persisted)
+    assert.match(links.storageError.value, /保存失败/)
+
+    localStorage.setItem = originalSetItem
+    assert.equal(links.remove('vscode'), true)
+    assert.equal(links.links.value.some((x) => x.id === 'vscode'), false)
+  } finally {
+    mock.restore()
+  }
+})
+
+test('损坏原始数据先备份再由显式恢复覆盖，普通操作不得隐式覆盖', () => {
+  const mock = useFakeStorage()
+  try {
+    const damaged = '{invalid-json'
+    localStorage.setItem('s2u_common_links_v1', damaged)
+    const links = useCommonLinks()
+    links.load()
+    assert.equal(links.save({ name: '新链接', target: 'https://example.com' }), false)
+    assert.equal(links.remove('obsidian'), false)
+    assert.equal(localStorage.getItem('s2u_common_links_v1'), damaged)
+    assert.equal(links.restoreDefaults(), true)
+    assert.equal(links.links.value.length, 4)
+    const backups = [...mock.state].filter(([key]) => key.startsWith('s2u_common_links_corrupt_backup_'))
+    assert.equal(backups.length, 1)
+    assert.equal(backups[0][1], damaged)
+    assert.equal(JSON.parse(localStorage.getItem('s2u_common_links_v1')).version, 1)
+  } finally {
+    mock.restore()
+  }
+})

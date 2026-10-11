@@ -570,12 +570,14 @@ function disconnectGist() {
 
 function handleKeydown(event) {
   if (event.isComposing) return
+  // 原生 modal dialog 的键盘交互优先于页面快捷键，Esc 由浏览器关闭弹窗。
+  if (document.querySelector('dialog[open]')) return
 
   const target = event.target
   const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
   const isContentEditable = target instanceof HTMLElement && target.isContentEditable
 
-  if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+  if (activePanel.value === 'create' && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
     event.preventDefault()
     copy()
     return

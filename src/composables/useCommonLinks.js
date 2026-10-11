@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { normalizeTarget } from '../domain/linkCodec.js'
 
 const STORAGE_KEY = 's2u_common_links_v1'
+const CORRUPT_BACKUP_PREFIX = 's2u_common_links_corrupt_backup_'
 const VERSION = 1
 const MAX_LINKS = 50
 const MAX_NAME_LENGTH = 36
@@ -33,11 +34,16 @@ function normalizeItem(input) {
 export function useCommonLinks() {
   const links = ref(defaultItems())
   const storageError = ref('')
+  let needsRecovery = false
+  let damagedRaw = null
 
   function load() {
+    let raw = null
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
+      raw = localStorage.getItem(STORAGE_KEY)
       if (raw === null) {
+        needsRecovery = false
+        damagedRaw = null
         links.value = defaultItems()
         storageError.value = ''
         return
@@ -58,22 +64,39 @@ export function useCommonLinks() {
         seenTargets.add(item.target)
         items.push(item)
       }
+      needsRecovery = false
+      damagedRaw = null
       links.value = items
       storageError.value = items.length !== payload.items.length ? '部分无效常用链接已忽略' : ''
     } catch {
+      needsRecovery = true
+      damagedRaw = raw
       links.value = defaultItems()
-      storageError.value = '常用链接读取失败，已暂时显示默认应用；原本地数据未被覆盖'
+      storageError.value = '常用链接读取失败，原始数据已保留；请确认恢复默认后再修改'
     }
   }
 
-  function persist(items) {
-    links.value = items
+  function persist(items, { recover = false } = {}) {
+    if (needsRecovery && !recover) {
+      storageError.value = '原有收藏数据无法读取，请先选择“恢复默认应用”进行安全恢复'
+      return false
+    }
+
     try {
+      // 损坏存储必须先成功备份原始字节，才能由用户主动执行恢复。
+      if (needsRecovery) {
+        if (damagedRaw === null) throw new Error('原始数据无法备份')
+        const backupKey = CORRUPT_BACKUP_PREFIX + Date.now()
+        localStorage.setItem(backupKey, damagedRaw)
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: VERSION, items }))
+      links.value = items
+      needsRecovery = false
+      damagedRaw = null
       storageError.value = ''
       return true
     } catch {
-      storageError.value = '无法保存常用链接，请检查浏览器存储权限或剩余空间'
+      storageError.value = '保存失败，列表未改变。请检查浏览器存储空间与权限'
       return false
     }
   }
@@ -107,7 +130,7 @@ export function useCommonLinks() {
   }
 
   function restoreDefaults() {
-    return persist(defaultItems())
+    return persist(defaultItems(), { recover: true })
   }
 
   return { links, storageError, load, save, remove, restoreDefaults }
