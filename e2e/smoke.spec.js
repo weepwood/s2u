@@ -88,6 +88,10 @@ test('常用链接展示图标、填入后切换创建页并复制', async ({ pa
   await expect(page.locator('img[alt="Obsidian 图标"]')).toBeVisible()
   await expect(page.locator('img[alt="微信 图标"]')).toBeVisible()
   await expect(page.locator('img[alt="网易云音乐 图标"]')).toBeVisible()
+  for (const app of ['Obsidian', '微信', '网易云音乐']) {
+    const img = page.locator('img[alt="' + app + ' 图标"]')
+    await expect.poll(() => img.evaluate((element) => element.naturalWidth)).toBeGreaterThan(0)
+  }
   await page.getByRole('button', { name: '填入 Obsidian' }).click()
   await expect(page.locator('#url')).toHaveValue('obsidian://')
   await page.getByRole('button', { name: '复制链接' }).click()
@@ -129,4 +133,15 @@ test('常用链接拒绝危险协议且不能影响历史记录', async ({ page 
   await expect(page.getByRole('alert')).toContainText('不支持 javascript:')
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await expect(page.getByText('还没有创建过链接')).toBeVisible()
+})
+
+test('320px 移动端页签不溢出且深色模式仍可使用常用链接', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(page.getByRole('button', { name: '切换到浅色模式' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '复制 Obsidian 分享链接' })).toBeVisible()
 })

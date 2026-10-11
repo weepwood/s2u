@@ -337,3 +337,40 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 三个页签在窄屏下保持同一行，避免第三个入口被裁剪。 */
+@media (max-width: 560px) {
+  .app-shell .mode-tabs {
+    width: 100%;
+    max-width: 100%;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .app-shell .mode-tabs button {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .app-shell .mode-tabs button svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .app-shell .tab-count {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-shell .mode-tabs button svg { display: none; }
+}
