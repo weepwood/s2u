@@ -155,11 +155,11 @@
   opacity: 0;
   transform: translate3d(var(--tab-indicator-x, 0px), 0, 0);
   transition:
-    transform 430ms var(--motion-standard),
-    width 430ms var(--motion-standard),
+    transform 390ms var(--motion-standard),
+    width 390ms var(--motion-standard),
     opacity 160ms ease,
     background 220ms ease;
-  will-change: transform, width;
+  will-change: transform;
 }
 
 .app-shell.dark .mode-tabs::before {
@@ -177,7 +177,7 @@
   padding: 0 13px;
   background: transparent !important;
   box-shadow: none !important;
-  transition: color 260ms ease, transform 180ms ease;
+  transition: color 230ms ease, transform 160ms ease;
 }
 
 .app-shell .mode-tabs button:hover {
@@ -192,11 +192,27 @@
   color: var(--card-text);
 }
 
+/* 标签聚焦时保留明显的键盘焦点边框，鼠标点击不显示额外轮廓。 */
+.app-shell .mode-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.app-shell .mode-tabs button svg {
+  transition: transform 220ms var(--motion-standard), color 220ms ease;
+}
+
+.app-shell .mode-tabs button:hover svg {
+  transform: scale(1.08);
+}
+
 /* 主卡片成为页面中心，并在首次打开时自然落位。 */
 .app-shell .content-card {
   position: relative;
+  --panel-pad-block: clamp(22px, 4vw, 36px);
+  --panel-pad-inline: clamp(22px, 4vw, 36px);
   min-height: 250px;
-  padding: clamp(22px, 4vw, 36px);
+  padding: var(--panel-pad-block) var(--panel-pad-inline);
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.9);
   box-shadow:
@@ -226,35 +242,33 @@
   pointer-events: none;
 }
 
-.app-shell.is-mode-switching .content-card {
-  animation: s2u-card-breathe 480ms var(--motion-standard);
-}
-
-/* 缩短退场、拉长入场，避免 out-in 产生明显空白停顿。 */
+/* 新面板直接参与布局，旧面板覆盖退出：避免 out-in 的中间空白帧。
+   cardHeightTransition.js 只测量新面板，让容器高度与内容过渡同时发生。 */
 .app-shell .content-card .panel-enter-active {
   transition:
-    opacity 330ms ease-out,
-    transform 430ms var(--motion-standard),
-    filter 280ms ease-out !important;
+    opacity 300ms ease-out,
+    transform 380ms var(--motion-standard) !important;
 }
 
 .app-shell .content-card .panel-leave-active {
+  position: absolute;
+  top: var(--panel-pad-block);
+  left: var(--panel-pad-inline);
+  right: var(--panel-pad-inline);
+  pointer-events: none;
   transition:
-    opacity 120ms ease-in,
-    transform 160ms ease-in,
-    filter 120ms ease-in !important;
+    opacity 140ms ease-in,
+    transform 180ms ease-in !important;
 }
 
 .app-shell .content-card .panel-enter-from {
   opacity: 0;
-  filter: blur(6px);
-  transform: translate3d(var(--panel-enter-x), 10px, 0) scale(0.985);
+  transform: translate3d(var(--panel-enter-x), 7px, 0) scale(0.995);
 }
 
 .app-shell .content-card .panel-leave-to {
   opacity: 0;
-  filter: blur(3px);
-  transform: translate3d(var(--panel-leave-x), -3px, 0) scale(0.993);
+  transform: translate3d(var(--panel-leave-x), -4px, 0);
 }
 
 .app-shell .panel-enter-active .history-item,
@@ -308,12 +322,6 @@
   animation: s2u-ambient-two 18s ease-in-out infinite alternate;
 }
 
-.app-shell .workspace-footer {
-  margin-top: 13px;
-  opacity: 0.72;
-  animation: s2u-footer-arrive 560ms 360ms ease-out both;
-}
-
 @keyframes s2u-header-arrive {
   from {
     opacity: 0;
@@ -347,16 +355,6 @@
   }
 }
 
-@keyframes s2u-card-breathe {
-  0%,
-  100% {
-    box-shadow: var(--shadow-lg);
-  }
-  45% {
-    box-shadow: 0 30px 90px rgba(33, 45, 75, 0.18);
-  }
-}
-
 @keyframes s2u-row-arrive {
   from {
     opacity: 0;
@@ -365,15 +363,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes s2u-footer-arrive {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.72;
   }
 }
 
@@ -395,14 +384,46 @@
   }
 }
 
+/* 控件获得悬浮反馈，但只动少量像素以减少鼠标移入时的布局干扰。 */
+@media (hover: hover) and (pointer: fine) {
+  .app-shell .content-card button:not(:disabled):active {
+    transform: scale(0.985);
+  }
+}
+
+.app-shell .content-card button:focus-visible,
+.app-shell .header-actions a:focus-visible,
+.app-shell .header-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* 对话框是原生 modal；不影响 Esc、焦点管理和背景交互。 */
+.app-shell dialog[open] {
+  animation: s2u-dialog-appear 240ms var(--motion-gentle) both;
+}
+
+@keyframes s2u-dialog-appear {
+  from {
+    opacity: 0;
+    transform: translateY(9px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 640px) {
   .app-shell .workspace {
     margin-top: 34px;
   }
 
   .app-shell .content-card {
+    --panel-pad-block: 20px;
+    --panel-pad-inline: 16px;
     min-height: 230px;
-    padding: 20px 16px;
+    padding: var(--panel-pad-block) var(--panel-pad-inline);
     border-radius: 21px;
   }
 
@@ -413,9 +434,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell .app-header,
+  .app-shell dialog[open],
   .app-shell .workspace-head,
   .app-shell .content-card,
-  .app-shell .workspace-footer,
   .app-shell .ambient-one,
   .app-shell .ambient-two,
   .app-shell .panel-enter-active .history-item,
@@ -424,6 +445,7 @@
   }
 
   .app-shell .mode-tabs::before,
+  .app-shell .mode-tabs button svg,
   .app-shell .content-card .panel-enter-active,
   .app-shell .content-card .panel-leave-active {
     transition-duration: 0.01ms !important;
