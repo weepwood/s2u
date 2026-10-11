@@ -124,3 +124,56 @@ test('损坏原始数据先备份再由显式恢复覆盖，普通操作不得�
     mock.restore()
   }
 })
+
+
+test('常用链接排序持久化且写入失败不改变原顺序', () => {
+  const mock = useFakeStorage()
+  try {
+    const links = useCommonLinks()
+    links.load()
+    assert.equal(links.move('obsidian', 1), true)
+    assert.equal(links.links.value[0].id, 'vscode')
+    const loaded = useCommonLinks()
+    loaded.load()
+    assert.equal(loaded.links.value[0].id, 'vscode')
+    const oldSet = localStorage.setItem
+    localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+    assert.equal(links.move('vscode', 1), false)
+    assert.equal(links.links.value[0].id, 'vscode')
+    localStorage.setItem = oldSet
+  } finally { mock.restore() }
+})
+
+test('版本化备份可追加恢复、重复链接跳过且保留历史记录', () => {
+  const mock = useFakeStorage()
+  try {
+    const links = useCommonLinks()
+    links.load()
+    const backup = JSON.parse(links.exportJSON())
+    assert.equal(backup.format, 's2u-common-links')
+    localStorage.setItem('scheme_history', 'keep')
+    links.remove('weixin')
+    assert.deepEqual(links.inspectImport(backup), { count: 4, added: 1, duplicates: 3 })
+    assert.equal(links.importJSON(backup), 1)
+    assert.equal(links.links.value.at(-1).target, 'weixin://')
+    assert.equal(localStorage.getItem('scheme_history'), 'keep')
+  } finally { mock.restore() }
+})
+
+test('危险协议、重复目标和错误版本的备份全部拒绝', () => {
+  const mock = useFakeStorage()
+  try {
+    const links = useCommonLinks()
+    links.load()
+    const original = JSON.stringify(links.links.value)
+    const data = JSON.parse(links.exportJSON())
+    data.items[0].target = 'javascript:alert(1)'
+    assert.throws(() => links.importJSON(data), /无效|危险/)
+    data.items[0].target = 'weixin://'
+    assert.throws(() => links.importJSON(data), /无效|重复/)
+    data.items[0].target = 'obsidian://'
+    data.version = 99
+    assert.throws(() => links.importJSON(data), /格式或版本/)
+    assert.equal(JSON.stringify(links.links.value), original)
+  } finally { mock.restore() }
+})
