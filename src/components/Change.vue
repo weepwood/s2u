@@ -137,7 +137,7 @@
               @save="saveCommonLink"
               @remove="removeCommonLink"
               @reset="resetCommonLinks"
-              @fill="fillCommonLink"
+              @open="openCommonLink"
               @copy="copyCommonLink"
             />
           </div>
@@ -416,15 +416,19 @@ function copy() {
   })
 }
 
-function fillCommonLink(target) {
+function openCommonLink(target) {
+  // 用户点击时直接导航到经过统一校验的原始地址，而非 s2u 分享 URL。
+  // 保持同步调用，以保留浏览器启动自定义应用 Scheme 所需的用户操作上下文。
   const normalized = normalizeTarget(target)
   if (!normalized.ok) {
-    showToast(normalized.error, 'error')
+    showToast(normalized.error, 'error', 4000)
     return
   }
-  url.value = normalized.target
-  urlError.value = ''
-  activePanel.value = 'create'
+  try {
+    window.location.assign(normalized.target)
+  } catch {
+    showToast('无法打开此链接，请确认目标应用或浏览器支持该协议', 'error', 4000)
+  }
 }
 
 function saveCommonLink(item) {

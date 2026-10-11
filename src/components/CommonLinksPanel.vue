@@ -67,7 +67,7 @@
           </div>
         </div>
         <div class="card-buttons">
-          <button type="button" @click="$emit('fill', item.target)" :aria-label="'填入 ' + item.name">填入</button>
+          <button type="button" @click="$emit('open', item.target)" :aria-label="'打开 ' + item.name">打开</button>
           <button class="primary" type="button" @click="$emit('copy', item)" :aria-label="'复制 ' + item.name + ' 分享链接'">复制分享链接</button>
         </div>
       </article>
@@ -91,7 +91,7 @@ import { normalizeTarget } from '../domain/linkCodec.js'
 defineProps({
   items: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'remove', 'reset', 'fill', 'copy'])
+const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy'])
 
 const editorDialog = ref(null)
 const editingId = ref(null)

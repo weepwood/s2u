@@ -80,7 +80,7 @@ test('模拟 Gist 同步不接触真实 Token/API', async ({ page }) => {
 })
 
 
-test('常用链接展示图标、填入后切换创建页并复制', async ({ page, context }) => {
+test('常用链接展示图标并可单独复制 Scheme 分享链接', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
@@ -92,11 +92,32 @@ test('常用链接展示图标、填入后切换创建页并复制', async ({ pa
     const img = page.locator('img[alt="' + app + ' 图标"]')
     await expect.poll(() => img.evaluate((element) => element.naturalWidth)).toBeGreaterThan(0)
   }
-  await page.getByRole('button', { name: '填入 Obsidian' }).click()
-  await expect(page.locator('#url')).toHaveValue('obsidian://')
-  await page.getByRole('button', { name: '复制链接' }).click()
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+  await page.getByRole('button', { name: '复制 Obsidian 分享链接' }).click()
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(new URLSearchParams(new URL(copied).hash.slice(1)).get('target')).toBe('obsidian://')
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+})
+
+test('点击打开直接导航到保存的原始网址，而不经过 s2u 分享链接', async ({ page }) => {
+  const destination = 'https://example.com/common-link-open?source=s2u#test'
+  await page.route('https://example.com/common-link-open**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Opened directly</title><main>Opened directly</main>',
+    }),
+  )
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: /添加常用链接/ }).click()
+  await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('测试网站')
+  await page.getByPlaceholder('obsidian:// 或 https://example.com').fill(destination)
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page.getByRole('dialog', { name: '添加常用链接' })).not.toBeVisible()
+  await page.getByRole('button', { name: '打开 测试网站' }).click()
+  await expect(page).toHaveURL(destination)
+  await expect(page.getByText('Opened directly')).toBeVisible()
 })
 
 test('自定义常用链接可添加、编辑、删除且刷新后仍保留', async ({ page, context }) => {
