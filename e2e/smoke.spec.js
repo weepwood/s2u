@@ -485,7 +485,11 @@ test('三个标签的滑块连续移动，快速切换后面板和方向一致',
   await tabs.nth(0).click()
   await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('heading', { name: '输入目标地址' })).toBeVisible()
-  await expect.poll(async () => Math.abs((await indicatorX()) - initialX)).toBeLessThan(2)
+  // 字体加载会改变按钮宽度；始终与当前 DOM 布局位置比较，而非首屏旧坐标。
+  await expect.poll(async () => {
+    const currentX = await tabs.nth(0).evaluate((button) => button.offsetLeft)
+    return Math.abs((await indicatorX()) - currentX)
+  }).toBeLessThan(1.5)
   await expect(page.locator('.content-card > .panel-leave-active')).toHaveCount(0)
   await expect(page.locator('.content-card')).toHaveCount(1)
 })
