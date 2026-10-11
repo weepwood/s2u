@@ -107,13 +107,17 @@ https://s2u2.netlify.app/#target=weixin%3A%2F%2Fopen
 
 ## 子路径部署
 
-默认部署在域名根路径。部署到 `/s2u/` 等子路径时，可通过 Vite `base` 配置或设置完整公开地址：
+默认部署在域名根路径，Vite `base` 为 `/`。部署到 `/s2u/` 等子路径时，需要在**构建阶段**设置完整的公开 URL：
 
-```env
-VITE_PUBLIC_BASE_URL=https://example.com/s2u/
+```bash
+VITE_PUBLIC_BASE_URL=https://example.com/s2u/ npm run build
 ```
 
-生成链接时会使用该地址，而不是固定拼接 `window.location.origin`。
+Windows PowerShell 可先运行 `$env:VITE_PUBLIC_BASE_URL="https://example.com/s2u/"`，再执行 `npm run build`。这个变量同时决定 Vite 的静态资源路径、favicon、内置应用图标与生成的分享链接路径。此配置仅支持 HTTP/HTTPS URL，不接受认证信息、查询参数或 Hash。
+
+Netlify 的 `public/_redirects` 提供了 `/s2u/*` → `/:splat` 的路径重写，适用于本仓库当前根目录发布到 Netlify 时额外提供 `/s2u/` 的场景。其它托管平台须自行配置静态文件路径重写、SPA 回退；只调整 Vite `base` 并不足以保证服务器会响应子路径。
+
+CI 分别构建并使用 Chromium 检查根路径与 `/s2u/` 的页面、favicon、图标和分享 Hash。
 
 ## 技术栈
 

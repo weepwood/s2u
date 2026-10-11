@@ -67,7 +67,17 @@ jobs:
         run: npm run build
 
       - name: Browser regression
-        run: npx playwright test
+        run: npx playwright test e2e/smoke.spec.js
+
+      - name: Build app with /s2u/ public base
+        run: npm run build
+        env:
+          VITE_PUBLIC_BASE_URL: http://127.0.0.1:4173/s2u/
+
+      - name: Browser regression for /s2u/ deployment
+        run: npx playwright test e2e/subpath.spec.js
+        env:
+          S2U_SUBPATH_TEST: '1'
 
       - name: Upload failure traces
         if: failure()
