@@ -279,7 +279,8 @@ test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', asyn
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
   await page.getByRole('button', { name: '连接 Gist' }).click()
-  await expect(page.getByRole('alert')).toContainText('本地存储空间不足')
+  // 首次访问时历史工作区需按需下载，云端同步错误提示允许完整异步流程结束。
+  await expect(page.getByRole('alert')).toContainText('本地存储空间不足', { timeout: 12000 })
   expect(patchCount).toBe(0)
 })
 
