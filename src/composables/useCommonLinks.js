@@ -6,6 +6,8 @@ const CORRUPT_BACKUP_PREFIX = 's2u_common_links_corrupt_backup_'
 const VERSION = 1
 const MAX_LINKS = 50
 const MAX_NAME_LENGTH = 36
+const EXPORT_FORMAT = 's2u-common-links'
+const IMPORT_LIMIT = 50
 
 export const DEFAULT_COMMON_LINKS = Object.freeze([
   { id: 'obsidian', name: 'Obsidian', target: 'obsidian://' },
@@ -124,6 +126,66 @@ export function useCommonLinks() {
     return persist([...links.value, { id: newId, name: trimmedName, target: normalized.target }])
   }
 
+  function move(id, offset) {
+    if (offset !== -1 && offset !== 1) return false
+    const current = links.value.findIndex((item) => item.id === id)
+    const next = current + offset
+    if (current < 0 || next < 0 || next >= links.value.length) return false
+    const items = [...links.value]
+    ;[items[current], items[next]] = [items[next], items[current]]
+    return persist(items)
+  }
+
+  function exportJSON() {
+    return JSON.stringify({
+      format: EXPORT_FORMAT,
+      version: VERSION,
+      exportedAt: new Date().toISOString(),
+      items: links.value.map(({ id, name, target }) => ({ id, name, target })),
+    }, null, 2)
+  }
+
+  function inspectImport(payload) {
+    if (!payload || payload.format !== EXPORT_FORMAT || payload.version !== VERSION ||
+        !Array.isArray(payload.items) || payload.items.length > IMPORT_LIMIT) {
+      throw new TypeError('常用链接备份格式或版本不正确（最多 50 条）')
+    }
+    const seenIds = new Set()
+    const seenTargets = new Set()
+    const validated = payload.items.map((entry) => {
+      const item = normalizeItem(entry)
+      if (!item || seenIds.has(item.id) || seenTargets.has(item.target)) {
+        throw new TypeError('备份包含无效、危险或重复的常用链接')
+      }
+      seenIds.add(item.id)
+      seenTargets.add(item.target)
+      return item
+    })
+    const targets = new Set(links.value.map((item) => item.target))
+    const added = validated.filter((item) => !targets.has(item.target))
+    if (links.value.length + added.length > MAX_LINKS) {
+      throw new TypeError('导入后超过 50 条常用链接，请先删除部分收藏')
+    }
+    return { count: validated.length, added: added.length, duplicates: validated.length - added.length }
+  }
+
+  function importJSON(payload) {
+    const summary = inspectImport(payload)
+    if (!summary.added) return 0
+    const targets = new Set(links.value.map((item) => item.target))
+    const used = new Set(links.value.map((item) => item.id))
+    const added = payload.items.filter((item) => !targets.has(normalizeTarget(item.target).target))
+      .map((item) => {
+        let id
+        do {
+          id = 'imported-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2))
+        } while (used.has(id))
+        used.add(id)
+        return { id, name: item.name.trim(), target: normalizeTarget(item.target).target }
+      })
+    return persist([...links.value, ...added]) ? added.length : -1
+  }
+
   function remove(id) {
     if (!links.value.some((item) => item.id === id)) return false
     return persist(links.value.filter((item) => item.id !== id))
@@ -133,5 +195,5 @@ export function useCommonLinks() {
     return persist(defaultItems(), { recover: true })
   }
 
-  return { links, storageError, load, save, remove, restoreDefaults }
+  return { links, storageError, load, save, move, remove, restoreDefaults, exportJSON, inspectImport, importJSON }
 }
