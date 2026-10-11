@@ -50,6 +50,21 @@ export function normalizeTarget(input) {
   return normalizeHttpUrl(`https://${target}`)
 }
 
+// 仅影响「直接打开」时的交互提示；不限制合法自定义 Scheme 的分享功能。
+const TRUSTED_OPEN_PROTOCOLS = new Set([
+  'http:', 'https:', 'obsidian:', 'vscode:', 'weixin:', 'orpheus:',
+  'mailto:', 'tel:', 'sms:',
+])
+
+export function getTargetOpenPolicy(input) {
+  const normalized = normalizeTarget(input)
+  if (!normalized.ok) return { ...normalized, needsConfirmation: false }
+  return {
+    ...normalized,
+    needsConfirmation: !TRUSTED_OPEN_PROTOCOLS.has(normalized.protocol),
+  }
+}
+
 export function validateTarget(input) {
   const result = normalizeTarget(input)
   return result.ok ? '' : result.error

@@ -5,6 +5,7 @@ import {
   decodeShareTarget,
   encodeShareLink,
   getAppBaseUrl,
+  getTargetOpenPolicy,
   normalizeTarget,
   validateTarget,
 } from '../src/domain/linkCodec.js'
@@ -70,4 +71,24 @@ test('应用基础地址支持子路径部署', () => {
     encodeShareLink('https://example.com/s2u', 'https://target.example/path'),
     'https://example.com/s2u/#target=https%3A%2F%2Ftarget.example%2Fpath',
   )
+})
+
+test('打开策略：网页和已知应用无需二次确认，未知合法协议需要提示', () => {
+  for (const url of ['https://example.com', 'obsidian://open', 'vscode://', 'weixin://', 'orpheus://', 'mailto:hello@example.com']) {
+    const policy = getTargetOpenPolicy(url)
+    assert.equal(policy.ok, true)
+    assert.equal(policy.needsConfirmation, false)
+  }
+  const unknown = getTargetOpenPolicy('testcustom://open?value=1')
+  assert.equal(unknown.ok, true)
+  assert.equal(unknown.needsConfirmation, true)
+  assert.equal(unknown.target, 'testcustom://open?value=1')
+})
+
+test('打开策略不会绕过危险协议与非法输入拦截', () => {
+  for (const value of ['javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,abc', 'about:blank']) {
+    const result = getTargetOpenPolicy(value)
+    assert.equal(result.ok, false)
+    assert.equal(result.needsConfirmation, false)
+  }
 })
