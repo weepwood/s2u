@@ -38,10 +38,28 @@
             <input v-model="target" placeholder="obsidian:// 或 https://example.com" required spellcheck="false" />
           </label>
         </div>
+        <div class="icon-editor">
+          <span class="icon-label">应用图标（可选）</span>
+          <div class="icon-edit-row">
+            <span class="app-icon" :class="{ 'fallback-icon': !getIcon({ target, icon }) }">
+              <img v-if="getIcon({ target, icon })" :src="getIcon({ target, icon })" alt="应用图标预览" width="48" height="48" />
+              <span v-else aria-hidden="true">{{ iconInitials(name || 'App') }}</span>
+            </span>
+            <div class="icon-edit-actions">
+              <label class="icon-file-label">
+                上传应用图标
+                <input ref="iconInput" type="file" accept="image/png,image/jpeg,image/webp" aria-label="上传应用图标" @change="selectIcon" />
+              </label>
+              <button type="button" @click="clearCustomIcon" :disabled="!icon">恢复内置/默认图标</button>
+              <small>仅本地处理 PNG/JPEG/WebP（原图 ≤ 1 MB），压缩为 96px 图标后保存，不上传服务器。</small>
+            </div>
+          </div>
+          <p v-if="iconError" class="form-error" role="alert">{{ iconError }}</p>
+        </div>
         <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
         <div class="editor-actions">
           <button type="button" @click="cancelEdit">取消</button>
-          <button class="primary" type="submit">保存链接</button>
+          <button class="primary" type="submit" :disabled="iconBusy">保存链接</button>
         </div>
       </form>
     </dialog>
@@ -78,8 +96,8 @@
     <div v-if="visibleItems.length" class="common-grid">
       <article v-for="item in visibleItems" :key="item.id" class="common-card">
         <div class="card-main">
-          <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item.target) }">
-            <img v-if="getIcon(item.target)" :src="getIcon(item.target)" :alt="item.name + ' 图标'" width="48" height="48" />
+          <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item) }">
+            <img v-if="getIcon(item)" :src="getIcon(item)" :alt="item.name + ' 图标'" width="48" height="48" />
             <span v-else aria-hidden="true">{{ iconInitials(item.name) }}</span>
           </span>
           <div class="card-meta">
@@ -173,9 +191,16 @@ const editingId = ref(null)
 const name = ref('')
 const target = ref('')
 const formError = ref('')
+const icon = ref('')
+const iconError = ref('')
+const iconBusy = ref(false)
+const iconInput = ref(null)
+const MAX_UPLOAD_BYTES = 1024 * 1024
+const MAX_ICON_DATA_LENGTH = 32768
 
-function getIcon(value) {
-  const scheme = value.match(/^([a-z][a-z\d+.-]*):/i)?.[1]?.toLowerCase()
+function getIcon(item) {
+  if (item.icon) return item.icon
+  const scheme = item.target.match(/^([a-z][a-z\d+.-]*):/i)?.[1]?.toLowerCase()
   if (['obsidian', 'weixin', 'orpheus'].includes(scheme)) {
     return import.meta.env.BASE_URL + 'icons/common-' + scheme + '.png'
   }
@@ -193,6 +218,8 @@ function openEditor(item = null) {
   name.value = item?.name ?? ''
   target.value = item?.target ?? ''
   formError.value = ''
+  iconError.value = ''
+  icon.value = item?.icon ?? ''
   editorDialog.value?.showModal()
 }
 
@@ -214,6 +241,9 @@ function onDialogClose() {
   editingId.value = null
   name.value = ''
   target.value = ''
+  icon.value = ''
+  iconError.value = ''
+  iconBusy.value = false
 }
 
 function onDialogBackdropClick(event) {
@@ -221,6 +251,7 @@ function onDialogBackdropClick(event) {
 }
 
 function submit() {
+  if (iconBusy.value) return
   const normalized = normalizeTarget(target.value)
   if (!normalized.ok) {
     formError.value = normalized.error
@@ -232,7 +263,61 @@ function submit() {
     return
   }
   // 其它校验（数量和重复）由同一数据存储入口负责。
-  emit('save', { id: editingId.value, name: trimmedName, target: normalized.target })
+  emit('save', { id: editingId.value, name: trimmedName, target: normalized.target, icon: icon.value })
+}
+
+
+function clearCustomIcon() {
+  icon.value = ''
+  iconError.value = ''
+  if (iconInput.value) iconInput.value.value = ''
+}
+
+async function selectIcon(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  iconError.value = ''
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > MAX_UPLOAD_BYTES) {
+    iconError.value = '只允许 PNG、JPEG 或 WebP 图片，大小不得超过 1 MB'
+    return
+  }
+
+  iconBusy.value = true
+  const url = URL.createObjectURL(file)
+  try {
+    const image = new Image()
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = () => reject(new Error('图片无法解码'))
+      image.src = url
+    })
+    if (!image.naturalWidth || !image.naturalHeight ||
+        image.naturalWidth * image.naturalHeight > 16_000_000) {
+      throw new Error('图片像素数量过大，请选择更小的图标')
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 96
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('浏览器不支持图片转换')
+    const scale = Math.min(96 / image.naturalWidth, 96 / image.naturalHeight)
+    const w = Math.max(1, Math.round(image.naturalWidth * scale))
+    const h = Math.max(1, Math.round(image.naturalHeight * scale))
+    ctx.drawImage(image, (96 - w) / 2, (96 - h) / 2, w, h)
+    let encoded = canvas.toDataURL('image/png')
+    if (encoded.length > MAX_ICON_DATA_LENGTH) encoded = canvas.toDataURL('image/webp', 0.76)
+    if (encoded.length > MAX_ICON_DATA_LENGTH || !/^data:image\/(?:png|webp);base64,/.test(encoded)) {
+      throw new Error('压缩后的图标仍超过大小限制，请选择更简单的图片')
+    }
+    icon.value = encoded
+  } catch (error) {
+    iconError.value = error?.message || '图标处理失败'
+  } finally {
+    URL.revokeObjectURL(url)
+    iconBusy.value = false
+  }
 }
 
 function removeItem(item) {
@@ -309,6 +394,14 @@ button { font: inherit; cursor: pointer; }
 .dialog-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 9px; background: var(--surface-soft); color: var(--card-text-muted); }
 .dialog-close:hover { color: var(--card-text); }
 .dialog-close svg { width: 18px; height: 18px; }
+ .icon-editor { display: grid; gap: 9px; }
+.icon-label { font-size: 12px; font-weight: 650; }
+.icon-edit-row { display: flex; align-items: center; gap: 13px; }
+.icon-edit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+.icon-edit-actions small { width: 100%; font-size: 11px; line-height: 1.5; color: var(--card-text-muted); }
+.icon-edit-actions button, .icon-file-label { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 4px 9px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface-elevated); color: var(--card-text); font-size: 11px; font-weight: 650; cursor: pointer; }
+.icon-edit-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.icon-file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .editor-fields { display: grid; grid-template-columns: 1fr; gap: 15px; }
 .editor-fields label { display: grid; gap: 8px; font-size: 12px; font-weight: 650; }
 .editor-fields input { box-sizing: border-box; width: 100%; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); outline-offset: 2px; }
