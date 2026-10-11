@@ -177,3 +177,68 @@ test('危险协议、重复目标和错误版本的备份全部拒绝', () => {
     assert.equal(JSON.stringify(links.links.value), original)
   } finally { mock.restore() }
 })
+
+
+test('自定义图标可保存、修改与 JSON 往返，旧版不带 icon 的收藏仍有效', () => {
+  const mock = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    const icon = 'data:image/png;base64,iVBORw0KGgo='
+    assert.equal(store.save({ id: 'obsidian', name: '笔记图标', target: 'obsidian://', icon }), true)
+    assert.equal(store.links.value[0].icon, icon)
+    assert.equal(store.save({ id: 'obsidian', name: '笔记应用', target: 'obsidian://' }), true)
+    assert.equal(store.links.value[0].icon, icon)
+
+    const exported = JSON.parse(store.exportJSON())
+    assert.equal(exported.items[0].icon, icon)
+    assert.equal(store.save({ id: 'obsidian', name: '笔记应用', target: 'obsidian://', icon: '' }), true)
+    assert.equal(store.links.value[0].icon, undefined)
+    assert.equal(store.remove('obsidian'), true)
+    assert.deepEqual(store.inspectImport(exported), { count: 4, added: 1, duplicates: 3 })
+    assert.equal(store.importJSON(exported), 1)
+    assert.equal(store.links.value.at(-1).icon, icon)
+
+    const reloaded = useCommonLinks()
+    reloaded.load()
+    assert.equal(reloaded.links.value.at(-1).icon, icon)
+  } finally { mock.restore() }
+})
+
+test('拒绝恶意图标格式和过大的 data URL，失败不改变收藏', () => {
+  const mock = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    const original = store.exportJSON()
+    for (const icon of [
+      'data:image/svg+xml;base64,PHN2Zy8+',
+      'https://example.com/icon.png',
+      'data:image/png;base64,' + 'A'.repeat(33000),
+      'data:text/html;base64,PHNjcmlwdD4=',
+    ]) {
+      assert.throws(() => store.save({ id: 'obsidian', name: '修改', target: 'obsidian://', icon }), /图标/)
+      const imported = JSON.parse(original)
+      imported.items[0].icon = icon
+      assert.throws(() => store.importJSON(imported), /无效|危险/)
+    }
+    assert.equal(store.exportJSON().includes('"icon"'), false)
+  } finally { mock.restore() }
+})
+
+test('自定义图标保存失败时原有列表和图标不变', () => {
+  const mock = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    const before = JSON.stringify(store.links.value)
+    const original = localStorage.setItem
+    localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+    assert.equal(store.save({
+      id: 'obsidian', name: '尝试上传', target: 'obsidian://',
+      icon: 'data:image/png;base64,iVBORw0KGgo=',
+    }), false)
+    assert.equal(JSON.stringify(store.links.value), before)
+    localStorage.setItem = original
+  } finally { mock.restore() }
+})

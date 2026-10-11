@@ -8,6 +8,8 @@ const MAX_LINKS = 50
 const MAX_NAME_LENGTH = 36
 const EXPORT_FORMAT = 's2u-common-links'
 const IMPORT_LIMIT = 50
+const MAX_ICON_DATA_LENGTH = 32768
+const ICON_PATTERN = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
 
 export const DEFAULT_COMMON_LINKS = Object.freeze([
   { id: 'obsidian', name: 'Obsidian', target: 'obsidian://' },
@@ -20,6 +22,19 @@ function defaultItems() {
   return DEFAULT_COMMON_LINKS.map((item) => ({ ...item }))
 }
 
+// 自定义图标仅接受本地转换后的 PNG/JPEG/WebP data URL，不允许 SVG/远程地址。
+function normalizeIcon(icon) {
+  if (icon == null || icon === '') return ''
+  if (typeof icon !== 'string' || icon.length > MAX_ICON_DATA_LENGTH || !ICON_PATTERN.test(icon)) {
+    return null
+  }
+  return icon
+}
+
+function withIcon(item, icon) {
+  return icon ? { ...item, icon } : item
+}
+
 function normalizeItem(input) {
   if (!input || typeof input !== 'object') return null
   if (typeof input.id !== 'string' || input.id.length > 120 || !input.id) return null
@@ -30,7 +45,9 @@ function normalizeItem(input) {
 
   const normalized = normalizeTarget(input.target)
   if (!normalized.ok) return null
-  return { id: input.id, name, target: normalized.target }
+  const icon = normalizeIcon(input.icon)
+  if (icon === null) return null
+  return withIcon({ id: input.id, name, target: normalized.target }, icon)
 }
 
 export function useCommonLinks() {
@@ -103,7 +120,7 @@ export function useCommonLinks() {
     }
   }
 
-  function save({ id = null, name, target }) {
+  function save({ id = null, name, target, icon }) {
     const normalized = normalizeTarget(target)
     if (!normalized.ok) throw new TypeError(normalized.error)
     const trimmedName = typeof name === 'string' ? name.trim() : ''
@@ -114,16 +131,21 @@ export function useCommonLinks() {
       throw new TypeError('该链接已存在于常用链接中')
     }
 
+    const validatedIcon = icon === undefined ? undefined : normalizeIcon(icon)
+    if (validatedIcon === null) throw new TypeError('图标只能使用大小受限的 PNG/JPEG/WebP 本地图片')
+
     if (id) {
-      if (!links.value.some((item) => item.id === id)) throw new TypeError('要编辑的链接不存在')
+      const original = links.value.find((item) => item.id === id)
+      if (!original) throw new TypeError('要编辑的链接不存在')
+      const nextIcon = validatedIcon === undefined ? original.icon : validatedIcon
       return persist(links.value.map((item) => item.id === id
-        ? { id, name: trimmedName, target: normalized.target }
+        ? withIcon({ id, name: trimmedName, target: normalized.target }, nextIcon)
         : item))
     }
 
     if (links.value.length >= MAX_LINKS) throw new TypeError('常用链接最多保存 50 条')
     const newId = 'custom-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2))
-    return persist([...links.value, { id: newId, name: trimmedName, target: normalized.target }])
+    return persist([...links.value, withIcon({ id: newId, name: trimmedName, target: normalized.target }, validatedIcon)])
   }
 
   function move(id, offset) {
@@ -141,7 +163,7 @@ export function useCommonLinks() {
       format: EXPORT_FORMAT,
       version: VERSION,
       exportedAt: new Date().toISOString(),
-      items: links.value.map(({ id, name, target }) => ({ id, name, target })),
+      items: links.value.map(({ id, name, target, icon }) => withIcon({ id, name, target }, icon)),
     }, null, 2)
   }
 
@@ -181,7 +203,7 @@ export function useCommonLinks() {
           id = 'imported-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2))
         } while (used.has(id))
         used.add(id)
-        return { id, name: item.name.trim(), target: normalizeTarget(item.target).target }
+        return withIcon({ id, name: item.name.trim(), target: normalizeTarget(item.target).target }, normalizeIcon(item.icon))
       })
     return persist([...links.value, ...added]) ? added.length : -1
   }

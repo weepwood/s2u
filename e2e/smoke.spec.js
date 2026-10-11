@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 
 test('首页渲染与特殊字符分享链接预览', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
@@ -377,4 +378,54 @@ test('已知应用可复制原始 Scheme，危险 Scheme 不能添加', async ({
   await page.getByPlaceholder('obsidian:// 或 https://example.com').fill('file:///etc/passwd')
   await page.getByRole('button', { name: '保存链接' }).click()
   await expect(page.getByRole('alert')).toContainText('不支持 file:')
+})
+
+
+test('上传应用图标后刷新持久化，并可携带图标导出及重新导入', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  const editor = page.getByRole('dialog', { name: '编辑常用链接' })
+  await editor.getByLabel('上传应用图标').setInputFiles('public/icons/common-obsidian.png')
+  await expect.poll(async () =>
+    editor.locator('img[alt="应用图标预览"]').getAttribute('src')
+  ).toMatch(/^data:image\/(png|webp);base64,/)
+  await editor.getByRole('button', { name: '保存链接' }).click()
+  await expect(editor).not.toBeVisible()
+  await expect(page.locator('img[alt="Obsidian 图标"]')).toHaveAttribute('src', /^data:image\/(png|webp);base64,/)
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.locator('img[alt="Obsidian 图标"]')).toHaveAttribute('src', /^data:image\/(png|webp);base64,/)
+
+  const downloaded = page.waitForEvent('download')
+  await page.getByRole('button', { name: '导出 JSON' }).click()
+  const backupFile = await downloaded
+  const backup = JSON.parse(await readFile(await backupFile.path(), 'utf8'))
+  expect(backup.items.find((item) => item.id === 'obsidian').icon).toMatch(/^data:image\/(png|webp);base64,/)
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 Obsidian' }).click()
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).not.toBeVisible()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByLabel('选择常用链接备份文件').setInputFiles({
+    name: 's2u-icons.json', mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(backup)),
+  })
+  await expect(page.locator('img[alt="Obsidian 图标"]')).toHaveAttribute('src', /^data:image\/(png|webp);base64,/)
+})
+
+test('上传 SVG 文件时拒绝并保留原应用图标', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  const editor = page.getByRole('dialog', { name: '编辑常用链接' })
+  await editor.getByLabel('上传应用图标').setInputFiles({
+    name: 'danger.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+  })
+  await expect(editor.getByRole('alert')).toContainText('只允许 PNG、JPEG 或 WebP')
+  await expect(editor.locator('img[alt="应用图标预览"]')).toHaveAttribute('src', /\/icons\/common-obsidian\.png/)
+  await editor.getByRole('button', { name: '取消' }).click()
+  await expect(page.locator('img[alt="Obsidian 图标"]')).toHaveAttribute('src', /\/icons\/common-obsidian\.png/)
 })
