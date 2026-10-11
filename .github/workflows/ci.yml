@@ -40,6 +40,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Report initial transfer size
+        run: node scripts/performance-report.mjs
+
   browser-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15

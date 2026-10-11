@@ -53,6 +53,8 @@
             :aria-selected="activePanel === 'history'"
             :tabindex="activePanel === 'history' ? 0 : -1"
             aria-controls="history-panel"
+            @pointerenter="warmPanel('history')"
+            @focus="warmPanel('history')"
             @click="switchPanel('history')"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -69,6 +71,8 @@
             :aria-selected="activePanel === 'common'"
             :tabindex="activePanel === 'common' ? 0 : -1"
             aria-controls="common-panel"
+            @pointerenter="warmPanel('common')"
+            @focus="warmPanel('common')"
             @click="switchPanel('common')"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -90,43 +94,31 @@
             @cancel="cancelClose"
           />
 
-          <div
+          <HistoryWorkspace
             v-else-if="activePanel === 'history'"
-            id="history-panel"
             key="history"
-            class="history-view"
-            role="tabpanel"
-            aria-labelledby="history-tab"
-          >
-            <HistoryPanel
-              :history="history"
-              :search-query="searchQuery"
-              :filtered-history="filteredHistory"
-              @update:search-query="searchQuery = $event"
-              @select="toHistoryUrl"
-              @delete="deleteHistoryItem"
-            />
-            <HistoryFooter
-              :show-settings="showSettings"
-              @clear="invalidHistory"
-              @export="exportHistory"
-              @toggle-settings="showSettings = !showSettings"
-              @import-file="onImportFile"
-            />
-            <SettingsPanel
-              v-if="showSettings"
-              :cloud-token="cloudToken"
-              :cloud-gist-id="cloudGistId"
-              :sync-status="syncStatus"
-              :sync-error="syncError"
-              :last-sync-time="lastSyncTime"
-              @update:cloud-token="cloudToken = $event"
-              @connect="connectGist"
-              @disconnect="disconnectGist"
-              @sync="syncGist"
-              @export-backup="exportGistRecovery"
-            />
-          </div>
+            :history="history"
+            :search-query="searchQuery"
+            :filtered-history="filteredHistory"
+            :show-settings="showSettings"
+            :cloud-token="cloudToken"
+            :cloud-gist-id="cloudGistId"
+            :sync-status="syncStatus"
+            :sync-error="syncError"
+            :last-sync-time="lastSyncTime"
+            @update:search-query="searchQuery = $event"
+            @select="toHistoryUrl"
+            @delete="deleteHistoryItem"
+            @clear="invalidHistory"
+            @export="exportHistory"
+            @toggle-settings="showSettings = !showSettings"
+            @import-file="onImportFile"
+            @update:cloud-token="cloudToken = $event"
+            @connect="connectGist"
+            @disconnect="disconnectGist"
+            @sync="syncGist"
+            @export-backup="exportGistRecovery"
+          />
 
           <div
             v-else-if="activePanel === 'common'"
@@ -176,13 +168,9 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
-import HistoryPanel from './HistoryPanel.vue'
-import CommonLinksPanel from './CommonLinksPanel.vue'
-import HistoryFooter from './HistoryFooter.vue'
-import SettingsPanel from './SettingsPanel.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
@@ -196,6 +184,28 @@ import {
   getAppBaseUrl,
   normalizeTarget,
 } from '../domain/linkCodec.js'
+
+// 仅首屏创建面板同步加载。历史/收藏 UI 在用户访问对应标签时再下载。
+const loadHistoryWorkspace = () => import('./HistoryWorkspace.vue')
+const loadCommonLinksPanel = () => import('./CommonLinksPanel.vue')
+const LoadingPanel = {
+  render: () => h('div', { class: 'lazy-panel-loading', role: 'status' }, '正在加载界面…'),
+}
+const HistoryWorkspace = defineAsyncComponent({
+  loader: loadHistoryWorkspace,
+  loadingComponent: LoadingPanel,
+  delay: 120,
+})
+const CommonLinksPanel = defineAsyncComponent({
+  loader: loadCommonLinksPanel,
+  loadingComponent: LoadingPanel,
+  delay: 120,
+})
+function warmPanel(panel) {
+  const load = panel === 'history' ? loadHistoryWorkspace
+    : panel === 'common' ? loadCommonLinksPanel : null
+  load?.().catch(() => {}) // 预取失败时仍由 Vue 的异步组件提供错误处理。
+}
 
 const MAX_IMPORT_SIZE = 2 * 1024 * 1024
 const { darkMode, toggle: toggleDark } = useDarkMode()
@@ -757,6 +767,22 @@ function handleKeydown(event) {
   }
 }
 
+let initialSyncIdle = null
+let initialSyncFallback = null
+function scheduleInitialSync() {
+  if ('requestIdleCallback' in window) {
+    initialSyncIdle = window.requestIdleCallback(() => {
+      initialSyncIdle = null
+      syncGist({ silent: true }).catch(() => {})
+    }, { timeout: 2000 })
+  } else {
+    initialSyncFallback = window.setTimeout(() => {
+      initialSyncFallback = null
+      syncGist({ silent: true }).catch(() => {})
+    }, 800)
+  }
+}
+
 onMounted(() => {
   loadHistory()
   notifyStorageError()
@@ -769,14 +795,19 @@ onMounted(() => {
     // 忽略无法清理的旧缓存。
   }
 
-  if (loadConfig()) {
-    syncGist({ silent: true }).catch(() => {})
+  const hasSavedConfig = loadConfig()
+  if (targetScheme) {
+    // 分享链接转发优先；无需与初始云同步竞争网络资源。
+    changeUrl(targetScheme)
+  } else if (hasSavedConfig) {
+    // 有效数据已从本地恢复。等首屏有机会绘制后再执行可选的云同步。
+    scheduleInitialSync()
   }
-
-  if (targetScheme) changeUrl(targetScheme)
 })
 
 onBeforeUnmount(() => {
+  if (initialSyncIdle !== null) window.cancelIdleCallback(initialSyncIdle)
+  if (initialSyncFallback !== null) window.clearTimeout(initialSyncFallback)
   stopCountdown()
   cleanupClipboard()
   cleanupSync()
@@ -784,3 +815,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped src="../styles/change.css"></style>
+<style>/* 仅用于首次加载非默认标签时的短暂占位；请求完成后立即展示真实组件。 */
+.app-shell .lazy-panel-loading {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--card-text-muted);
+  letter-spacing: 0.02em;
+}
+</style>
