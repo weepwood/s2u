@@ -9,32 +9,54 @@
       <button class="add-button" type="button" @click="beginAdd">＋ 添加常用链接</button>
     </header>
 
-    <form v-if="editing" class="editor" @submit.prevent="submit">
-      <h3>{{ editingId ? '编辑常用链接' : '添加常用链接' }}</h3>
-      <div class="editor-fields">
-        <label>
-          应用名称
-          <input v-model="name" maxlength="36" placeholder="例如：我的 Obsidian 笔记库" required />
-        </label>
-        <label>
-          目标链接或 URL Scheme
-          <input v-model="target" placeholder="obsidian:// 或 https://example.com" required spellcheck="false" />
-        </label>
-      </div>
-      <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="editor-actions">
-        <button class="primary" type="submit">保存链接</button>
-        <button type="button" @click="cancelEdit">取消</button>
-      </div>
-    </form>
+    <dialog
+      ref="editorDialog"
+      class="editor-dialog"
+      aria-labelledby="common-editor-title"
+      @close="onDialogClose"
+      @click="onDialogBackdropClick"
+    >
+      <form class="editor" @submit.prevent="submit">
+        <header class="dialog-heading">
+          <div>
+            <span class="eyebrow">Edit shortcut</span>
+            <h3 id="common-editor-title">{{ editingId ? '编辑常用链接' : '添加常用链接' }}</h3>
+          </div>
+          <button class="dialog-close" type="button" aria-label="关闭弹窗" @click="cancelEdit">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 6 18 18M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </header>
+        <div class="editor-fields">
+          <label>
+            应用名称
+            <input v-model="name" maxlength="36" placeholder="例如：我的 Obsidian 笔记库" required />
+          </label>
+          <label>
+            目标链接或 URL Scheme
+            <input v-model="target" placeholder="obsidian:// 或 https://example.com" required spellcheck="false" />
+          </label>
+        </div>
+        <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
+        <div class="editor-actions">
+          <button type="button" @click="cancelEdit">取消</button>
+          <button class="primary" type="submit">保存链接</button>
+        </div>
+      </form>
+    </dialog>
 
     <div v-if="items.length" class="common-grid">
       <article v-for="item in items" :key="item.id" class="common-card">
-        <div class="card-top">
+        <div class="card-main">
           <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item.target) }">
             <img v-if="getIcon(item.target)" :src="getIcon(item.target)" :alt="item.name + ' 图标'" width="48" height="48" />
             <span v-else aria-hidden="true">{{ iconInitials(item.name) }}</span>
           </span>
+          <div class="card-meta">
+            <strong :title="item.name">{{ item.name }}</strong>
+            <span :title="item.target">{{ item.target }}</span>
+          </div>
           <div class="card-actions">
             <button type="button" :aria-label="'编辑 ' + item.name" title="编辑" @click="beginEdit(item)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 16 11-11 4 4L8 20H4v-4Zm9-9 4 4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
@@ -43,10 +65,6 @@
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
             </button>
           </div>
-        </div>
-        <div class="card-meta">
-          <strong :title="item.name">{{ item.name }}</strong>
-          <span :title="item.target">{{ item.target }}</span>
         </div>
         <div class="card-buttons">
           <button type="button" @click="$emit('fill', item.target)" :aria-label="'填入 ' + item.name">填入</button>
@@ -75,7 +93,7 @@ defineProps({
 })
 const emit = defineEmits(['save', 'remove', 'reset', 'fill', 'copy'])
 
-const editing = ref(false)
+const editorDialog = ref(null)
 const editingId = ref(null)
 const name = ref('')
 const target = ref('')
@@ -95,25 +113,36 @@ function iconInitials(value) {
   return value.trim().slice(0, 2).toUpperCase()
 }
 
-function beginAdd() {
-  editingId.value = null
-  name.value = ''
-  target.value = ''
+function openEditor(item = null) {
+  editingId.value = item?.id ?? null
+  name.value = item?.name ?? ''
+  target.value = item?.target ?? ''
   formError.value = ''
-  editing.value = true
+  editorDialog.value?.showModal()
+}
+
+function beginAdd() {
+  openEditor()
 }
 
 function beginEdit(item) {
-  editingId.value = item.id
-  name.value = item.name
-  target.value = item.target
-  formError.value = ''
-  editing.value = true
+  openEditor(item)
 }
 
 function cancelEdit() {
-  editing.value = false
+  editorDialog.value?.close()
+}
+
+function onDialogClose() {
+  // 包括 ESC 键关闭；下次打开时重置验证状态和输入。
   formError.value = ''
+  editingId.value = null
+  name.value = ''
+  target.value = ''
+}
+
+function onDialogBackdropClick(event) {
+  if (event.target === editorDialog.value) cancelEdit()
 }
 
 function submit() {
@@ -156,27 +185,47 @@ button { font: inherit; cursor: pointer; }
 .common-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .common-card { padding: 17px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-soft); min-width: 0; display: flex; flex-direction: column; gap: 13px; transition: border-color .2s, transform .2s; }
 .common-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-.card-top { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.card-main { display: flex; align-items: center; min-width: 0; gap: 11px; }
 .app-icon { width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; overflow: hidden; border-radius: 13px; background: var(--surface-elevated); }
 .app-icon img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .fallback-icon { color: #fff; background: linear-gradient(135deg, #298ae5, #165cad); font-size: 16px; font-weight: 750; }
-.card-actions { display: flex; gap: 4px; }
+.card-actions { display: flex; gap: 3px; flex-shrink: 0; align-self: flex-start; }
 .card-actions button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
 .card-actions button:hover { background: var(--surface-elevated); color: var(--card-text); }
 .card-actions svg { width: 16px; height: 16px; }
-.card-meta { display: grid; gap: 7px; min-width: 0; }
-.card-meta strong { font-size: 15px; overflow-wrap: anywhere; }
+.card-meta { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }
 .card-buttons button { flex: 1; padding: 0 8px; }
 .primary { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
 .primary:hover { filter: brightness(.94); }
-.editor { display: grid; gap: 13px; padding: 17px; border: 1px solid var(--accent); border-radius: 16px; background: var(--surface-soft); }
-.editor h3 { font-size: 15px; margin: 0; }
-.editor-fields { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; }
-.editor-fields label { display: grid; gap: 7px; font-size: 12px; font-weight: 650; }
-.editor-fields input { width: 100%; min-width: 0; height: 42px; padding: 0 11px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); outline-offset: 2px; }
-.editor-actions { display: flex; gap: 9px; }
+.editor-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(90dvh, 720px);
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: var(--card-bg-solid);
+  color: var(--card-text);
+  box-shadow: 0 28px 88px rgba(15, 23, 42, .3);
+}
+.editor-dialog::backdrop { background: rgba(12, 18, 32, .6); backdrop-filter: blur(5px); }
+.editor { display: grid; gap: 18px; padding: clamp(18px, 4vw, 25px); }
+.dialog-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.dialog-heading h3 { font-size: 20px; margin: 0; }
+.dialog-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 9px; background: var(--surface-soft); color: var(--card-text-muted); }
+.dialog-close:hover { color: var(--card-text); }
+.dialog-close svg { width: 18px; height: 18px; }
+.editor-fields { display: grid; grid-template-columns: 1fr; gap: 15px; }
+.editor-fields label { display: grid; gap: 8px; font-size: 12px; font-weight: 650; }
+.editor-fields input { box-sizing: border-box; width: 100%; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); outline-offset: 2px; }
+.editor-fields input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.editor-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .form-error { margin: 0; font-size: 12px; color: #df4c50; }
 .empty-common { text-align: center; background: var(--surface-soft); padding: 38px 16px; border-radius: 16px; }
 .empty-common p { color: var(--card-text-muted); font-size: 13px; }
@@ -184,6 +233,7 @@ button { font: inherit; cursor: pointer; }
 .common-footer p { margin: 0; flex: 1; }
 .common-footer button { flex-shrink: 0; border: 0; background: transparent; color: var(--card-text-muted); font-size: 12px; cursor: pointer; }
 .common-footer button:hover { color: var(--accent); }
-@media (max-width: 620px) { .common-grid, .editor-fields { grid-template-columns: 1fr; } .common-footer { flex-direction: column; } }
+@media (max-width: 620px) { .common-grid { grid-template-columns: 1fr; } .common-footer { flex-direction: column; } }
+@media (max-width: 360px) { .card-main { gap: 8px; } .app-icon { width: 44px; height: 44px; } .card-actions button { width: 27px; } }
 @media (prefers-reduced-motion: reduce) { .common-card { transition: none; transform: none !important; } }
 </style>
