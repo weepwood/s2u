@@ -41,7 +41,8 @@ function setupAutoHeight(card) {
   card.dataset.autoHeightTransition = 'true'
 
   const getRenderedPanel = () =>
-    Array.from(card.children).find((child) => child.nodeType === Node.ELEMENT_NODE) ?? null
+    Array.from(card.children).find((child) =>
+      child.nodeType === Node.ELEMENT_NODE && !child.classList.contains('panel-leave-active')) ?? null
 
   const readCurrentHeight = () => {
     const height = Number.parseFloat(window.getComputedStyle(card).height)

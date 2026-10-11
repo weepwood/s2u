@@ -1,5 +1,5 @@
 <template>
-  <main class="app-shell" :class="{ dark: darkMode }" tabindex="-1" @keydown="handleKeydown">
+  <main class="app-shell" :class="{ dark: darkMode }" :data-switch-direction="switchDirection" tabindex="-1" @keydown="handleKeydown">
     <div class="ambient ambient-one" aria-hidden="true"></div>
     <div class="ambient ambient-two" aria-hidden="true"></div>
 
@@ -29,15 +29,16 @@
 
     <section class="workspace" aria-label="链接转换工作区">
       <div class="workspace-head">
-        <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式">
+        <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式" @keydown="handleTabNavigation">
           <button
             id="create-tab"
             type="button"
             role="tab"
             :class="{ active: activePanel === 'create' }"
             :aria-selected="activePanel === 'create'"
+            :tabindex="activePanel === 'create' ? 0 : -1"
             aria-controls="create-panel"
-            @click="activePanel = 'create'"
+            @click="switchPanel('create')"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -50,8 +51,9 @@
             role="tab"
             :class="{ active: activePanel === 'history' }"
             :aria-selected="activePanel === 'history'"
+            :tabindex="activePanel === 'history' ? 0 : -1"
             aria-controls="history-panel"
-            @click="activePanel = 'history'"
+            @click="switchPanel('history')"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 8v4l2.5 1.5M4.93 5.93A9 9 0 1 1 3 11.5M3 5v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -65,8 +67,9 @@
             role="tab"
             :class="{ active: activePanel === 'common' }"
             :aria-selected="activePanel === 'common'"
+            :tabindex="activePanel === 'common' ? 0 : -1"
             aria-controls="common-panel"
-            @click="activePanel = 'common'"
+            @click="switchPanel('common')"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M5 7h14M5 12h14M5 17h14M8 5v14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -78,7 +81,7 @@
       </div>
 
       <div class="content-card">
-        <Transition name="panel" mode="out-in">
+        <Transition name="panel">
           <ClosePanel
             v-if="showCloseMsg"
             key="redirect"
@@ -168,21 +171,12 @@
       </div>
     </section>
 
-    <footer class="workspace-footer" aria-label="快捷键提示">
-      <span class="shortcut-label">快捷键</span>
-      <span class="shortcut-group">
-        <kbd>Ctrl / ⌘</kbd><span>+</span><kbd>Enter</kbd><span>复制</span>
-      </span>
-      <span class="divider" aria-hidden="true"></span>
-      <span class="shortcut-group"><kbd>H</kbd><span>切换历史</span></span>
-    </footer>
-
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import HistoryPanel from './HistoryPanel.vue'
@@ -257,6 +251,47 @@ const {
 const url = ref('')
 const urlError = ref('')
 const activePanel = ref('create')
+const switchDirection = ref('forward')
+const TAB_ORDER = ['create', 'history', 'common']
+
+function switchPanel(panel) {
+  const nextIndex = TAB_ORDER.indexOf(panel)
+  const previousIndex = TAB_ORDER.indexOf(activePanel.value)
+  if (nextIndex < 0 || nextIndex === previousIndex) return
+  // 在 Vue 更改面板前同步设置方向，保证首次过渡也沿正确方向滑入。
+  switchDirection.value = nextIndex > previousIndex ? 'forward' : 'backward'
+  activePanel.value = panel
+}
+
+function handleTabNavigation(event) {
+  const tab = event.target instanceof Element ? event.target.closest('[role="tab"]') : null
+  if (!tab || !event.currentTarget.contains(tab)) return
+  if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return
+
+  const activeIndex = TAB_ORDER.indexOf(activePanel.value)
+  let nextIndex
+  switch (event.key) {
+    case 'ArrowRight':
+      nextIndex = (activeIndex + 1) % TAB_ORDER.length
+      break
+    case 'ArrowLeft':
+      nextIndex = (activeIndex + TAB_ORDER.length - 1) % TAB_ORDER.length
+      break
+    case 'Home':
+      nextIndex = 0
+      break
+    case 'End':
+      nextIndex = TAB_ORDER.length - 1
+      break
+    default:
+      return
+  }
+
+  event.preventDefault()
+  const next = TAB_ORDER[nextIndex]
+  switchPanel(next)
+  nextTick(() => document.getElementById(`${next}-tab`)?.focus())
+}
 const showSettings = ref(false)
 const showCloseMsg = ref(false)
 const countDown = ref(5)
@@ -706,7 +741,7 @@ function handleKeydown(event) {
     !isContentEditable
   ) {
     event.preventDefault()
-    activePanel.value = activePanel.value === 'history' ? 'create' : 'history'
+    switchPanel(activePanel.value === 'history' ? 'create' : 'history')
   }
 }
 

@@ -1,6 +1,5 @@
 const ROOT_SELECTOR = '.app-shell'
 const TAB_SELECTOR = '.mode-tabs'
-const ACTIVE_TAB_SELECTOR = 'button.active'
 
 export function installInterfaceMotion() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
@@ -43,75 +42,53 @@ export function installInterfaceMotion() {
 }
 
 function setupMotion(root, tabs) {
-  let activeIndex = getActiveIndex(tabs)
   let indicatorFrame = null
   let readyFrame = null
   let resizeObserver = null
   let destroyed = false
 
-  const setDirection = (nextIndex) => {
-    if (nextIndex < 0 || nextIndex === activeIndex) return
-    root.dataset.switchDirection = nextIndex > activeIndex ? 'forward' : 'backward'
-  }
-
   const updateIndicator = ({ initial = false } = {}) => {
-    if (indicatorFrame) window.cancelAnimationFrame(indicatorFrame)
+    if (indicatorFrame !== null) window.cancelAnimationFrame(indicatorFrame)
 
     indicatorFrame = window.requestAnimationFrame(() => {
+      indicatorFrame = null
       if (destroyed) return
-      const activeButton = tabs.querySelector(ACTIVE_TAB_SELECTOR)
+      const activeButton = tabs.querySelector('button[aria-selected="true"]')
       if (!activeButton) return
 
       tabs.style.setProperty('--tab-indicator-x', `${activeButton.offsetLeft}px`)
       tabs.style.setProperty('--tab-indicator-width', `${activeButton.offsetWidth}px`)
-
+      // 首屏先把滑块定位到选中标签，再显示，避免从 x=0 闪入。
       if (initial) {
-        tabs.classList.remove('tabs-ready')
-        readyFrame = window.requestAnimationFrame(() => tabs.classList.add('tabs-ready'))
+        readyFrame = window.requestAnimationFrame(() => {
+          if (!destroyed) tabs.classList.add('tabs-ready')
+        })
       } else {
         tabs.classList.add('tabs-ready')
       }
     })
   }
 
-  const handleTabClick = (event) => {
-    if (!(event.target instanceof Element)) return
-
-    const button = event.target.closest('button')
-    if (!button || !tabs.contains(button)) return
-
-    const buttons = Array.from(tabs.querySelectorAll('button'))
-    const nextIndex = buttons.indexOf(button)
-    setDirection(nextIndex)
-  }
-
-  const observer = new MutationObserver(() => {
-    const nextIndex = getActiveIndex(tabs)
-    if (nextIndex < 0 || nextIndex === activeIndex) return
-
-    setDirection(nextIndex)
-    activeIndex = nextIndex
-    updateIndicator()
-  })
-
+  // 监听 aria-selected / 数量徽章增减，按钮长度变化也能重新对齐指示器。
+  const observer = new MutationObserver(() => updateIndicator())
   observer.observe(tabs, {
     subtree: true,
     attributes: true,
-    attributeFilter: ['class'],
+    attributeFilter: ['aria-selected'],
+    childList: true,
+    characterData: true,
   })
 
-  tabs.addEventListener('click', handleTabClick)
-  window.addEventListener('resize', updateIndicator, { passive: true })
-
+  const resize = () => updateIndicator()
+  window.addEventListener('resize', resize, { passive: true })
   if ('ResizeObserver' in window) {
-    resizeObserver = new ResizeObserver(() => updateIndicator())
+    resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(tabs)
+    tabs.querySelectorAll('button[role="tab"]').forEach((button) => resizeObserver.observe(button))
   }
 
   root.dataset.motionReady = 'true'
-  if (!root.dataset.switchDirection) root.dataset.switchDirection = 'forward'
   updateIndicator({ initial: true })
-
   document.fonts?.ready.then(() => {
     if (!destroyed) updateIndicator()
   })
@@ -120,19 +97,12 @@ function setupMotion(root, tabs) {
     destroyed = true
     observer.disconnect()
     resizeObserver?.disconnect()
-    tabs.removeEventListener('click', handleTabClick)
-    window.removeEventListener('resize', updateIndicator)
-    if (indicatorFrame) window.cancelAnimationFrame(indicatorFrame)
-    if (readyFrame) window.cancelAnimationFrame(readyFrame)
+    window.removeEventListener('resize', resize)
+    if (indicatorFrame !== null) window.cancelAnimationFrame(indicatorFrame)
+    if (readyFrame !== null) window.cancelAnimationFrame(readyFrame)
     tabs.classList.remove('tabs-ready')
     tabs.style.removeProperty('--tab-indicator-x')
     tabs.style.removeProperty('--tab-indicator-width')
     delete root.dataset.motionReady
-    delete root.dataset.switchDirection
   }
-}
-
-function getActiveIndex(tabs) {
-  const buttons = Array.from(tabs.querySelectorAll('button'))
-  return buttons.findIndex((button) => button.classList.contains('active'))
 }

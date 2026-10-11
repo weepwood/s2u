@@ -79,7 +79,10 @@ Gist Token 仅置于 sessionStorage，不出现在日志、界面 DOM 的持久�
 
 ## 5. 动效、焦点和键盘
 
-- 页签切换、卡片高度过渡采用 `interface-refresh.css` 的 easing/timing；避免同时对同一属性运行相互冲突的 JS/CSS 动画。
+- 三个主标签采用单层滑动选中指示器：`interfaceMotion.js` 测量按钮宽度及位置，Vue 依据目标标签预先写入前进/后退方向；入场面板参与布局，退场面板绝对定位叠放，不出现中间空白帧。容器高度过渡只测量新面板。
+- 页签支持左右方向键和 Home/End；选中标签可 Tab 聚焦，焦点轮廓必须可见。
+- 卡片高度过渡采用 `cardHeightTransition.js`，避免与 CSS 高度动画双重处理。
+- 页面不显示底部快捷键说明；保留 Cmd/Ctrl+Enter、H 等现有键盘快捷键行为。
 - `prefers-reduced-motion` 下取消非必要过渡；若新增动效，必须保证降级行为。
 - 使用 `:focus-visible` 体现可见的键盘焦点，按钮标注具体 `aria-label`。
 - 对话框打开时，由 dialog 承担 Tab 焦点管理和 Esc 关闭。全局键盘快捷键不应在弹窗、输入框或输入法组合时抢占事件。

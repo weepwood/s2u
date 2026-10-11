@@ -460,3 +460,78 @@ test('320px 窄屏下置顶按钮可见，卡片不会横向溢出', async ({ pa
   await button.click()
   await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
 })
+
+
+test('三个标签的滑块连续移动，快速切换后面板和方向一致', async ({ page }) => {
+  await page.goto('/')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  const tabs = nav.getByRole('tab')
+  await expect(tabs).toHaveCount(3)
+  await expect(nav).toHaveClass(/tabs-ready/)
+  const indicatorX = () => nav.evaluate((node) => {
+    const style = getComputedStyle(node, '::before')
+    return new DOMMatrixReadOnly(style.transform).m41
+  })
+  const initialX = await indicatorX()
+
+  await tabs.nth(2).click()
+  await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-switch-direction', 'forward')
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  await expect.poll(indicatorX).toBeGreaterThan(initialX + 30)
+
+  await tabs.nth(1).click()
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-switch-direction', 'backward')
+  await tabs.nth(0).click()
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('heading', { name: '输入目标地址' })).toBeVisible()
+  await expect.poll(async () => Math.abs((await indicatorX()) - initialX)).toBeLessThan(2)
+  await expect(page.locator('.content-card > .panel-leave-active')).toHaveCount(0)
+  await expect(page.locator('.content-card')).toHaveCount(1)
+})
+
+test('标签支持左右方向键与 Home/End，移除底部说明但原快捷键仍生效', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('.workspace-footer')).toHaveCount(0)
+  await expect(page.getByLabel('快捷键提示')).toHaveCount(0)
+  const create = page.getByRole('tab', { name: /创建链接/ })
+  const history = page.getByRole('tab', { name: /历史记录/ })
+  const common = page.getByRole('tab', { name: /常用链接/ })
+  await create.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(history).toBeFocused()
+  await expect(history).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('End')
+  await expect(common).toBeFocused()
+  await page.keyboard.press('Home')
+  await expect(create).toBeFocused()
+  await page.keyboard.press('ArrowLeft')
+  await expect(common).toBeFocused()
+  await common.press('h')
+  await expect(history).toHaveAttribute('aria-selected', 'true')
+  await history.press('h')
+  await expect(create).toHaveAttribute('aria-selected', 'true')
+})
+
+test('减少动态效果时标签指示器与面板无运动过渡', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  await expect(nav).toHaveClass(/tabs-ready/)
+  const duration = await nav.evaluate((node) => getComputedStyle(node, '::before').transitionDuration)
+  expect(duration.split(',').every((entry) => parseFloat(entry) < 0.001)).toBe(true)
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  await page.getByRole('tab', { name: /创建链接/ }).click()
+  await expect(page.getByRole('heading', { name: '输入目标地址' })).toBeVisible()
+})
+
+test('320px 窄屏下连续切换没有横向溢出或双面板残留', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 })
+  await page.goto('/')
+  for (const name of ['常用链接', '历史记录', '创建链接', '常用链接']) {
+    await page.getByRole('tab', { name: new RegExp(name) }).click()
+    await expect(page.locator('.content-card > [role="tabpanel"]')).toHaveCount(1, { timeout: 2000 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  }
+})
