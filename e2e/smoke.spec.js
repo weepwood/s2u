@@ -181,7 +181,7 @@ test('应用名称与 URL 位于图标右侧，编辑弹窗支持 ESC 和取消'
   const firstCard = page.locator('.common-card').first()
   const image = await firstCard.locator('.app-icon').boundingBox()
   const title = await firstCard.locator('.card-meta strong').boundingBox()
-  const url = await firstCard.locator('.card-meta span').boundingBox()
+  const url = await firstCard.locator('.card-meta > span').boundingBox()
   expect(image).not.toBeNull()
   expect(title).not.toBeNull()
   expect(url).not.toBeNull()
