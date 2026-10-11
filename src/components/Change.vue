@@ -142,6 +142,7 @@
               @copy="copyCommonLink"
               @copy-raw="copyCommonRaw"
               @move="moveCommonLink"
+              @pin="pinCommonLink"
               @export="exportCommonLinks"
               @import="importCommonLinks"
             />
@@ -229,6 +230,7 @@ const {
   remove: deleteCommonLink,
   restoreDefaults: restoreCommonLinks,
   move: moveCommonLinkStore,
+  pin: pinCommonLinkStore,
   exportJSON: exportCommonJSON,
   inspectImport: inspectCommonImport,
   importJSON: importCommonJSON,
@@ -424,6 +426,14 @@ function copy() {
     urlError.value = ''
     autoSync()
   })
+}
+
+function pinCommonLink(id) {
+  if (pinCommonLinkStore(id)) {
+    showToast('常用链接已置顶', 'success')
+  } else if (commonStorageError.value) {
+    showToast(commonStorageError.value, 'error', 4000)
+  }
 }
 
 function moveCommonLink(id, offset) {
