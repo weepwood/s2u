@@ -1,13 +1,15 @@
 import { test, expect } from '@playwright/test'
 
-test('首页渲染与特殊字符分享链接预览', async ({ page }) => {
+test('首页渲染与特殊字符分享链接预览', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '输入目标地址' })).toBeVisible()
   await page.locator('#url').fill('https://example.com/path?q=100%25#章节')
   await expect(page.getByText('可以分享')).toBeVisible()
   await expect(page.locator('.preview-url')).toContainText('example.com')
-  const rendered = await page.locator('.preview-url').getAttribute('title')
-  expect(new URLSearchParams(new URL(rendered).hash.slice(1)).get('target'))
+  await page.getByRole('button', { name: '复制链接' }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(new URLSearchParams(new URL(copied).hash.slice(1)).get('target'))
     .toBe('https://example.com/path?q=100%25#%E7%AB%A0%E8%8A%82')
 })
 
