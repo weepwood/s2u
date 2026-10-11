@@ -452,8 +452,8 @@ function exportCommonLinks() {
 }
 
 async function importCommonLinks(file) {
-  if (file.size > 512 * 1024) {
-    showToast('导入文件不能超过 512 KB', 'error', 4000)
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('导入文件不能超过 2 MB', 'error', 4000)
     return
   }
   try {
