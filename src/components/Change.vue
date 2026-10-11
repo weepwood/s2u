@@ -171,6 +171,20 @@
 import { ref, computed, nextTick, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
+import ClosePanel from './ClosePanel.vue'
+import Toast from './Toast.vue'
+import { useDarkMode } from '../composables/useDarkMode.js'
+import { useHistory } from '../composables/useHistory.js'
+import { useCommonLinks } from '../composables/useCommonLinks.js'
+import { useCloudSync } from '../composables/useCloudSync.js'
+import { useClipboard } from '../composables/useClipboard.js'
+import {
+  decodeShareTarget,
+  encodeShareLink,
+  getAppBaseUrl,
+  normalizeTarget,
+} from '../domain/linkCodec.js'
+
 // 仅首屏创建面板同步加载。历史/收藏 UI 在用户访问对应标签时再下载。
 const loadHistoryWorkspace = () => import('./HistoryWorkspace.vue')
 const loadCommonLinksPanel = () => import('./CommonLinksPanel.vue')
@@ -192,19 +206,6 @@ function warmPanel(panel) {
     : panel === 'common' ? loadCommonLinksPanel : null
   load?.().catch(() => {}) // 预取失败时仍由 Vue 的异步组件提供错误处理。
 }
-import ClosePanel from './ClosePanel.vue'
-import Toast from './Toast.vue'
-import { useDarkMode } from '../composables/useDarkMode.js'
-import { useHistory } from '../composables/useHistory.js'
-import { useCommonLinks } from '../composables/useCommonLinks.js'
-import { useCloudSync } from '../composables/useCloudSync.js'
-import { useClipboard } from '../composables/useClipboard.js'
-import {
-  decodeShareTarget,
-  encodeShareLink,
-  getAppBaseUrl,
-  normalizeTarget,
-} from '../domain/linkCodec.js'
 
 const MAX_IMPORT_SIZE = 2 * 1024 * 1024
 const { darkMode, toggle: toggleDark } = useDarkMode()

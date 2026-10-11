@@ -567,16 +567,16 @@ test('冷启动不加载非首屏面板和第三方字体，首次访问后按�
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '输入目标地址' })).toBeVisible()
   await page.waitForLoadState('networkidle')
-  expect(resources.some((url) => /fonts\\.googleapis\\.com|fonts\\.gstatic\\.com/.test(url))).toBe(false)
-  expect(resources.some((url) => /(?:HistoryWorkspace|CommonLinksPanel)-[^/]+\\.js/.test(url))).toBe(false)
+  expect(resources.some((url) => /fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url))).toBe(false)
+  expect(resources.some((url) => /(?:HistoryWorkspace|CommonLinksPanel)-[^/]+\.js/.test(url))).toBe(false)
   expect(resources.some((url) => url.includes('/icons/common-obsidian.png'))).toBe(false)
 
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await expect(page.getByRole('heading', { name: '历史记录' })).toBeVisible()
-  expect(resources.some((url) => /HistoryWorkspace-[^/]+\\.js/.test(url))).toBe(true)
+  expect(resources.some((url) => /HistoryWorkspace-[^/]+\.js/.test(url))).toBe(true)
   await page.getByRole('tab', { name: /常用链接/ }).click()
   await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
-  expect(resources.some((url) => /CommonLinksPanel-[^/]+\\.js/.test(url))).toBe(true)
+  expect(resources.some((url) => /CommonLinksPanel-[^/]+\.js/.test(url))).toBe(true)
 })
 
 test('非默认页签首次加载及快速反向切换不破坏可用性', async ({ page }) => {
