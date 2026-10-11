@@ -34,10 +34,10 @@
             id="create-tab"
             type="button"
             role="tab"
-            :class="{ active: !isShowHistory }"
-            :aria-selected="!isShowHistory"
+            :class="{ active: activePanel === 'create' }"
+            :aria-selected="activePanel === 'create'"
             aria-controls="create-panel"
-            @click="isShowHistory = false"
+            @click="activePanel = 'create'"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -48,16 +48,31 @@
             id="history-tab"
             type="button"
             role="tab"
-            :class="{ active: isShowHistory }"
-            :aria-selected="isShowHistory"
+            :class="{ active: activePanel === 'history' }"
+            :aria-selected="activePanel === 'history'"
             aria-controls="history-panel"
-            @click="isShowHistory = true"
+            @click="activePanel = 'history'"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 8v4l2.5 1.5M4.93 5.93A9 9 0 1 1 3 11.5M3 5v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             历史记录
             <span v-if="history.length" class="tab-count">{{ history.length }}</span>
+          </button>
+          <button
+            id="common-tab"
+            type="button"
+            role="tab"
+            :class="{ active: activePanel === 'common' }"
+            :aria-selected="activePanel === 'common'"
+            aria-controls="common-panel"
+            @click="activePanel = 'common'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 7h14M5 12h14M5 17h14M8 5v14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            常用链接
+            <span class="tab-count">{{ commonLinks.length }}</span>
           </button>
         </nav>
       </div>
@@ -73,7 +88,7 @@
           />
 
           <div
-            v-else-if="isShowHistory"
+            v-else-if="activePanel === 'history'"
             id="history-panel"
             key="history"
             class="history-view"
@@ -106,6 +121,24 @@
               @connect="connectGist"
               @disconnect="disconnectGist"
               @sync="syncGist"
+            />
+          </div>
+
+          <div
+            v-else-if="activePanel === 'common'"
+            id="common-panel"
+            key="common"
+            role="tabpanel"
+            aria-labelledby="common-tab"
+          >
+            <CommonLinksPanel
+              ref="commonPanel"
+              :items="commonLinks"
+              @save="saveCommonLink"
+              @remove="removeCommonLink"
+              @reset="resetCommonLinks"
+              @open="openCommonLink"
+              @copy="copyCommonLink"
             />
           </div>
 
@@ -147,12 +180,14 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import HistoryPanel from './HistoryPanel.vue'
+import CommonLinksPanel from './CommonLinksPanel.vue'
 import HistoryFooter from './HistoryFooter.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
+import { useCommonLinks } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
 import { useClipboard } from '../composables/useClipboard.js'
 import {
@@ -181,6 +216,15 @@ const {
   filtered: filterHistory,
 } = useHistory()
 
+const {
+  links: commonLinks,
+  storageError: commonStorageError,
+  load: loadCommonLinks,
+  save: persistCommonLink,
+  remove: deleteCommonLink,
+  restoreDefaults: restoreCommonLinks,
+} = useCommonLinks()
+const commonPanel = ref(null)
 const { copyText, copyToClipboard, cleanup: cleanupClipboard } = useClipboard()
 
 const {
@@ -200,7 +244,7 @@ const {
 
 const url = ref('')
 const urlError = ref('')
-const isShowHistory = ref(false)
+const activePanel = ref('create')
 const showSettings = ref(false)
 const showCloseMsg = ref(false)
 const countDown = ref(5)
@@ -372,6 +416,63 @@ function copy() {
   })
 }
 
+function openCommonLink(target) {
+  // 用户点击时直接导航到经过统一校验的原始地址，而非 s2u 分享 URL。
+  // 保持同步调用，以保留浏览器启动自定义应用 Scheme 所需的用户操作上下文。
+  const normalized = normalizeTarget(target)
+  if (!normalized.ok) {
+    showToast(normalized.error, 'error', 4000)
+    return
+  }
+  try {
+    window.location.assign(normalized.target)
+  } catch {
+    showToast('无法打开此链接，请确认目标应用或浏览器支持该协议', 'error', 4000)
+  }
+}
+
+function saveCommonLink(item) {
+  try {
+    const persisted = persistCommonLink(item)
+    if (persisted) {
+      commonPanel.value?.cancelEdit()
+      showToast('常用链接已保存', 'success')
+    } else {
+      showToast(commonStorageError.value, 'error', 4000)
+    }
+  } catch (error) {
+    commonPanel.value?.showError(error.message || '链接无效')
+  }
+}
+
+function removeCommonLink(id) {
+  if (deleteCommonLink(id)) showToast('常用链接已删除')
+  else if (commonStorageError.value) showToast(commonStorageError.value, 'error', 4000)
+}
+
+function resetCommonLinks() {
+  if (restoreCommonLinks()) showToast('已恢复默认应用', 'success')
+  else showToast(commonStorageError.value, 'error', 4000)
+}
+
+async function copyCommonLink(item) {
+  const normalized = normalizeTarget(item.target)
+  if (!normalized.ok) {
+    showToast(normalized.error, 'error', 4000)
+    return
+  }
+  try {
+    const shareLink = encodeShareLink(origin, normalized.target)
+    await navigator.clipboard.writeText(shareLink)
+    const saved = addHistory(normalized.target)
+    if (!saved) notifyStorageError()
+    autoSync()
+    showToast('已复制 ' + item.name + ' 的分享链接', 'success')
+  } catch {
+    showToast('复制失败，请检查浏览器剪贴板权限', 'error', 4000)
+  }
+}
+
 function autoSync() {
   scheduleAutoSync(() => syncGist({ silent: true }))
 }
@@ -471,18 +572,20 @@ function disconnectGist() {
 
 function handleKeydown(event) {
   if (event.isComposing) return
+  // 原生 modal dialog 的键盘交互优先于页面快捷键，Esc 由浏览器关闭弹窗。
+  if (document.querySelector('dialog[open]')) return
 
   const target = event.target
   const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
   const isContentEditable = target instanceof HTMLElement && target.isContentEditable
 
-  if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+  if (activePanel.value === 'create' && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
     event.preventDefault()
     copy()
     return
   }
 
-  if (event.key === 'Escape' && isInput && !isShowHistory.value) {
+  if (event.key === 'Escape' && isInput && activePanel.value === 'create') {
     url.value = ''
     urlError.value = ''
     return
@@ -497,13 +600,15 @@ function handleKeydown(event) {
     !isContentEditable
   ) {
     event.preventDefault()
-    isShowHistory.value = !isShowHistory.value
+    activePanel.value = activePanel.value === 'history' ? 'create' : 'history'
   }
 }
 
 onMounted(() => {
   loadHistory()
   notifyStorageError()
+  loadCommonLinks()
+  if (commonStorageError.value) showToast(commonStorageError.value, 'error', 4000)
 
   try {
     localStorage.removeItem('url_list')

@@ -80,6 +80,161 @@ test('模拟 Gist 同步不接触真实 Token/API', async ({ page }) => {
 })
 
 
+test('常用链接展示图标并可单独复制 Scheme 分享链接', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  await expect(page.locator('img[alt="Obsidian 图标"]')).toBeVisible()
+  await expect(page.locator('img[alt="微信 图标"]')).toBeVisible()
+  await expect(page.locator('img[alt="网易云音乐 图标"]')).toBeVisible()
+  for (const app of ['Obsidian', '微信', '网易云音乐']) {
+    const img = page.locator('img[alt="' + app + ' 图标"]')
+    await expect.poll(() => img.evaluate((element) => element.naturalWidth)).toBeGreaterThan(0)
+  }
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+  await page.getByRole('button', { name: '复制 Obsidian 分享链接' }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(new URLSearchParams(new URL(copied).hash.slice(1)).get('target')).toBe('obsidian://')
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+})
+
+test('点击打开直接导航到保存的原始网址，而不经过 s2u 分享链接', async ({ page }) => {
+  const destination = 'https://example.com/common-link-open?source=s2u#test'
+  await page.route('https://example.com/common-link-open**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Opened directly</title><main>Opened directly</main>',
+    }),
+  )
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: /添加常用链接/ }).click()
+  await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('测试网站')
+  await page.getByPlaceholder('obsidian:// 或 https://example.com').fill(destination)
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page.getByRole('dialog', { name: '添加常用链接' })).not.toBeVisible()
+  await page.getByRole('button', { name: '打开 测试网站' }).click()
+  await expect(page).toHaveURL(destination)
+  await expect(page.getByText('Opened directly')).toBeVisible()
+})
+
+test('自定义常用链接可添加、编辑、删除且刷新后仍保留', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: /添加常用链接/ }).click()
+  await expect(page.getByRole('dialog', { name: '添加常用链接' })).toBeVisible()
+  await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('我的笔记')
+  await page.getByPlaceholder('obsidian:// 或 https://example.com').fill('obsidian://open?vault=notes')
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page.getByText('我的笔记')).toBeVisible()
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByText('我的笔记')).toBeVisible()
+  await page.getByRole('button', { name: '编辑 我的笔记' }).click()
+  await expect(page.getByRole('dialog', { name: '编辑常用链接' })).toBeVisible()
+  await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('资料库')
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page.getByText('资料库')).toBeVisible()
+  await page.getByRole('button', { name: '复制 资料库 分享链接' }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copied).toContain('obsidian%3A%2F%2Fopen')
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 资料库' }).click()
+  await expect(page.getByText('资料库')).toHaveCount(0)
+})
+
+test('常用链接拒绝危险协议且不能影响历史记录', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: /添加常用链接/ }).click()
+  await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('危险链接')
+  await page.getByPlaceholder('obsidian:// 或 https://example.com').fill('javascript:alert(1)')
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page.getByRole('alert')).toContainText('不支持 javascript:')
+  const editor = page.getByRole('dialog', { name: '添加常用链接' })
+  await expect(editor).toBeVisible()
+  await editor.getByRole('button', { name: '取消' }).click()
+  await expect(editor).not.toBeVisible()
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByText('还没有创建过链接')).toBeVisible()
+})
+
+test('320px 移动端页签不溢出且深色模式仍可使用常用链接', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(page.getByRole('button', { name: '切换到浅色模式' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '复制 Obsidian 分享链接' })).toBeVisible()
+})
+
+
+test('应用名称与 URL 位于图标右侧，编辑弹窗支持 ESC 和取消', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  const firstCard = page.locator('.common-card').first()
+  const image = await firstCard.locator('.app-icon').boundingBox()
+  const title = await firstCard.locator('.card-meta strong').boundingBox()
+  const url = await firstCard.locator('.card-meta span').boundingBox()
+  expect(image).not.toBeNull()
+  expect(title).not.toBeNull()
+  expect(url).not.toBeNull()
+  expect(title.x).toBeGreaterThan(image.x + image.width - 1)
+  expect(url.x).toBeGreaterThan(image.x + image.width - 1)
+
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  const dialog = page.getByRole('dialog', { name: '编辑常用链接' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByPlaceholder('例如：我的 Obsidian 笔记库')).toHaveValue('Obsidian')
+  await expect(dialog.getByPlaceholder('obsidian:// 或 https://example.com')).toHaveValue('obsidian://')
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: '取消' }).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(firstCard.locator('.card-meta strong')).toHaveText('Obsidian')
+})
+
+test('320px 手机视口中编辑弹窗不超出边界', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 })
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  const dialog = page.getByRole('dialog', { name: '编辑常用链接' })
+  await expect(dialog).toBeVisible()
+  const bounds = await dialog.boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds.x).toBeGreaterThanOrEqual(0)
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(321)
+  await dialog.getByRole('button', { name: '关闭弹窗' }).click()
+  await expect(dialog).not.toBeVisible()
+})
+
+
+test('编辑弹窗快捷键不触发隐藏创建页复制或历史页切换', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('#url').fill('https://example.com/should-not-be-copied')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  const modal = page.getByRole('dialog', { name: '编辑常用链接' })
+  await expect(modal).toBeVisible()
+  await modal.getByRole('button', { name: '关闭弹窗' }).focus()
+  await page.keyboard.press('Control+Enter')
+  await page.keyboard.press('h')
+  await expect(modal).toBeVisible()
+  await expect(page.getByRole('tab', { name: /常用链接/ })).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('Escape')
+  await expect(modal).not.toBeVisible()
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByText('还没有创建过链接')).toBeVisible()
+})
+
 test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', async ({ page }) => {
   let patchCount = 0
   await page.addInitScript(() => {
