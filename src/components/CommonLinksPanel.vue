@@ -285,13 +285,19 @@ async function selectIcon(event) {
   }
 
   iconBusy.value = true
-  const url = URL.createObjectURL(file)
   try {
+    // 现有 CSP 仅允许 img-src 'self' data:；不创建 blob: 图片地址。
+    const source = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('读取图片失败'))
+      reader.readAsDataURL(file)
+    })
     const image = new Image()
     await new Promise((resolve, reject) => {
       image.onload = resolve
       image.onerror = () => reject(new Error('图片无法解码'))
-      image.src = url
+      image.src = source
     })
     if (!image.naturalWidth || !image.naturalHeight ||
         image.naturalWidth * image.naturalHeight > 16_000_000) {
@@ -315,7 +321,6 @@ async function selectIcon(event) {
   } catch (error) {
     iconError.value = error?.message || '图标处理失败'
   } finally {
-    URL.revokeObjectURL(url)
     iconBusy.value = false
   }
 }
