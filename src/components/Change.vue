@@ -140,6 +140,9 @@
               @reset="resetCommonLinks"
               @open="openCommonLink"
               @copy="copyCommonLink"
+              @move="moveCommonLink"
+              @export="exportCommonLinks"
+              @import="importCommonLinks"
             />
           </div>
 
@@ -224,6 +227,10 @@ const {
   save: persistCommonLink,
   remove: deleteCommonLink,
   restoreDefaults: restoreCommonLinks,
+  move: moveCommonLinkStore,
+  exportJSON: exportCommonJSON,
+  inspectImport: inspectCommonImport,
+  importJSON: importCommonJSON,
 } = useCommonLinks()
 const commonPanel = ref(null)
 const { copyText, copyToClipboard, cleanup: cleanupClipboard } = useClipboard()
@@ -416,6 +423,55 @@ function copy() {
     urlError.value = ''
     autoSync()
   })
+}
+
+function moveCommonLink(id, offset) {
+  if (moveCommonLinkStore(id, offset)) {
+    showToast('链接顺序已保存', 'success')
+  } else if (commonStorageError.value) {
+    showToast(commonStorageError.value, 'error', 4000)
+  }
+}
+
+function exportCommonLinks() {
+  try {
+    const blob = new Blob([exportCommonJSON()], { type: 'application/json;charset=utf-8' })
+    const href = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.download = 's2u-common-links-' + new Date().toISOString().slice(0, 10) + '.json'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+    showToast('常用链接备份已导出', 'success')
+  } catch {
+    showToast('导出常用链接失败', 'error', 4000)
+  }
+}
+
+async function importCommonLinks(file) {
+  if (file.size > 512 * 1024) {
+    showToast('导入文件不能超过 512 KB', 'error', 4000)
+    return
+  }
+  try {
+    const imported = JSON.parse(await file.text())
+    const summary = inspectCommonImport(imported)
+    if (!summary.added) {
+      showToast('备份中的链接已全部存在，无需重复导入')
+      return
+    }
+    if (!confirm(`备份包含 ${summary.count} 条，预计新增 ${summary.added} 条，跳过重复 ${summary.duplicates} 条。确认追加导入？`)) return
+    const added = importCommonJSON(imported)
+    if (added < 0) {
+      showToast(commonStorageError.value, 'error', 4000)
+      return
+    }
+    showToast(`已导入 ${added} 条常用链接`, 'success')
+  } catch (error) {
+    showToast(error?.message || '备份导入失败', 'error', 4000)
+  }
 }
 
 function openCommonLink(target) {
