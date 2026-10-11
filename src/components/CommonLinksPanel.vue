@@ -101,7 +101,11 @@
             <span v-else aria-hidden="true">{{ iconInitials(item.name) }}</span>
           </span>
           <div class="card-meta">
-            <strong :title="item.name">{{ item.name }}</strong>
+            <div class="card-title-row">
+              <strong :title="item.name">{{ item.name }}</strong>
+              <span v-if="items[0]?.id === item.id" class="first-item-indicator" aria-label="当前排在首位">首位</span>
+              <button v-else type="button" class="pin-button" :aria-label="'置顶 ' + item.name" title="移至首位" @click="$emit('pin', item.id)">置顶</button>
+            </div>
             <span :title="item.target">{{ item.target }}</span>
           </div>
           <div class="card-actions">
@@ -143,7 +147,7 @@ import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 const props = defineProps({
   items: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'import', 'export'])
+const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'pin', 'import', 'export'])
 const openWarningDialog = ref(null)
 const pendingTarget = ref('')
 
@@ -365,7 +369,13 @@ button { font: inherit; cursor: pointer; }
 .card-actions button:hover { background: var(--surface-elevated); color: var(--card-text); }
 .card-actions button:disabled { opacity: .3; cursor: not-allowed; }
 .card-actions svg { width: 16px; height: 16px; }
-.card-meta { display: grid; gap: 5px; min-width: 0; flex: 1; }
+ .card-meta { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.card-title-row { display: flex; align-items: center; min-width: 0; gap: 5px; }
+.card-title-row strong { flex: 1; min-width: 0; }
+.pin-button, .first-item-indicator { flex-shrink: 0; border: 0; padding: 3px 5px; border-radius: 6px; font-size: 10px; font-weight: 650; line-height: 1.3; }
+.pin-button { color: var(--card-text-muted); background: var(--surface-elevated); }
+.pin-button:hover, .pin-button:focus-visible { color: var(--card-text); outline-color: var(--accent); }
+.first-item-indicator { color: var(--card-text-muted); opacity: .65; }
 .card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }

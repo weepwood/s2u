@@ -242,3 +242,43 @@ test('自定义图标保存失败时原有列表和图标不变', () => {
     localStorage.setItem = original
   } finally { mock.restore() }
 })
+
+
+test('一键置顶保持所有链接完整次序、图片不变，刷新后顺序持久化', () => {
+  const mock = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    const icon = 'data:image/png;base64,iVBORw0KGgo='
+    assert.equal(store.save({ id: 'orpheus', name: '网易云音乐', target: 'orpheus://', icon }), true)
+    assert.equal(store.pin('orpheus'), true)
+    assert.deepEqual(store.links.value.map((item) => item.id), ['orpheus', 'obsidian', 'vscode', 'weixin'])
+    assert.equal(store.links.value[0].icon, icon)
+    assert.equal(store.pin('orpheus'), false)
+    assert.equal(store.pin('missing'), false)
+    const loaded = useCommonLinks()
+    loaded.load()
+    assert.deepEqual(loaded.links.value.map((item) => item.id), store.links.value.map((item) => item.id))
+    assert.equal(loaded.links.value[0].icon, icon)
+    assert.equal(JSON.parse(store.exportJSON()).items[0].id, 'orpheus')
+  } finally { mock.restore() }
+})
+
+test('localStorage 写入失败时置顶不会改变内存、图标和原持久化内容', () => {
+  const mock = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    const before = JSON.stringify(store.links.value)
+    const persisted = localStorage.getItem('s2u_common_links_v1')
+    const originalSet = localStorage.setItem
+    localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+    assert.equal(store.pin('weixin'), false)
+    assert.equal(JSON.stringify(store.links.value), before)
+    assert.equal(localStorage.getItem('s2u_common_links_v1'), persisted)
+    assert.match(store.storageError.value, /保存失败/)
+    localStorage.setItem = originalSet
+    assert.equal(store.pin('weixin'), true)
+    assert.equal(store.links.value[0].id, 'weixin')
+  } finally { mock.restore() }
+})

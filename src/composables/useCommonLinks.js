@@ -158,6 +158,17 @@ export function useCommonLinks() {
     return persist(items)
   }
 
+  function pin(id) {
+    const index = links.value.findIndex((item) => item.id === id)
+    if (index <= 0) return false
+
+    const items = [...links.value]
+    const [selected] = items.splice(index, 1)
+    items.unshift(selected)
+    // 复用原子化存储：quota、禁止写入或损坏数据时顺序保持不变。
+    return persist(items)
+  }
+
   function exportJSON() {
     return JSON.stringify({
       format: EXPORT_FORMAT,
@@ -217,5 +228,5 @@ export function useCommonLinks() {
     return persist(defaultItems(), { recover: true })
   }
 
-  return { links, storageError, load, save, move, remove, restoreDefaults, exportJSON, inspectImport, importJSON }
+  return { links, storageError, load, save, move, pin, remove, restoreDefaults, exportJSON, inspectImport, importJSON }
 }
