@@ -81,7 +81,7 @@
       </div>
 
       <div class="content-card">
-        <Transition name="panel">
+        <Transition name="panel" @before-enter="activateEnteringPanel" @before-leave="prepareLeavingPanel">
           <ClosePanel
             v-if="showCloseMsg"
             key="redirect"
@@ -253,6 +253,18 @@ const urlError = ref('')
 const activePanel = ref('create')
 const switchDirection = ref('forward')
 const TAB_ORDER = ['create', 'history', 'common']
+
+function prepareLeavingPanel(element) {
+  // 视觉上允许短暂重叠，但旧面板不能抢占焦点或被辅助技术当成有效页面。
+  element.inert = true
+  element.setAttribute('aria-hidden', 'true')
+}
+
+function activateEnteringPanel(element) {
+  // 连续快速切换时，Vue 可能复用中途退场的节点。
+  element.inert = false
+  element.removeAttribute('aria-hidden')
+}
 
 function switchPanel(panel) {
   const nextIndex = TAB_ORDER.indexOf(panel)

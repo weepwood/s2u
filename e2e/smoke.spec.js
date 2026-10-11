@@ -32,7 +32,7 @@ test('生成、复制、搜索与删除历史记录', async ({ page, context }) 
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(copied).toContain('#target=https%3A%2F%2Fexample.com%2Fhello')
   await page.getByRole('tab', { name: /历史记录/ }).click()
-  await expect(page.getByText('https://example.com/hello')).toBeVisible()
+  await expect(page.locator('#history-panel').getByText('https://example.com/hello')).toBeVisible()
   await page.getByRole('textbox', { name: '搜索历史记录' }).fill('not-found')
   await expect(page.getByText('没有找到匹配记录')).toBeVisible()
   await page.locator('.search-clear').click()
@@ -534,4 +534,24 @@ test('320px 窄屏下连续切换没有横向溢出或双面板残留', async ({
     await expect(page.locator('.content-card > [role="tabpanel"]')).toHaveCount(1, { timeout: 2000 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
   }
+})
+
+
+test('退场内容在交叠动画期间不可交互，快速反向切换会恢复活动面板', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.locator('#common-panel')).toBeVisible()
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  const leaving = page.locator('#common-panel')
+  // 退场节点可存在一小段时间，但不能再成为可聚焦/可读的交互区域。
+  if (await leaving.count()) {
+    await expect(leaving).toHaveAttribute('aria-hidden', 'true')
+    await expect(leaving).toHaveAttribute('inert', '')
+  }
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  const active = page.locator('#common-panel')
+  await expect(active).toBeVisible()
+  await expect(active).not.toHaveAttribute('aria-hidden', 'true')
+  await expect(active).not.toHaveAttribute('inert', '')
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
 })
