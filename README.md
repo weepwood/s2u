@@ -15,6 +15,7 @@
 - **安全链接编码** — 目标地址整体写入 URL Hash，不发送到静态托管服务器
 - **旧链接兼容** — 兼容早期 `#weixin://open` 格式
 - **历史记录** — 本地持久化，按最近使用时间排序
+- **常用链接** — 内置 Obsidian、VS Code、微信和网易云音乐；支持自定义、编辑、删除、恢复默认及一键复制，图标使用本地静态资源
 - **搜索与管理** — 支持搜索、单条删除、清空、导入和导出
 - **版本化备份** — 导出文件包含格式版本、更新时间和跨设备删除标记
 - **深色模式** — 支持浅色和深色界面
@@ -78,6 +79,12 @@ https://s2u2.netlify.app/#target=weixin%3A%2F%2Fopen
 
 目标中的 `#`、`%`、查询参数和 Unicode 字符会作为整体编码，避免被浏览器错误截断。
 
+### 常用链接
+
+点击页面顶部“常用链接”页签，可以管理自己的应用 Scheme 或普通网址。点击“填入”会返回创建页，点击“复制分享链接”则生成安全的 Hash 分享 URL。默认图标来自项目内静态图片（Obsidian、微信、网易云音乐），VS Code 暂用文本图标。
+
+常用链接与历史记录分别保存在浏览器 `localStorage`，不会因为清空历史记录而丢失，也**不会通过 GitHub Gist 自动同步**。可通过“恢复默认应用”重建内置快捷方式。自定义应用 URI 是否能唤起对应程序，取决于设备和浏览器对该 Scheme 的支持。
+
 ### GitHub Gist 同步
 
 1. 打开“历史记录”并展开“云端同步”。
@@ -113,7 +120,7 @@ VITE_PUBLIC_BASE_URL=https://example.com/s2u/
 | 层级 | 技术 |
 |---|---|
 | 框架 | Vue 3 Composition API / `<script setup>` |
-| 构建 | Vite 6 |
+| 构建 | Vite 8 |
 | 持久化 | localStorage + sessionStorage |
 | 云同步 | GitHub Gist API |
 | 测试 | Node.js Test Runner |
@@ -126,7 +133,7 @@ VITE_PUBLIC_BASE_URL=https://example.com/s2u/
 src/
 ├── main.js
 ├── App.vue
-├── components/          # 页面和交互组件
+├── components/          # 页面和交互组件（包含常用链接）
 ├── composables/         # 历史、剪贴板、主题和云同步状态
 ├── domain/
 │   └── linkCodec.js     # 链接规范化、校验和 Hash 编解码
