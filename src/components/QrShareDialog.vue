@@ -29,13 +29,14 @@ const dialog = ref(null)
 const canvas = ref(null)
 const error = ref('')
 const message = ref('')
-const busy = ref(false)
+const busy = ref(true)
 
 function onBackdrop(event) {
   if (event.target === dialog.value) dialog.value.close()
 }
 
 async function renderQr() {
+  busy.value = true
   try {
     const { default: QrCreator } = await import('../vendor/qr-creator.js')
     if (!canvas.value) return
@@ -55,6 +56,8 @@ async function renderQr() {
     }
   } catch (cause) {
     error.value = cause?.message || '二维码生成失败，请复制分享链接'
+  } finally {
+    busy.value = false
   }
 }
 
