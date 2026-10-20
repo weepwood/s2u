@@ -7,6 +7,7 @@
       </header>
       <dl class="shortcut-list">
         <div><dt>复制当前分享链接</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>Enter</kbd></dd></div>
+        <div><dt>打开快捷启动命令面板</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>K</kbd></dd></div>
         <div><dt>切换历史记录</dt><dd><kbd>H</kbd></dd></div>
         <div><dt>清空创建页输入</dt><dd><kbd>Esc</kbd></dd></div>
         <div><dt>页签导航</dt><dd><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></dd></div>
