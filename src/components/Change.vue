@@ -23,6 +23,14 @@
           </svg>
           <span>GitHub</span>
         </a>
+        <button ref="helpTrigger" type="button" class="shortcut-help-trigger"
+          aria-label="查看快捷键" title="查看键盘快捷键（?）" @click="helpOpen = true">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="M9.6 9a2.6 2.6 0 1 1 4.4 1.9c-1.2 1-2 1.4-2 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M12 17.2h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
         <ThemeToggle :dark-mode="darkMode" @toggle="toggleDark" />
       </div>
     </header>
@@ -167,6 +175,7 @@
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
       @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
+    <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
 </template>
@@ -177,6 +186,7 @@ import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
+import ShortcutHelp from './ShortcutHelp.vue'
 import QrShareDialog from './QrShareDialog.vue'
 import CommandPalette from './CommandPalette.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
@@ -266,6 +276,8 @@ const {
 
 const commandPaletteOpen = ref(false)
 const qrShareUrl = ref('')
+const helpOpen = ref(false)
+const helpTrigger = ref(null)
 const url = ref('')
 const urlError = ref('')
 const activePanel = ref('create')
@@ -746,6 +758,11 @@ function disconnectGist() {
   showToast('已断开 GitHub Gist', 'info')
 }
 
+function closeHelp() {
+  helpOpen.value = false
+  nextTick(() => helpTrigger.value?.focus())
+}
+
 function handleKeydown(event) {
   if (event.isComposing) return
   if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
@@ -759,6 +776,12 @@ function handleKeydown(event) {
   const target = event.target
   const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
   const isContentEditable = target instanceof HTMLElement && target.isContentEditable
+
+  if (event.key === '?' && !isInput && !isContentEditable && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    event.preventDefault()
+    helpOpen.value = true
+    return
+  }
 
   if (activePanel.value === 'create' && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
     event.preventDefault()
