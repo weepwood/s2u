@@ -592,3 +592,30 @@ test('非默认页签首次加载及快速反向切换不破坏可用性', async
   await page.getByRole('button', { name: '云端同步' }).click()
   await expect(page.getByRole('button', { name: '连接 Gist' })).toBeVisible()
 })
+
+test('Ctrl+K 命令面板支持搜索与键盘导航，并在 Esc 关闭后恢复主界面', async ({ page }) => {
+  await page.goto('/')
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('searchbox', { name: '搜索命令' }).fill('Obsidian')
+  await expect(dialog.getByRole('option')).toHaveCount(1)
+  await expect(dialog.getByRole('option').first()).toContainText('Obsidian')
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+})
+
+test('命令面板未知自定义协议先确认，不会立即打开', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('s2u_common_links_v1', JSON.stringify({
+    version: 1, items: [{ id: 'unsafe-but-valid', name: '测试未知应用', target: 'exampleapp://launch' }],
+  })))
+  await page.reload()
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  await dialog.getByRole('searchbox', { name: '搜索命令' }).fill('测试未知应用')
+  await page.keyboard.press('Enter')
+  await expect(dialog.getByText('确认打开未知应用协议？')).toBeVisible()
+  await dialog.getByRole('button', { name: '返回' }).click()
+  await expect(dialog.getByRole('option').first()).toContainText('测试未知应用')
+})
