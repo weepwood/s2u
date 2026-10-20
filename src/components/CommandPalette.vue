@@ -5,7 +5,7 @@
         <label class="visually-hidden" for="command-search">搜索常用链接或历史记录</label>
         <input id="command-search" ref="searchInput" v-model="query" type="search"
           placeholder="搜索应用、网址或 Scheme…" autocomplete="off"
-          aria-label="搜索命令" @keydown="onKeydown" />
+          aria-label="搜索命令" @keydown.esc.stop.prevent="dialog?.close()" @keydown="onKeydown" />
         <kbd>Esc</kbd>
       </header>
       <div v-if="pending" class="command-confirm">
