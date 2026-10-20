@@ -614,3 +614,11 @@ test('问号快捷键不会在正在输入目标网址时抢占焦点', async ({
   await page.keyboard.type('?')
   await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible()
 })
+
+test('快捷键帮助包含已发布命令面板的 Ctrl/Cmd+K 说明', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '查看快捷键' }).click()
+  const dialog = page.getByRole('dialog', { name: '键盘快捷键' })
+  await expect(dialog).toContainText('打开快捷启动命令面板')
+  await expect(dialog).toContainText('K')
+})
