@@ -749,3 +749,126 @@ test('快捷键帮助包含已发布命令面板的 Ctrl/Cmd+K 说明', async ({
   await expect(dialog).toContainText('打开快捷启动命令面板')
   await expect(dialog).toContainText('K')
 })
+
+test('工作区提供可见命令入口，快速填入示例不写入历史', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('.workspace-intro h1')).toBeVisible()
+  await expect(page.locator('.workspace-intro h1')).toContainText('让每一个应用链接')
+  await expect(page.locator('.workspace-intro h1')).toContainText('都能轻松分享。')
+  await page.getByRole('button', { name: '填入Obsidian示例' }).click()
+  await expect(page.locator('#url')).toHaveValue('obsidian://open')
+  await expect(page.locator('#url')).toBeFocused()
+  await expect(page.getByRole('button', { name: '填入Obsidian示例' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByText('还没有创建过链接')).toBeVisible()
+  await page.getByRole('button', { name: '打开快捷启动命令面板' }).click()
+  await expect(page.getByRole('dialog', { name: '快捷启动命令面板' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: '快捷启动命令面板' })).not.toBeVisible()
+})
+
+test('快速填入示例可清除错误状态，保留既有复制流程', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/')
+  await page.locator('#url').fill('javascript:alert(1)')
+  await page.getByRole('button', { name: '复制链接' }).click()
+  await expect(page.getByRole('alert')).toContainText('不支持 javascript:')
+  await page.getByRole('button', { name: '填入网页示例' }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.locator('#url')).toHaveValue('https://example.com')
+  await page.getByRole('button', { name: '复制链接' }).click()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('#target=https%3A%2F%2Fexample.com%2F')
+})
+
+test('320/375px 下新工作区和结果预览无可见横向溢出', async ({ page }) => {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 760 })
+    await page.goto('/')
+    await page.getByRole('button', { name: '填入网页示例' }).click()
+    await expect(page.locator('.preview-card')).toBeVisible()
+    const clipped = await page.evaluate(() => {
+      const viewport = document.documentElement.clientWidth
+      const selectors = ['.workspace', '.workspace-intro', '.mode-tabs', '.content-card',
+        '.url-input-panel', '.input-row', '.preview-card', '.preview-actions', '.starter-links']
+      return selectors.flatMap((selector) => [...document.querySelectorAll(selector)].filter((node) => {
+        const r = node.getBoundingClientRect()
+        return r.left < -1 || r.right > viewport + 1
+      }).map(() => selector))
+    })
+    expect(clipped).toEqual([])
+    await page.getByRole('tab', { name: /常用链接/ }).click()
+    await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+    const cards = await page.locator('.common-card').evaluateAll((nodes) =>
+      nodes.every((node) => {
+        const r = node.getBoundingClientRect()
+        return r.left >= -1 && r.right <= document.documentElement.clientWidth + 1
+      }))
+    expect(cards).toBe(true)
+  }
+})
+
+test('暗色模式与减少动态效果下仍保留可见的操作入口', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(page.locator('.app-shell')).toHaveClass(/dark/)
+  await expect(page.getByRole('button', { name: '打开快捷启动命令面板' })).toBeVisible()
+  const style = await page.locator('.launch-trigger').evaluate((node) => ({
+    bg: getComputedStyle(node).backgroundColor,
+    color: getComputedStyle(node).color,
+    transition: getComputedStyle(node).transitionDuration,
+  }))
+  expect(style.bg).not.toBe('rgba(0, 0, 0, 0)')
+  expect(style.color).not.toBe(style.bg)
+  await page.getByRole('button', { name: '填入网页示例' }).click()
+  await expect(page.getByRole('button', { name: '生成分享二维码' })).toBeVisible()
+})
+
+test('常用链接卡片管理操作仅在鼠标悬停或卡片内获得键盘焦点时显现', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  const cards = page.locator('.common-card')
+  const first = cards.first()
+  const second = cards.nth(1)
+  await page.mouse.move(1, 1)
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '0')
+  await expect(second.locator('.card-actions')).toHaveCSS('opacity', '0')
+  // 主要使用操作不折叠；只隐藏管理工具条。
+  await expect(first.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+  await expect(first.getByRole('button', { name: '复制 Obsidian 分享链接' })).toBeVisible()
+
+  await first.hover()
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '1')
+  await expect(second.locator('.card-actions')).toHaveCSS('opacity', '0')
+  await page.mouse.move(1, 1)
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '0')
+
+  // 可通过键盘 Tab 获取工具按钮，即使悬停前处于透明状态。
+  await first.getByRole('button', { name: '编辑 Obsidian' }).focus()
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '1')
+  await expect(first.getByRole('button', { name: '编辑 Obsidian' })).toBeFocused()
+})
+
+test('触屏设备常用链接卡片管理操作始终可用', async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  })
+  const page = await context.newPage()
+  try {
+    await page.goto('/')
+    await page.getByRole('tab', { name: /常用链接/ }).click()
+    const card = page.locator('.common-card').filter({ hasText: 'Visual Studio Code' }).first()
+    await expect(card).toBeVisible()
+    const pointer = await page.evaluate(() =>
+      matchMedia('(hover: none)').matches || matchMedia('(pointer: coarse)').matches)
+    expect(pointer).toBe(true)
+    await expect(card.locator('.card-actions')).toHaveCSS('opacity', '1')
+    await expect(card.getByRole('button', { name: '置顶 Visual Studio Code' })).toBeVisible()
+    await card.getByRole('button', { name: '置顶 Visual Studio Code' }).click()
+    await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+  } finally {
+    await context.close()
+  }
+})

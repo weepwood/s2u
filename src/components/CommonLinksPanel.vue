@@ -112,13 +112,14 @@
             <div class="card-title-row">
               <strong :title="item.name">{{ item.name }}</strong>
               <span v-if="items[0]?.id === item.id" class="first-item-indicator" aria-label="当前排在首位">首位</span>
-              <button v-else type="button" class="pin-button" :aria-label="'置顶 ' + item.name" title="移至首位" @click="$emit('pin', item.id)">置顶</button>
             </div>
             <span :title="item.target">{{ item.target }}</span>
             <div v-if="item.tags?.length" class="card-tags"><span v-for="tag in item.tags" :key="tag">{{ tag }}</span></div>
           </div>
-          <div class="card-actions">
-            <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
+        </div>
+        <div class="card-actions" role="group" :aria-label="'管理 ' + item.name">
+          <button v-if="items[0]?.id !== item.id" type="button" class="pin-button" :aria-label="'置顶 ' + item.name" title="移至首位" @click="$emit('pin', item.id)">置顶</button>
+          <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
             <button type="button" :disabled="items[items.length - 1]?.id === item.id" :aria-label="'下移 ' + item.name" title="下移" @click="$emit('move', item.id, 1)">↓</button>
             <button type="button" :aria-label="'复制 ' + item.name + ' 原始链接'" title="复制原始链接" @click="$emit('copy-raw', item.target)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.7"/></svg>
@@ -129,7 +130,6 @@
             <button type="button" :aria-label="'删除 ' + item.name" title="删除" @click="removeItem(item)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
             </button>
-          </div>
         </div>
         <div class="card-buttons">
           <button type="button" @click="requestOpen(item.target)" :aria-label="'打开 ' + item.name">打开</button>
@@ -379,13 +379,13 @@ button { font: inherit; cursor: pointer; }
 .common-tools button { min-height: 38px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); font: inherit; font-size: 11px; font-weight: 650; }
 .visually-hidden-import { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .common-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.common-card { padding: 17px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-soft); min-width: 0; display: flex; flex-direction: column; gap: 13px; transition: border-color .2s, transform .2s; }
+.common-card { position: relative; padding: 17px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-soft); min-width: 0; display: flex; flex-direction: column; gap: 13px; transition: border-color .2s, transform .2s; }
 .common-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .card-main { display: flex; align-items: center; min-width: 0; gap: 11px; }
 .app-icon { width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; overflow: hidden; border-radius: 13px; background: var(--surface-elevated); }
 .app-icon img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .fallback-icon { color: #fff; background: linear-gradient(135deg, #298ae5, #165cad); font-size: 16px; font-weight: 750; }
-.card-actions { display: flex; gap: 3px; flex-shrink: 0; align-self: flex-start; }
+.card-actions { display: flex; gap: 3px; flex-shrink: 0; align-items: center; justify-content: flex-end; }
 .card-actions button { width: 27px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
 .card-actions button:hover { background: var(--surface-elevated); color: var(--card-text); }
 .card-actions button:disabled { opacity: .3; cursor: not-allowed; }
@@ -395,6 +395,7 @@ button { font: inherit; cursor: pointer; }
 .card-title-row strong { flex: 1; min-width: 0; }
 .pin-button, .first-item-indicator { flex-shrink: 0; border: 0; padding: 3px 5px; border-radius: 6px; font-size: 10px; font-weight: 650; line-height: 1.3; }
 .pin-button { color: var(--card-text-muted); background: var(--surface-elevated); }
+.card-actions .pin-button { width: auto; min-width: 38px; padding: 0 6px; }
 .pin-button:hover, .pin-button:focus-visible { color: var(--card-text); outline-color: var(--accent); }
 .first-item-indicator { color: var(--card-text-muted); opacity: .65; }
 .card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -450,6 +451,43 @@ button { font: inherit; cursor: pointer; }
 .common-footer p { margin: 0; flex: 1; }
 .common-footer button { flex-shrink: 0; border: 0; background: transparent; color: var(--card-text-muted); font-size: 12px; cursor: pointer; }
 .common-footer button:hover { color: var(--accent); }
+
+/* 桌面鼠标：管理工具浮于卡片右上角，仅悬停或键盘进入该卡片时显示。
+   不使用 display:none / visibility:hidden：Tab 焦点仍可抵达隐藏控件。 */
+@media (hover: hover) and (pointer: fine) {
+  .common-card .card-actions {
+    position: absolute;
+    z-index: 2;
+    top: 10px;
+    right: 10px;
+    max-width: calc(100% - 20px);
+    padding: 4px;
+    background: var(--card-bg-solid);
+    border: 1px solid var(--hairline);
+    border-radius: 11px;
+    box-shadow: 0 7px 22px rgba(24, 37, 68, .12);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity .16s ease, transform .16s ease;
+  }
+  .common-card:is(:hover, :focus-within) .card-actions {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* 触屏 / 不支持悬停的设备保留常驻操作，避免用户无法管理收藏。 */
+@media (hover: none), (pointer: coarse) {
+  .common-card .card-actions {
+    position: static;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .common-card .card-actions button { min-height: 34px; min-width: 34px; }
+  .common-card .card-actions .pin-button { min-width: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .common-card .card-actions { transition: none !important; transform: none !important; }
+}
 @media (max-width: 620px) { .common-grid { grid-template-columns: 1fr; } .common-footer { flex-direction: column; } }
 @media (max-width: 360px) { .card-main { gap: 6px; } .app-icon { width: 40px; height: 40px; } .card-actions { gap: 0; } .card-actions button { width: 24px; } }
 @media (prefers-reduced-motion: reduce) { .common-card { transition: none; transform: none !important; } }
