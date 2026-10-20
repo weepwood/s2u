@@ -163,6 +163,8 @@
       </div>
     </section>
 
+    <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
+      @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
 </template>
@@ -173,6 +175,7 @@ import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
+import CommandPalette from './CommandPalette.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
@@ -258,6 +261,7 @@ const {
   getLatestRecovery,
 } = useCloudSync()
 
+const commandPaletteOpen = ref(false)
 const url = ref('')
 const urlError = ref('')
 const activePanel = ref('create')
@@ -735,6 +739,11 @@ function disconnectGist() {
 
 function handleKeydown(event) {
   if (event.isComposing) return
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    if (!document.querySelector('dialog[open]')) commandPaletteOpen.value = true
+    return
+  }
   // 原生 modal dialog 的键盘交互优先于页面快捷键，Esc 由浏览器关闭弹窗。
   if (document.querySelector('dialog[open]')) return
 
