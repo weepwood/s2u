@@ -65,50 +65,23 @@
 .app-shell .workspace {
   margin-top: clamp(28px, 5vh, 60px);
 }
-.app-shell .workspace-intro {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 18px; margin: 0 1px 26px;
-}
-.app-shell .intro-copy { min-width: 0; max-width: 600px; }
-.app-shell .intro-eyebrow {
-  display: inline-flex; align-items: center; gap: 9px;
-  font-size: 10px; font-weight: 750; letter-spacing: 0.16em;
-  color: var(--accent);
-}
-.app-shell .intro-dot {
-  width: 8px; height: 8px; flex: none; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft);
-}
-.app-shell .workspace-intro h1 {
-  margin: 15px 0 9px;
-  font-size: clamp(24px, 3.3vw, 34px);
-  font-weight: 760; line-height: 1.28; letter-spacing: -0.055em;
-  color: var(--card-text);
-}
-.app-shell .workspace-intro h1 span {
-  display: block; color: var(--accent);
-}
-.app-shell .workspace-intro p {
-  max-width: 52ch; margin: 0;
-  color: var(--card-text-soft); font-size: 12.5px; line-height: 1.75;
-}
-.app-shell .launch-trigger {
+.app-shell .header-actions .launch-trigger {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  flex: 0 0 auto; min-height: 43px; padding: 0 11px 0 13px;
+  flex: 0 0 auto; height: 40px; min-height: 40px; padding: 0 10px;
   border: 1px solid var(--hairline-strong); border-radius: 12px;
   background: var(--card-bg-solid); color: var(--card-text-soft);
   box-shadow: 0 5px 15px rgba(36, 55, 98, 0.05);
   font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
-.app-shell .launch-trigger svg { width: 16px; height: 16px; color: var(--accent); }
-.app-shell .launch-trigger kbd {
+.app-shell .header-actions .launch-trigger svg { width: 16px; height: 16px; color: var(--accent); }
+.app-shell .header-actions .launch-trigger kbd {
   padding: 4px 6px; border-radius: 6px; background: var(--surface-soft);
   color: var(--card-text-muted); font-size: 10px; font-family: inherit; font-weight: 700;
   white-space: nowrap;
 }
-.app-shell .launch-trigger:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateY(-1px); }
-.app-shell .launch-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.app-shell .header-actions .launch-trigger:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateY(-1px); }
+.app-shell .header-actions .launch-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .app-shell .workspace-head { margin: 0 0 14px; text-align: left; }
 .app-shell .mode-tabs {
@@ -257,18 +230,15 @@
 .app-shell dialog :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (max-width: 760px) {
-  .app-shell .workspace-intro { align-items: flex-start; gap: 16px; }
-  .app-shell .workspace-intro h1 { font-size: clamp(23px, 4vw, 30px); }
-  .app-shell .launch-trigger kbd { display: none; }
+  .app-shell .header-actions .launch-trigger kbd { display: none; }
 }
 @media (max-width: 640px) {
   .app-shell .workspace { margin-top: 28px; }
-  .app-shell .workspace-intro { gap: 13px; margin-bottom: 22px; }
-  .app-shell .workspace-intro h1 { margin-top: 12px; }
-  .app-shell .workspace-intro p { font-size: 12px; }
-  .app-shell .launch-trigger { padding: 0 9px; min-height: 40px; }
-  .app-shell .launch-trigger span { font-size: 0; }
-  .app-shell .launch-trigger svg { width: 18px; height: 18px; }
+  .app-shell .header-actions .launch-trigger {
+    width: 40px; min-width: 40px; height: 40px; padding: 0;
+  }
+  .app-shell .header-actions .launch-trigger span { display: none; }
+  .app-shell .header-actions .launch-trigger svg { width: 18px; height: 18px; }
   .app-shell .content-card { border-radius: 19px; }
   .app-shell .mode-tabs { gap: 0; }
   .app-shell .mode-tabs button { min-height: 41px; }
@@ -276,10 +246,16 @@
   .app-shell .preview-card .preview-url { -webkit-line-clamp: 3; }
 }
 @media (max-width: 420px) {
-  .app-shell .workspace-intro h1 { font-size: 24px; }
-  .app-shell .workspace-intro p { font-size: 11.5px; }
-  .app-shell .workspace-intro { gap: 10px; }
-  .app-shell .launch-trigger { min-width: 38px; min-height: 38px; }
+  .app-shell .header-actions { gap: 4px; }
+  .app-shell .header-actions .launch-trigger,
+  .app-shell .header-actions .github-link,
+  .app-shell .header-actions .shortcut-help-trigger,
+  .app-shell .header-actions .theme-toggle {
+    width: 34px; min-width: 34px; height: 34px; min-height: 34px;
+  }
+  .app-shell .app-header .brand-mark { width: 34px; height: 34px; }
+  .app-shell .app-header .brand { gap: 7px; }
+  .app-shell .app-header .brand-copy strong { font-size: 11px; }
   .app-shell .mode-tabs button { padding-inline: 3px; font-size: 11px; }
   .app-shell .content-card { --panel-pad-inline: 15px; }
   .app-shell .url-input-panel .section-heading h2 { font-size: 21px; }
@@ -288,7 +264,7 @@
   .app-shell .starter-label { width: 100%; min-height: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-shell .launch-trigger,
+  .app-shell .header-actions .launch-trigger,
   .app-shell .starter-chip,
   .app-shell .recent-item { transition: none !important; transform: none !important; }
 }
