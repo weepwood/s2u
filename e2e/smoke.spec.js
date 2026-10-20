@@ -592,3 +592,27 @@ test('非默认页签首次加载及快速反向切换不破坏可用性', async
   await page.getByRole('button', { name: '云端同步' }).click()
   await expect(page.getByRole('button', { name: '连接 Gist' })).toBeVisible()
 })
+
+test('二维码分享本地生成，保留特殊字符分享链接，并能关闭弹窗', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('obsidian://open?vault=笔记&file=A%20B')
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const dialog = page.getByRole('dialog', { name: '分享二维码' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('canvas')).toBeVisible()
+  await expect(dialog.locator('canvas')).toHaveJSProperty('width', 288)
+  await expect(dialog.locator('.qr-share-url')).toContainText('target=')
+  await expect(dialog.locator('.qr-share-url')).toContainText('%E7%AC%94')
+  await expect(dialog.getByRole('button', { name: '保存 PNG' })).toBeEnabled()
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+})
+
+test('二维码过长时给出错误提示而不产生空白下载', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('https://example.com/?q=' + 'x'.repeat(3500))
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const dialog = page.getByRole('dialog', { name: '分享二维码' })
+  await expect(dialog.getByRole('alert')).toContainText('太长')
+  await expect(dialog.getByRole('button', { name: '保存 PNG' })).toBeDisabled()
+})

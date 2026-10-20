@@ -157,12 +157,14 @@
             @update:url="url = $event"
             @update:url-error="urlError = $event"
             @copy="copy"
+            @qr="openQrShare"
             @goto="gotoUrl"
           />
         </Transition>
       </div>
     </section>
 
+    <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
 </template>
@@ -173,6 +175,7 @@ import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
+import QrShareDialog from './QrShareDialog.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
@@ -258,6 +261,7 @@ const {
   getLatestRecovery,
 } = useCloudSync()
 
+const qrShareUrl = ref('')
 const url = ref('')
 const urlError = ref('')
 const activePanel = ref('create')
@@ -466,6 +470,11 @@ function onImportFile(event) {
   }
   reader.onerror = () => showToast('导入失败：无法读取文件', 'error')
   reader.readAsText(file)
+}
+
+function openQrShare(shareUrl) {
+  // 只接受当前编辑目标产生的链接，不信任外部传入的目标。
+  if (shareUrl && shareUrl === toUrl.value) qrShareUrl.value = shareUrl
 }
 
 function copy() {

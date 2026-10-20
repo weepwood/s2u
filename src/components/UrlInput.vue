@@ -88,6 +88,7 @@
             可以分享
           </span>
         </div>
+        <button type="button" class="preview-open" @click="$emit('qr', shareUrl)" aria-label="生成分享二维码">二维码</button>
         <button type="button" class="preview-open" @click="$emit('goto', shareUrl)">
           打开测试
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -140,7 +141,7 @@ const props = defineProps({
   urlError: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update:url', 'copy', 'goto', 'update:urlError'])
+const emit = defineEmits(['update:url', 'copy', 'goto', 'qr', 'update:urlError'])
 const urlInput = ref(null)
 
 const urlValue = computed({
