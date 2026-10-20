@@ -669,3 +669,53 @@ test('命令面板方向键移动时更新辅助技术的选中项', async ({ pa
   await input.press('ArrowUp')
   await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
 })
+
+test('二维码分享本地生成，保留特殊字符分享链接，并能关闭弹窗', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('obsidian://open?vault=笔记&file=A%20B')
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const dialog = page.getByRole('dialog', { name: '分享二维码' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('canvas')).toBeVisible()
+  await expect(dialog.locator('canvas')).toHaveJSProperty('width', 288)
+  await expect(dialog.locator('.qr-share-url')).toContainText('target=')
+  await expect(dialog.locator('.qr-share-url')).toContainText('%E7%AC%94')
+  await expect(dialog.getByRole('button', { name: '保存 PNG' })).toBeEnabled()
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+})
+
+test('二维码过长时给出错误提示而不产生空白下载', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('https://example.com/?q=' + 'x'.repeat(3500))
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const dialog = page.getByRole('dialog', { name: '分享二维码' })
+  await expect(dialog.getByRole('alert')).toContainText('太长')
+  await expect(dialog.getByRole('button', { name: '保存 PNG' })).toBeDisabled()
+})
+
+test('二维码编码后生成非空黑白图片，并能下载 PNG', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('https://example.com/scan-test')
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const modal = page.getByRole('dialog', { name: '分享二维码' })
+  const save = modal.getByRole('button', { name: '保存 PNG' })
+  await expect(save).toBeEnabled()
+  const colors = await modal.locator('canvas').evaluate((canvas) => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+    let dark = 0
+    let light = 0
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] === 0) continue
+      if (pixels[i] < 128) dark++
+      if (pixels[i] > 240) light++
+    }
+    return { dark, light }
+  })
+  expect(colors.dark).toBeGreaterThan(100)
+  expect(colors.light).toBeGreaterThan(100)
+  const downloadPromise = page.waitForEvent('download')
+  await save.click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('s2u-share-qr.png')
+})
