@@ -823,3 +823,52 @@ test('暗色模式与减少动态效果下仍保留可见的操作入口', async
   await page.getByRole('button', { name: '填入网页示例' }).click()
   await expect(page.getByRole('button', { name: '生成分享二维码' })).toBeVisible()
 })
+
+test('常用链接卡片管理操作仅在鼠标悬停或卡片内获得键盘焦点时显现', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  const cards = page.locator('.common-card')
+  const first = cards.first()
+  const second = cards.nth(1)
+  await page.mouse.move(1, 1)
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '0')
+  await expect(second.locator('.card-actions')).toHaveCSS('opacity', '0')
+  // 主要使用操作不折叠；只隐藏管理工具条。
+  await expect(first.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+  await expect(first.getByRole('button', { name: '复制 Obsidian 分享链接' })).toBeVisible()
+
+  await first.hover()
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '1')
+  await expect(second.locator('.card-actions')).toHaveCSS('opacity', '0')
+  await page.mouse.move(1, 1)
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '0')
+
+  // 可通过键盘 Tab 获取工具按钮，即使悬停前处于透明状态。
+  await first.getByRole('button', { name: '编辑 Obsidian' }).focus()
+  await expect(first.locator('.card-actions')).toHaveCSS('opacity', '1')
+  await expect(first.getByRole('button', { name: '编辑 Obsidian' })).toBeFocused()
+})
+
+test('触屏设备常用链接卡片管理操作始终可用', async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  })
+  const page = await context.newPage()
+  try {
+    await page.goto('/')
+    await page.getByRole('tab', { name: /常用链接/ }).click()
+    const card = page.locator('.common-card').filter({ hasText: 'Visual Studio Code' }).first()
+    await expect(card).toBeVisible()
+    const pointer = await page.evaluate(() =>
+      matchMedia('(hover: none)').matches || matchMedia('(pointer: coarse)').matches)
+    expect(pointer).toBe(true)
+    await expect(card.locator('.card-actions')).toHaveCSS('opacity', '1')
+    await expect(card.getByRole('button', { name: '置顶 Visual Studio Code' })).toBeVisible()
+    await card.getByRole('button', { name: '置顶 Visual Studio Code' }).click()
+    await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+  } finally {
+    await context.close()
+  }
+})
