@@ -164,6 +164,8 @@
       </div>
     </section>
 
+    <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
+      @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
@@ -176,6 +178,7 @@ import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
 import QrShareDialog from './QrShareDialog.vue'
+import CommandPalette from './CommandPalette.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
@@ -261,6 +264,7 @@ const {
   getLatestRecovery,
 } = useCloudSync()
 
+const commandPaletteOpen = ref(false)
 const qrShareUrl = ref('')
 const url = ref('')
 const urlError = ref('')
@@ -473,7 +477,7 @@ function onImportFile(event) {
 }
 
 function openQrShare(shareUrl) {
-  // 只接受当前编辑目标产生的链接，不信任外部传入的目标。
+  // 避免外部事件注入二维码内容。
   if (shareUrl && shareUrl === toUrl.value) qrShareUrl.value = shareUrl
 }
 
@@ -744,6 +748,11 @@ function disconnectGist() {
 
 function handleKeydown(event) {
   if (event.isComposing) return
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    if (!document.querySelector('dialog[open]')) commandPaletteOpen.value = true
+    return
+  }
   // 原生 modal dialog 的键盘交互优先于页面快捷键，Esc 由浏览器关闭弹窗。
   if (document.querySelector('dialog[open]')) return
 

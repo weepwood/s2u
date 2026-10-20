@@ -593,6 +593,83 @@ test('非默认页签首次加载及快速反向切换不破坏可用性', async
   await expect(page.getByRole('button', { name: '连接 Gist' })).toBeVisible()
 })
 
+test('常用链接标签可编辑、筛选并在刷新后保留', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: /添加常用链接/ }).click()
+  await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('测试标签收藏')
+  await page.getByPlaceholder('obsidian:// 或 https://example.com').fill('https://example.com/tags')
+  await page.getByRole('textbox', { name: '分类标签' }).fill('开发, 笔记')
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page.getByRole('button', { name: '笔记', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '笔记', exact: true }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  await expect(page.locator('.common-card').first()).toContainText('测试标签收藏')
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.locator('.common-card').filter({ hasText: '测试标签收藏' })).toContainText('开发')
+})
+
+test('删除筛选标签最后一条收藏时自动返回全部列表', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('s2u_common_links_v1', JSON.stringify({
+    version: 1,
+    items: [
+      { id: 'only', name: '唯一收藏', target: 'https://unique.example', tags: ['唯一标签'] },
+      { id: 'other', name: '普通收藏', target: 'https://other.example' },
+    ],
+  })))
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '唯一标签', exact: true }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  page.once('dialog', async (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 唯一收藏' }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  await expect(page.locator('.common-card').first()).toContainText('普通收藏')
+  await expect(page.getByRole('button', { name: '唯一标签', exact: true })).toHaveCount(0)
+})
+
+test('Ctrl+K 命令面板支持搜索与键盘导航，并在 Esc 关闭后恢复主界面', async ({ page }) => {
+  await page.goto('/')
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('searchbox', { name: '搜索命令' }).fill('Obsidian')
+  await expect(dialog.getByRole('option')).toHaveCount(1)
+  await expect(dialog.getByRole('option').first()).toContainText('Obsidian')
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+})
+
+test('命令面板未知自定义协议先确认，不会立即打开', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('s2u_common_links_v1', JSON.stringify({
+    version: 1, items: [{ id: 'unsafe-but-valid', name: '测试未知应用', target: 'exampleapp://launch' }],
+  })))
+  await page.reload()
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  await dialog.getByRole('searchbox', { name: '搜索命令' }).fill('测试未知应用')
+  await page.keyboard.press('Enter')
+  await expect(dialog.getByText('确认打开未知应用协议？')).toBeVisible()
+  await dialog.getByRole('button', { name: '返回' }).click()
+  await expect(dialog.getByRole('option').first()).toContainText('测试未知应用')
+})
+
+test('命令面板方向键移动时更新辅助技术的选中项', async ({ page }) => {
+  await page.goto('/')
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  const input = dialog.getByRole('searchbox', { name: '搜索命令' })
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
+  await input.press('ArrowDown')
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-1')
+  await expect(dialog.getByRole('option').nth(1)).toHaveAttribute('aria-selected', 'true')
+  await input.press('ArrowUp')
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
+})
+
 test('二维码分享本地生成，保留特殊字符分享链接，并能关闭弹窗', async ({ page }) => {
   await page.goto('/')
   await page.getByPlaceholder('weixin://open 或 example.com').fill('obsidian://open?vault=笔记&file=A%20B')
