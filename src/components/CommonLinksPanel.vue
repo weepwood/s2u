@@ -37,6 +37,10 @@
             目标链接或 URL Scheme
             <input v-model="target" placeholder="obsidian:// 或 https://example.com" required spellcheck="false" />
           </label>
+          <label>
+            分类标签（最多 5 个，用逗号分隔）
+            <input v-model="tagsText" maxlength="120" placeholder="开发, 笔记, 效率" aria-label="分类标签" />
+          </label>
         </div>
         <div class="icon-editor">
           <span class="icon-label">应用图标（可选）</span>
@@ -93,6 +97,10 @@
         <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden-import" aria-label="选择常用链接备份文件" @change="selectImport" />
       </div>
     </div>
+    <div v-if="availableTags.length" class="common-tags" aria-label="按标签筛选">
+      <button type="button" :aria-pressed="selectedTag === ''" @click="selectedTag = ''">全部</button>
+      <button v-for="tag in availableTags" :key="tag" type="button" :aria-pressed="selectedTag === tag" @click="selectedTag = tag">{{ tag }}</button>
+    </div>
     <div v-if="visibleItems.length" class="common-grid">
       <article v-for="item in visibleItems" :key="item.id" class="common-card">
         <div class="card-main">
@@ -107,6 +115,7 @@
               <button v-else type="button" class="pin-button" :aria-label="'置顶 ' + item.name" title="移至首位" @click="$emit('pin', item.id)">置顶</button>
             </div>
             <span :title="item.target">{{ item.target }}</span>
+            <div v-if="item.tags?.length" class="card-tags"><span v-for="tag in item.tags" :key="tag">{{ tag }}</span></div>
           </div>
           <div class="card-actions">
             <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
@@ -141,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 
 const props = defineProps({
@@ -176,10 +185,19 @@ function copyPendingRaw() {
 }
 
 const search = ref('')
+const selectedTag = ref('')
+const availableTags = computed(() => [...new Set(props.items.flatMap((item) => item.tags || []))].sort((a, b) => a.localeCompare(b, 'zh')))
+watch(availableTags, (next) => {
+  // 移除最后一个带该标签的收藏后，不要让筛选器停留在不存在的分类上。
+  if (selectedTag.value && !next.includes(selectedTag.value)) selectedTag.value = ''
+})
 const visibleItems = computed(() => {
   const term = search.value.trim().toLowerCase()
-  return term ? props.items.filter((item) =>
-    item.name.toLowerCase().includes(term) || item.target.toLowerCase().includes(term)) : props.items
+  return props.items.filter((item) => {
+    if (selectedTag.value && !(item.tags || []).includes(selectedTag.value)) return false
+    return !term || item.name.toLowerCase().includes(term) || item.target.toLowerCase().includes(term) ||
+      (item.tags || []).some((tag) => tag.toLowerCase().includes(term))
+  })
 })
 const importInput = ref(null)
 
@@ -194,6 +212,7 @@ const editorDialog = ref(null)
 const editingId = ref(null)
 const name = ref('')
 const target = ref('')
+const tagsText = ref('')
 const formError = ref('')
 const icon = ref('')
 const iconError = ref('')
@@ -221,6 +240,7 @@ function openEditor(item = null) {
   editingId.value = item?.id ?? null
   name.value = item?.name ?? ''
   target.value = item?.target ?? ''
+  tagsText.value = (item?.tags || []).join(', ')
   formError.value = ''
   iconError.value = ''
   icon.value = item?.icon ?? ''
@@ -245,6 +265,7 @@ function onDialogClose() {
   editingId.value = null
   name.value = ''
   target.value = ''
+  tagsText.value = ''
   icon.value = ''
   iconError.value = ''
   iconBusy.value = false
@@ -267,7 +288,7 @@ function submit() {
     return
   }
   // 其它校验（数量和重复）由同一数据存储入口负责。
-  emit('save', { id: editingId.value, name: trimmedName, target: normalized.target, icon: icon.value })
+  emit('save', { id: editingId.value, name: trimmedName, target: normalized.target, icon: icon.value, tags: tagsText.value.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean) })
 }
 
 
@@ -432,4 +453,12 @@ button { font: inherit; cursor: pointer; }
 @media (max-width: 620px) { .common-grid { grid-template-columns: 1fr; } .common-footer { flex-direction: column; } }
 @media (max-width: 360px) { .card-main { gap: 6px; } .app-icon { width: 40px; height: 40px; } .card-actions { gap: 0; } .card-actions button { width: 24px; } }
 @media (prefers-reduced-motion: reduce) { .common-card { transition: none; transform: none !important; } }
+</style>
+
+<style scoped>
+.common-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: -7px 0 2px; }
+.common-tags button { border: 1px solid var(--hairline, #dce1e9); background: var(--surface-soft, #f5f7fa); color: var(--card-text, #172033); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.common-tags button[aria-pressed="true"] { color: #fff; background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); }
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.card-tags span { font-size: 10px; border-radius: 5px; background: var(--surface-soft, #f5f7fa); padding: 2px 6px; color: var(--card-text-muted, #7c879b); }
 </style>
