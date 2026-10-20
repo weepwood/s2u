@@ -752,7 +752,9 @@ test('快捷键帮助包含已发布命令面板的 Ctrl/Cmd+K 说明', async ({
 
 test('工作区提供可见命令入口，快速填入示例不写入历史', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: '让每一个应用链接都能轻松分享。' })).toBeVisible()
+  await expect(page.locator('.workspace-intro h1')).toBeVisible()
+  await expect(page.locator('.workspace-intro h1')).toContainText('让每一个应用链接')
+  await expect(page.locator('.workspace-intro h1')).toContainText('都能轻松分享。')
   await page.getByRole('button', { name: '填入Obsidian示例' }).click()
   await expect(page.locator('#url')).toHaveValue('obsidian://open')
   await expect(page.locator('#url')).toBeFocused()
