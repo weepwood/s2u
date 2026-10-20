@@ -617,6 +617,32 @@ test('二维码过长时给出错误提示而不产生空白下载', async ({ pa
   await expect(dialog.getByRole('button', { name: '保存 PNG' })).toBeDisabled()
 })
 
+test('二维码编码后生成非空黑白图片，并能下载 PNG', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('https://example.com/scan-test')
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const modal = page.getByRole('dialog', { name: '分享二维码' })
+  const save = modal.getByRole('button', { name: '保存 PNG' })
+  await expect(save).toBeEnabled()
+  const colors = await modal.locator('canvas').evaluate((canvas) => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+    let dark = 0
+    let light = 0
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] === 0) continue
+      if (pixels[i] < 128) dark++
+      if (pixels[i] > 240) light++
+    }
+    return { dark, light }
+  })
+  expect(colors.dark).toBeGreaterThan(100)
+  expect(colors.light).toBeGreaterThan(100)
+  const downloadPromise = page.waitForEvent('download')
+  await save.click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('s2u-share-qr.png')
+})
+
 test('Ctrl+K 命令面板支持搜索与键盘导航，并在 Esc 关闭后恢复主界面', async ({ page }) => {
   await page.goto('/')
   await page.keyboard.press('Control+k')
@@ -644,6 +670,19 @@ test('命令面板未知自定义协议先确认，不会立即打开', async ({
   await expect(dialog.getByRole('option').first()).toContainText('测试未知应用')
 })
 
+test('命令面板方向键移动时更新辅助技术的选中项', async ({ page }) => {
+  await page.goto('/')
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  const input = dialog.getByRole('searchbox', { name: '搜索命令' })
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
+  await input.press('ArrowDown')
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-1')
+  await expect(dialog.getByRole('option').nth(1)).toHaveAttribute('aria-selected', 'true')
+  await input.press('ArrowUp')
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
+})
+
 test('常用链接标签可编辑、筛选并在刷新后保留', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
@@ -659,6 +698,26 @@ test('常用链接标签可编辑、筛选并在刷新后保留', async ({ page 
   await page.reload()
   await page.getByRole('tab', { name: /常用链接/ }).click()
   await expect(page.locator('.common-card').filter({ hasText: '测试标签收藏' })).toContainText('开发')
+})
+
+test('删除筛选标签最后一条收藏时自动返回全部列表', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('s2u_common_links_v1', JSON.stringify({
+    version: 1,
+    items: [
+      { id: 'only', name: '唯一收藏', target: 'https://unique.example', tags: ['唯一标签'] },
+      { id: 'other', name: '普通收藏', target: 'https://other.example' },
+    ],
+  })))
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '唯一标签', exact: true }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  page.once('dialog', async (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 唯一收藏' }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  await expect(page.locator('.common-card').first()).toContainText('普通收藏')
+  await expect(page.getByRole('button', { name: '唯一标签', exact: true })).toHaveCount(0)
 })
 
 test('帮助按钮展示快捷键，Esc 后焦点回到按钮', async ({ page }) => {
@@ -681,4 +740,12 @@ test('问号快捷键不会在正在输入目标网址时抢占焦点', async ({
   await page.locator('.app-shell').focus()
   await page.keyboard.type('?')
   await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible()
+})
+
+test('快捷键帮助包含已发布命令面板的 Ctrl/Cmd+K 说明', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '查看快捷键' }).click()
+  const dialog = page.getByRole('dialog', { name: '键盘快捷键' })
+  await expect(dialog).toContainText('打开快捷启动命令面板')
+  await expect(dialog).toContainText('K')
 })
