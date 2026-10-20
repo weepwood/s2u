@@ -67,6 +67,24 @@
         </button>
       </div>
 
+      <div class="starter-links" role="group" aria-label="快速填入示例地址">
+        <span class="starter-label">快速填入</span>
+        <div class="starter-actions">
+          <button
+            v-for="example in starterExamples"
+            :key="example.name"
+            type="button"
+            class="starter-chip"
+            :class="{ selected: urlValue === example.target }"
+            :aria-label="'填入' + example.name + '示例'"
+            :aria-pressed="urlValue === example.target"
+            @click="fillExample(example.target)"
+          >
+            <span class="starter-symbol" aria-hidden="true">{{ example.symbol }}</span>
+            {{ example.name }}
+          </button>
+        </div>
+      </div>
       <p v-if="urlError" id="url-error" class="field-message error-message" role="alert">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/>
@@ -88,13 +106,20 @@
             可以分享
           </span>
         </div>
-        <button type="button" class="preview-open" @click="$emit('qr', shareUrl)" aria-label="生成分享二维码">二维码</button>
-        <button type="button" class="preview-open" @click="$emit('goto', shareUrl)">
-          打开测试
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
+        <div class="preview-actions">
+          <button type="button" class="preview-open preview-qr" @click="$emit('qr', shareUrl)" aria-label="生成分享二维码">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3.5 3.5h6v6h-6zM14.5 3.5h6v6h-6zM3.5 14.5h6v6h-6zM14.5 14.5h2v2h-2zM19 14.5h1.5V16H19zM14.5 19H16v1.5h-1.5zM18 18h2.5v2.5H18z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            二维码
+          </button>
+          <button type="button" class="preview-open" @click="$emit('goto', shareUrl)">
+            打开测试
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <button type="button" class="preview-url" :title="safeDecode(shareUrl)" @click="$emit('goto', shareUrl)">
         {{ safeDecode(shareUrl) }}
@@ -143,6 +168,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update:url', 'copy', 'goto', 'qr', 'update:urlError'])
 const urlInput = ref(null)
+const starterExamples = Object.freeze([
+  { name: '网页', symbol: '↗', target: 'https://example.com' },
+  { name: 'Obsidian', symbol: '◇', target: 'obsidian://open' },
+  { name: 'VS Code', symbol: '⌘', target: 'vscode://' },
+  { name: '微信', symbol: '✳', target: 'weixin://' },
+])
 
 const urlValue = computed({
   get: () => props.url,
@@ -168,6 +199,13 @@ function emitCopy() {
 function handleEnter(event) {
   if (event.isComposing) return
   emitCopy()
+}
+
+function fillExample(target) {
+  // 示例只填入输入框，不会自动打开应用、写入历史或触发外部请求。
+  emit('update:url', target)
+  emitError('')
+  nextTick(() => urlInput.value?.focus())
 }
 
 function clearInput() {

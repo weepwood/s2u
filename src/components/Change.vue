@@ -36,6 +36,27 @@
     </header>
 
     <section class="workspace" aria-label="链接转换工作区">
+      <div v-if="!showCloseMsg" class="workspace-intro">
+        <div class="intro-copy">
+          <span class="intro-eyebrow"><span class="intro-dot" aria-hidden="true"></span> LOCAL-FIRST LINK WORKSPACE</span>
+          <h1>让每一个应用链接<span>都能轻松分享。</span></h1>
+          <p>网页地址与 URL Scheme，一处转换、随时打开。目标地址留在分享链接的 Hash 中。</p>
+        </div>
+        <button
+          type="button"
+          class="launch-trigger"
+          aria-label="打开快捷启动命令面板"
+          aria-keyshortcuts="Control+K Meta+K"
+          @click="commandPaletteOpen = true"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="10.8" cy="10.8" r="6.6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span>快捷启动</span>
+          <kbd>Ctrl / ⌘ K</kbd>
+        </button>
+      </div>
       <div class="workspace-head">
         <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式" @keydown="handleTabNavigation">
           <button
