@@ -750,11 +750,14 @@ test('快捷键帮助包含已发布命令面板的 Ctrl/Cmd+K 说明', async ({
   await expect(dialog).toContainText('K')
 })
 
-test('工作区提供可见命令入口，快速填入示例不写入历史', async ({ page }) => {
+test('右上角快捷启动保留功能，首页冗余介绍文案已移除', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.workspace-intro h1')).toBeVisible()
-  await expect(page.locator('.workspace-intro h1')).toContainText('让每一个应用链接')
-  await expect(page.locator('.workspace-intro h1')).toContainText('都能轻松分享。')
+  await expect(page.locator('.workspace-intro')).toHaveCount(0)
+  await expect(page.getByText('LOCAL-FIRST LINK WORKSPACE')).toHaveCount(0)
+  await expect(page.getByText('让每一个应用链接')).toHaveCount(0)
+  const launch = page.getByRole('button', { name: '打开快捷启动命令面板' })
+  await expect(launch).toBeVisible()
+  await expect(page.locator('.app-header .header-actions').getByRole('button', { name: '打开快捷启动命令面板' })).toBeVisible()
   await page.getByRole('button', { name: '填入Obsidian示例' }).click()
   await expect(page.locator('#url')).toHaveValue('obsidian://open')
   await expect(page.locator('#url')).toBeFocused()
@@ -788,7 +791,7 @@ test('320/375px 下新工作区和结果预览无可见横向溢出', async ({ p
     await expect(page.locator('.preview-card')).toBeVisible()
     const clipped = await page.evaluate(() => {
       const viewport = document.documentElement.clientWidth
-      const selectors = ['.workspace', '.workspace-intro', '.mode-tabs', '.content-card',
+      const selectors = ['.app-header', '.header-actions', '.launch-trigger', '.workspace', '.mode-tabs', '.content-card',
         '.url-input-panel', '.input-row', '.preview-card', '.preview-actions', '.starter-links']
       return selectors.flatMap((selector) => [...document.querySelectorAll(selector)].filter((node) => {
         const r = node.getBoundingClientRect()
@@ -870,5 +873,33 @@ test('触屏设备常用链接卡片管理操作始终可用', async ({ browser 
     await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
   } finally {
     await context.close()
+  }
+})
+
+test('快捷启动在 320/375px 手机宽度仍位于右上角且可点开', async ({ page }) => {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 740 })
+    await page.goto('/')
+    const header = page.locator('.app-header')
+    const button = header.getByRole('button', { name: '打开快捷启动命令面板' })
+    await expect(button).toBeVisible()
+    await expect(page.locator('.workspace-intro')).toHaveCount(0)
+    const geometry = await page.evaluate(() => {
+      const header = document.querySelector('.app-header').getBoundingClientRect()
+      const trigger = document.querySelector('.app-header .launch-trigger').getBoundingClientRect()
+      const tools = document.querySelector('.app-header .header-actions').getBoundingClientRect()
+      return { viewport: document.documentElement.clientWidth, headerLeft: header.left,
+        headerRight: header.right, triggerLeft: trigger.left, triggerRight: trigger.right,
+        toolsRight: tools.right }
+    })
+    expect(geometry.headerLeft).toBeGreaterThanOrEqual(0)
+    expect(geometry.headerRight).toBeLessThanOrEqual(geometry.viewport + 1)
+    expect(geometry.triggerLeft).toBeGreaterThan(geometry.headerLeft)
+    expect(geometry.triggerRight).toBeLessThanOrEqual(geometry.viewport + 1)
+    expect(geometry.toolsRight).toBeLessThanOrEqual(geometry.viewport + 1)
+    await button.click()
+    await expect(page.getByRole('dialog', { name: '快捷启动命令面板' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: '快捷启动命令面板' })).not.toBeVisible()
   }
 })

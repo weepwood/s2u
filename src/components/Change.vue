@@ -17,6 +17,20 @@
       </a>
 
       <div class="header-actions">
+        <button v-if="!showCloseMsg"
+          type="button"
+          class="launch-trigger"
+          aria-label="打开快捷启动命令面板"
+          aria-keyshortcuts="Control+K Meta+K"
+          @click="commandPaletteOpen = true"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="10.8" cy="10.8" r="6.6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span>快捷启动</span>
+          <kbd>Ctrl / ⌘ K</kbd>
+        </button>
         <a class="github-link" href="https://github.com/weepwood/s2u" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M12 .7a11.5 11.5 0 0 0-3.64 22.4c.58.1.79-.25.79-.56v-2.24c-3.23.7-3.91-1.37-3.91-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.78 1.2 1.78 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.74-1.55-2.58-.3-5.29-1.29-5.29-5.68 0-1.26.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.16 1.18a10.93 10.93 0 0 1 5.75 0C17.03 5.03 18 5.34 18 5.34c.63 1.58.23 2.75.11 3.04.74.8 1.19 1.82 1.19 3.08 0 4.4-2.72 5.38-5.31 5.67.42.36.79 1.07.79 2.16v3.25c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/>
@@ -36,27 +50,6 @@
     </header>
 
     <section class="workspace" aria-label="链接转换工作区">
-      <div v-if="!showCloseMsg" class="workspace-intro">
-        <div class="intro-copy">
-          <span class="intro-eyebrow"><span class="intro-dot" aria-hidden="true"></span> LOCAL-FIRST LINK WORKSPACE</span>
-          <h1>让每一个应用链接<span>都能轻松分享。</span></h1>
-          <p>网页地址与 URL Scheme，一处转换、随时打开。目标地址留在分享链接的 Hash 中。</p>
-        </div>
-        <button
-          type="button"
-          class="launch-trigger"
-          aria-label="打开快捷启动命令面板"
-          aria-keyshortcuts="Control+K Meta+K"
-          @click="commandPaletteOpen = true"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="10.8" cy="10.8" r="6.6" stroke="currentColor" stroke-width="1.8"/>
-            <path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-          <span>快捷启动</span>
-          <kbd>Ctrl / ⌘ K</kbd>
-        </button>
-      </div>
       <div class="workspace-head">
         <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式" @keydown="handleTabNavigation">
           <button
