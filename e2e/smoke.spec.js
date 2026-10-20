@@ -609,3 +609,23 @@ test('常用链接标签可编辑、筛选并在刷新后保留', async ({ page 
   await page.getByRole('tab', { name: /常用链接/ }).click()
   await expect(page.locator('.common-card').filter({ hasText: '测试标签收藏' })).toContainText('开发')
 })
+
+test('删除筛选标签最后一条收藏时自动返回全部列表', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => localStorage.setItem('s2u_common_links_v1', JSON.stringify({
+    version: 1,
+    items: [
+      { id: 'only', name: '唯一收藏', target: 'https://unique.example', tags: ['唯一标签'] },
+      { id: 'other', name: '普通收藏', target: 'https://other.example' },
+    ],
+  })))
+  await page.reload()
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '唯一标签', exact: true }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  page.once('dialog', async (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 唯一收藏' }).click()
+  await expect(page.locator('.common-card')).toHaveCount(1)
+  await expect(page.locator('.common-card').first()).toContainText('普通收藏')
+  await expect(page.getByRole('button', { name: '唯一标签', exact: true })).toHaveCount(0)
+})
