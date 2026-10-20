@@ -165,12 +165,16 @@
             @update:url="url = $event"
             @update:url-error="urlError = $event"
             @copy="copy"
+            @qr="openQrShare"
             @goto="gotoUrl"
           />
         </Transition>
       </div>
     </section>
 
+    <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
+      @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
+    <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
     <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
@@ -183,6 +187,8 @@ import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
 import ShortcutHelp from './ShortcutHelp.vue'
+import QrShareDialog from './QrShareDialog.vue'
+import CommandPalette from './CommandPalette.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
@@ -268,6 +274,8 @@ const {
   getLatestRecovery,
 } = useCloudSync()
 
+const commandPaletteOpen = ref(false)
+const qrShareUrl = ref('')
 const helpOpen = ref(false)
 const helpTrigger = ref(null)
 const url = ref('')
@@ -478,6 +486,11 @@ function onImportFile(event) {
   }
   reader.onerror = () => showToast('导入失败：无法读取文件', 'error')
   reader.readAsText(file)
+}
+
+function openQrShare(shareUrl) {
+  // 避免外部事件注入二维码内容。
+  if (shareUrl && shareUrl === toUrl.value) qrShareUrl.value = shareUrl
 }
 
 function copy() {
@@ -752,6 +765,11 @@ function closeHelp() {
 
 function handleKeydown(event) {
   if (event.isComposing) return
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    if (!document.querySelector('dialog[open]')) commandPaletteOpen.value = true
+    return
+  }
   // 原生 modal dialog 的键盘交互优先于页面快捷键，Esc 由浏览器关闭弹窗。
   if (document.querySelector('dialog[open]')) return
 
