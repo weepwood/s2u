@@ -282,3 +282,36 @@ test('localStorage 写入失败时置顶不会改变内存、图标和原持久�
     assert.equal(store.links.value[0].id, 'weixin')
   } finally { mock.restore() }
 })
+
+test('标签可保存、编辑、持久化和随 JSON 备份恢复', () => {
+  const fake = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    assert.equal(store.save({ name: '带标签链接', target: 'https://docs.example.com', tags: ['开发', '效率', '开发'] }), true)
+    assert.deepEqual(store.links.value.at(-1).tags, ['开发', '效率'])
+    assert.equal(store.save({ id: store.links.value.at(-1).id, name: '新版', target: 'https://docs.example.com', tags: ['笔记'] }), true)
+    const exported = JSON.parse(store.exportJSON())
+    assert.deepEqual(exported.items.at(-1).tags, ['笔记'])
+    const reloaded = useCommonLinks()
+    reloaded.load()
+    assert.deepEqual(reloaded.links.value.at(-1).tags, ['笔记'])
+    assert.equal(reloaded.remove(reloaded.links.value.at(-1).id), true)
+    assert.equal(reloaded.importJSON(exported), 1)
+    assert.deepEqual(reloaded.links.value.at(-1).tags, ['笔记'])
+  } finally { fake.restore() }
+})
+
+test('非法标签被拒绝，不改变现有链接；旧版不带 tags 的 JSON 兼容', () => {
+  const fake = useFakeStorage()
+  try {
+    const store = useCommonLinks()
+    store.load()
+    const original = JSON.stringify(store.links.value)
+    assert.throws(() => store.save({ name: '错误标签', target: 'https://example.org', tags: ['x'.repeat(19)] }), /标签/)
+    assert.throws(() => store.save({ name: '过多标签', target: 'https://example.org', tags: ['1','2','3','4','5','6'] }), /标签/)
+    assert.equal(JSON.stringify(store.links.value), original)
+    const previous = JSON.parse(store.exportJSON())
+    assert.equal(previous.items.every((item) => !('tags' in item)), true)
+  } finally { fake.restore() }
+})

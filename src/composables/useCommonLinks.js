@@ -6,6 +6,8 @@ const CORRUPT_BACKUP_PREFIX = 's2u_common_links_corrupt_backup_'
 const VERSION = 1
 const MAX_LINKS = 50
 const MAX_NAME_LENGTH = 36
+const MAX_TAGS = 5
+const MAX_TAG_LENGTH = 18
 const EXPORT_FORMAT = 's2u-common-links'
 const IMPORT_LIMIT = 50
 const MAX_ICON_DATA_LENGTH = 32768
@@ -31,6 +33,27 @@ function normalizeIcon(icon) {
   return icon
 }
 
+export function normalizeTags(value) {
+  if (value == null) return []
+  if (!Array.isArray(value) || value.length > MAX_TAGS) return null
+  const unique = new Set()
+  const result = []
+  for (const raw of value) {
+    if (typeof raw !== 'string') return null
+    const tag = raw.trim()
+    if (!tag || tag.length > MAX_TAG_LENGTH || [...tag].some((char) => { const code = char.charCodeAt(0); return code < 32 || code === 127 })) return null
+    const key = tag.toLowerCase()
+    if (unique.has(key)) continue
+    unique.add(key)
+    result.push(tag)
+  }
+  return result
+}
+
+function withTags(item, tags) {
+  return tags?.length ? { ...item, tags: [...tags] } : item
+}
+
 function withIcon(item, icon) {
   return icon ? { ...item, icon } : item
 }
@@ -47,7 +70,9 @@ function normalizeItem(input) {
   if (!normalized.ok) return null
   const icon = normalizeIcon(input.icon)
   if (icon === null) return null
-  return withIcon({ id: input.id, name, target: normalized.target }, icon)
+  const tags = normalizeTags(input.tags)
+  if (tags === null) return null
+  return withTags(withIcon({ id: input.id, name, target: normalized.target }, icon), tags)
 }
 
 export function useCommonLinks() {
@@ -120,7 +145,7 @@ export function useCommonLinks() {
     }
   }
 
-  function save({ id = null, name, target, icon }) {
+  function save({ id = null, name, target, icon, tags }) {
     const normalized = normalizeTarget(target)
     if (!normalized.ok) throw new TypeError(normalized.error)
     const trimmedName = typeof name === 'string' ? name.trim() : ''
@@ -133,19 +158,22 @@ export function useCommonLinks() {
 
     const validatedIcon = icon === undefined ? undefined : normalizeIcon(icon)
     if (validatedIcon === null) throw new TypeError('图标只能使用大小受限的 PNG/JPEG/WebP 本地图片')
+    const validatedTags = tags === undefined ? undefined : normalizeTags(tags)
+    if (validatedTags === null) throw new TypeError('最多 5 个标签，每个 1–18 字且不能包含控制字符')
 
     if (id) {
       const original = links.value.find((item) => item.id === id)
       if (!original) throw new TypeError('要编辑的链接不存在')
       const nextIcon = validatedIcon === undefined ? original.icon : validatedIcon
+      const nextTags = validatedTags === undefined ? original.tags : validatedTags
       return persist(links.value.map((item) => item.id === id
-        ? withIcon({ id, name: trimmedName, target: normalized.target }, nextIcon)
+        ? withTags(withIcon({ id, name: trimmedName, target: normalized.target }, nextIcon), nextTags)
         : item))
     }
 
     if (links.value.length >= MAX_LINKS) throw new TypeError('常用链接最多保存 50 条')
     const newId = 'custom-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2))
-    return persist([...links.value, withIcon({ id: newId, name: trimmedName, target: normalized.target }, validatedIcon)])
+    return persist([...links.value, withTags(withIcon({ id: newId, name: trimmedName, target: normalized.target }, validatedIcon), validatedTags)])
   }
 
   function move(id, offset) {
@@ -174,7 +202,7 @@ export function useCommonLinks() {
       format: EXPORT_FORMAT,
       version: VERSION,
       exportedAt: new Date().toISOString(),
-      items: links.value.map(({ id, name, target, icon }) => withIcon({ id, name, target }, icon)),
+      items: links.value.map(({ id, name, target, icon, tags }) => withTags(withIcon({ id, name, target }, icon), tags)),
     }, null, 2)
   }
 
@@ -214,7 +242,7 @@ export function useCommonLinks() {
           id = 'imported-' + (globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2))
         } while (used.has(id))
         used.add(id)
-        return withIcon({ id, name: item.name.trim(), target: normalizeTarget(item.target).target }, normalizeIcon(item.icon))
+        return withTags(withIcon({ id, name: item.name.trim(), target: normalizeTarget(item.target).target }, normalizeIcon(item.icon)), normalizeTags(item.tags))
       })
     return persist([...links.value, ...added]) ? added.length : -1
   }
