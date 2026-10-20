@@ -592,3 +592,25 @@ test('非默认页签首次加载及快速反向切换不破坏可用性', async
   await page.getByRole('button', { name: '云端同步' }).click()
   await expect(page.getByRole('button', { name: '连接 Gist' })).toBeVisible()
 })
+
+test('帮助按钮展示快捷键，Esc 后焦点回到按钮', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '查看快捷键' }).click()
+  const dialog = page.getByRole('dialog', { name: '键盘快捷键' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('复制当前分享链接')
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('button', { name: '查看快捷键' })).toBeFocused()
+})
+
+test('问号快捷键不会在正在输入目标网址时抢占焦点', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').focus()
+  await page.keyboard.type('?')
+  await expect(page.getByRole('dialog', { name: '键盘快捷键' })).not.toBeVisible()
+  await page.getByPlaceholder('weixin://open 或 example.com').blur()
+  await page.locator('.app-shell').focus()
+  await page.keyboard.type('?')
+  await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible()
+})

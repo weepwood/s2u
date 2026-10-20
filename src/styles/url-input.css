@@ -410,3 +410,13 @@
     display: none;
   }
 }
+
+/* 不同宽度下分享操作均保持可读，不挤压长链接展示区。 */
+.preview-head { flex-wrap: wrap; row-gap: 8px; }
+.preview-head > div { flex-wrap: wrap; }
+.preview-open { min-height: 32px; padding: 3px 6px; border-radius: 7px; }
+.preview-open:focus-visible, .preview-url:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 420px) {
+  .preview-head { gap: 6px; }
+  .preview-head > div { width: 100%; }
+}
