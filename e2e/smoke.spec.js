@@ -616,3 +616,29 @@ test('二维码过长时给出错误提示而不产生空白下载', async ({ pa
   await expect(dialog.getByRole('alert')).toContainText('太长')
   await expect(dialog.getByRole('button', { name: '保存 PNG' })).toBeDisabled()
 })
+
+test('二维码编码后生成非空黑白图片，并能下载 PNG', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('weixin://open 或 example.com').fill('https://example.com/scan-test')
+  await page.getByRole('button', { name: '生成分享二维码' }).click()
+  const modal = page.getByRole('dialog', { name: '分享二维码' })
+  const save = modal.getByRole('button', { name: '保存 PNG' })
+  await expect(save).toBeEnabled()
+  const colors = await modal.locator('canvas').evaluate((canvas) => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+    let dark = 0
+    let light = 0
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] === 0) continue
+      if (pixels[i] < 128) dark++
+      if (pixels[i] > 240) light++
+    }
+    return { dark, light }
+  })
+  expect(colors.dark).toBeGreaterThan(100)
+  expect(colors.light).toBeGreaterThan(100)
+  const downloadPromise = page.waitForEvent('download')
+  await save.click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('s2u-share-qr.png')
+})
