@@ -468,13 +468,11 @@ button { font: inherit; cursor: pointer; }
     box-shadow: 0 7px 22px rgba(24, 37, 68, .12);
     opacity: 0;
     transform: translateY(-4px);
-    pointer-events: none;
     transition: opacity .16s ease, transform .16s ease;
   }
   .common-card:is(:hover, :focus-within) .card-actions {
     opacity: 1;
     transform: translateY(0);
-    pointer-events: auto;
   }
 }
 /* 触屏 / 不支持悬停的设备保留常驻操作，避免用户无法管理收藏。 */
