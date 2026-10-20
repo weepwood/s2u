@@ -41,7 +41,7 @@ export function normalizeTags(value) {
   for (const raw of value) {
     if (typeof raw !== 'string') return null
     const tag = raw.trim()
-    if (!tag || tag.length > MAX_TAG_LENGTH || /[\x00-\x1f\x7f]/.test(tag)) return null
+    if (!tag || tag.length > MAX_TAG_LENGTH || [...tag].some((char) => { const code = char.charCodeAt(0); return code < 32 || code === 127 })) return null
     const key = tag.toLowerCase()
     if (unique.has(key)) continue
     unique.add(key)
