@@ -75,7 +75,8 @@
 }
 
 .app-shell .header-actions .github-link,
-.app-shell .header-actions .theme-toggle {
+.app-shell .header-actions .theme-toggle,
+.app-shell .header-actions .shortcut-help-trigger {
   width: 34px;
   min-width: 34px;
   height: 34px;
@@ -88,7 +89,8 @@
 }
 
 .app-shell.dark .header-actions .github-link,
-.app-shell.dark .header-actions .theme-toggle {
+.app-shell.dark .header-actions .theme-toggle,
+.app-shell.dark .header-actions .shortcut-help-trigger {
   background: rgba(18, 24, 36, 0.46);
 }
 
@@ -451,3 +453,8 @@
     transition-duration: 0.01ms !important;
   }
 }
+/* 在保留原有顶部布局的前提下提供可发现的键盘帮助入口。 */
+.app-shell .header-actions .shortcut-help-trigger { display: inline-grid; place-items: center; border: 1px solid var(--hairline); color: var(--card-text-soft); cursor: pointer; }
+.app-shell .header-actions .shortcut-help-trigger svg { width: 17px; height: 17px; }
+.app-shell .header-actions .shortcut-help-trigger:hover { background: var(--surface-hover); color: var(--accent); }
+.app-shell .header-actions .shortcut-help-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
