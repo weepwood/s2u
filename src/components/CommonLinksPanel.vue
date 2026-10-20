@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 
 const props = defineProps({
@@ -187,6 +187,10 @@ function copyPendingRaw() {
 const search = ref('')
 const selectedTag = ref('')
 const availableTags = computed(() => [...new Set(props.items.flatMap((item) => item.tags || []))].sort((a, b) => a.localeCompare(b, 'zh')))
+watch(availableTags, (next) => {
+  // 移除最后一个带该标签的收藏后，不要让筛选器停留在不存在的分类上。
+  if (selectedTag.value && !next.includes(selectedTag.value)) selectedTag.value = ''
+})
 const visibleItems = computed(() => {
   const term = search.value.trim().toLowerCase()
   return props.items.filter((item) => {

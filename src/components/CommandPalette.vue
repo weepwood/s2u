@@ -5,7 +5,9 @@
         <label class="visually-hidden" for="command-search">搜索常用链接或历史记录</label>
         <input id="command-search" ref="searchInput" v-model="query" type="search"
           placeholder="搜索应用、网址或 Scheme…" autocomplete="off"
-          aria-label="搜索命令" @keydown.esc.stop.prevent="dialog?.close()" @keydown="onKeydown" />
+          aria-label="搜索命令" aria-controls="command-results" aria-autocomplete="list"
+          :aria-activedescendant="matches[selectedIndex] ? `command-item-${selectedIndex}` : undefined"
+          @keydown.esc.stop.prevent="dialog?.close()" @keydown="onKeydown" />
         <kbd>Esc</kbd>
       </header>
       <div v-if="pending" class="command-confirm">
@@ -17,9 +19,9 @@
           <button type="button" class="command-primary" @click="confirmOpen">确认打开</button>
         </div>
       </div>
-      <div v-else class="command-results" role="listbox" aria-label="匹配的快捷操作">
+      <div v-else id="command-results" class="command-results" role="listbox" aria-label="匹配的快捷操作">
         <p v-if="!matches.length" class="command-empty">没有找到匹配项</p>
-        <button v-for="(item, index) in matches" :key="item.key" type="button"
+        <button v-for="(item, index) in matches" :key="item.key" :id="`command-item-${index}`" type="button"
           role="option" :aria-selected="selectedIndex === index"
           :class="['command-item', { selected: selectedIndex === index }]"
           @pointerenter="selectedIndex = index" @click="activate(item)">
