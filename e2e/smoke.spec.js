@@ -619,3 +619,16 @@ test('命令面板未知自定义协议先确认，不会立即打开', async ({
   await dialog.getByRole('button', { name: '返回' }).click()
   await expect(dialog.getByRole('option').first()).toContainText('测试未知应用')
 })
+
+test('命令面板方向键移动时更新辅助技术的选中项', async ({ page }) => {
+  await page.goto('/')
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: '快捷启动命令面板' })
+  const input = dialog.getByRole('searchbox', { name: '搜索命令' })
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
+  await input.press('ArrowDown')
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-1')
+  await expect(dialog.getByRole('option').nth(1)).toHaveAttribute('aria-selected', 'true')
+  await input.press('ArrowUp')
+  await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
+})
