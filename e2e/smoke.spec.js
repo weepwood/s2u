@@ -903,3 +903,46 @@ test('快捷启动在 320/375px 手机宽度仍位于右上角且可点开', asy
     await expect(page.getByRole('dialog', { name: '快捷启动命令面板' })).not.toBeVisible()
   }
 })
+
+test('点击遮罩关闭弹窗，点击弹窗内容不会误关', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '查看快捷键' }).click()
+  const dialog = page.getByRole('dialog', { name: '键盘快捷键' })
+  await expect(dialog).toBeVisible()
+  const bounds = await dialog.boundingBox()
+  expect(bounds).not.toBeNull()
+
+  await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await expect(dialog).toBeVisible()
+
+  await page.mouse.click(8, 8)
+  await expect(dialog).not.toBeVisible()
+})
+
+test('从弹窗内部按下并拖到遮罩松开时不会误关', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '查看快捷键' }).click()
+  const dialog = page.getByRole('dialog', { name: '键盘快捷键' })
+  const bounds = await dialog.boundingBox()
+  expect(bounds).not.toBeNull()
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(8, 8)
+  await page.mouse.up()
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+})
+
+test('缺少 closedby 的浏览器仍能点击遮罩关闭弹窗', async ({ page }) => {
+  await page.addInitScript(() => {
+    // 模拟尚未支持 closedby 的浏览器，验证坐标 fallback 生效。
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'closedBy')
+  })
+  await page.goto('/')
+  expect(await page.evaluate(() => 'closedBy' in HTMLDialogElement.prototype)).toBe(false)
+  await page.getByRole('button', { name: '查看快捷键' }).click()
+  const dialog = page.getByRole('dialog', { name: '键盘快捷键' })
+  await expect(dialog).toBeVisible()
+  await page.mouse.click(8, 8)
+  await expect(dialog).not.toBeVisible()
+})

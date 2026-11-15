@@ -1,5 +1,5 @@
 <template>
-  <dialog ref="dialog" class="qr-share-dialog" aria-labelledby="qr-share-title" @close="emit('close')" @click="onBackdrop">
+  <dialog ref="dialog" class="qr-share-dialog" aria-labelledby="qr-share-title" closedby="any" @close="emit('close')">
     <div class="qr-share-inner">
       <header class="qr-share-heading">
         <div><h2 id="qr-share-title">分享二维码</h2><p>仅在本地生成，不会上传目标地址</p></div>
@@ -30,10 +30,6 @@ const canvas = ref(null)
 const error = ref('')
 const message = ref('')
 const busy = ref(true)
-
-function onBackdrop(event) {
-  if (event.target === dialog.value) dialog.value.close()
-}
 
 async function renderQr() {
   busy.value = true

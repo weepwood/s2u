@@ -13,8 +13,8 @@
       ref="editorDialog"
       class="editor-dialog"
       aria-labelledby="common-editor-title"
+      closedby="any"
       @close="onDialogClose"
-      @click="onDialogBackdropClick"
     >
       <form class="editor" @submit.prevent="submit">
         <header class="dialog-heading">
@@ -68,10 +68,12 @@
       </form>
     </dialog>
 
+    <!-- 安全确认只允许 Esc / 按钮关闭，避免误点遮罩跳过风险提示。 -->
     <dialog
       ref="openWarningDialog"
       class="editor-dialog open-warning-dialog"
       aria-labelledby="unknown-scheme-title"
+      closedby="closerequest"
       @close="pendingTarget = ''"
     >
       <section class="open-warning-body">
@@ -269,10 +271,6 @@ function onDialogClose() {
   icon.value = ''
   iconError.value = ''
   iconBusy.value = false
-}
-
-function onDialogBackdropClick(event) {
-  if (event.target === editorDialog.value) cancelEdit()
 }
 
 function submit() {

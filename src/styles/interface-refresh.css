@@ -458,3 +458,13 @@
 .app-shell .header-actions .shortcut-help-trigger svg { width: 17px; height: 17px; }
 .app-shell .header-actions .shortcut-help-trigger:hover { background: var(--surface-hover); color: var(--accent); }
 .app-shell .header-actions .shortcut-help-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Modal dialogs: keep scroll gestures inside the dialog (progressive enhancement). */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}

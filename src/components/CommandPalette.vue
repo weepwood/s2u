@@ -1,5 +1,5 @@
 <template>
-  <dialog ref="dialog" class="command-dialog" aria-label="快捷启动命令面板" @close="emit('close')" @click="onBackdrop">
+  <dialog ref="dialog" class="command-dialog" aria-label="快捷启动命令面板" closedby="any" @close="emit('close')">
     <div class="command-shell">
       <header class="command-header">
         <label class="visually-hidden" for="command-search">搜索常用链接或历史记录</label>
@@ -76,10 +76,6 @@ const matches = computed(() => {
 })
 
 watch(query, () => { selectedIndex.value = 0; pending.value = null })
-
-function onBackdrop(event) {
-  if (event.target === dialog.value) dialog.value.close()
-}
 
 function onKeydown(event) {
   if (event.isComposing || pending.value) return
