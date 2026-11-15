@@ -1,0 +1,69 @@
+/* 全局基础样式。原先内联在 index.html 的 </body> 之后，会在首屏解析末尾才生效。 */
+:root {
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* 手动主题开关以 <meta name="color-scheme"> 为唯一状态源，CSS 不依赖 JS 注入样式。 */
+:root:has(> head > meta[name="color-scheme"][content="dark"]) {
+  color-scheme: dark;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="light"]) {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  background: #f3f5f9;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: #f3f5f9;
+  color: #172033;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 页面底色跟随用户选择的主题，而不是系统偏好，避免卡片与视口背景割裂。 */
+:root:has(> head > meta[name="color-scheme"][content="dark"]),
+:root:has(> head > meta[name="color-scheme"][content="dark"]) body {
+  background: #0d111a;
+  color: #f2f5fb;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #4f6ef7;
+  outline-offset: 3px;
+}
+
+@supports not (scrollbar-gutter: stable) {
+  html {
+    overflow-y: scroll;
+  }
+}

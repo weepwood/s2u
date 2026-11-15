@@ -979,3 +979,31 @@ test('确认弹窗按 Esc 视为取消，且点击遮罩不会误触发', async 
 })
 
 
+test('深色模式同步 color-scheme 与 theme-color，页面底色随主题切换', async ({ page }) => {
+  await page.goto('/')
+  const scheme = page.locator('meta[name="color-scheme"]')
+  const themeColor = page.locator('meta[name="theme-color"]')
+  await expect(scheme).toHaveAttribute('content', 'light')
+  await expect(themeColor).toHaveAttribute('content', '#f3f5f9')
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(scheme).toHaveAttribute('content', 'dark')
+  await expect(themeColor).toHaveAttribute('content', '#0d111a')
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(13, 17, 26)')
+  await page.reload()
+  await expect(scheme).toHaveAttribute('content', 'dark')
+  await expect(page.getByRole('button', { name: '切换到浅色模式' })).toBeVisible()
+})
+
+test('主题存储不可用时仍可切换，且不会中断页面', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'dark_mode') throw new Error('blocked')
+      return original.call(this, key, value)
+    }
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'dark')
+  await expect(page.getByRole('button', { name: '切换到浅色模式' })).toBeVisible()
+})
