@@ -5,6 +5,7 @@
         <label class="visually-hidden" for="command-search">搜索常用链接或历史记录</label>
         <input id="command-search" ref="searchInput" v-model="query" type="search"
           placeholder="搜索应用、网址或 Scheme…" autocomplete="off"
+          role="combobox" aria-expanded="true" aria-haspopup="listbox"
           aria-label="搜索命令" aria-controls="command-results" aria-autocomplete="list"
           :aria-activedescendant="matches[selectedIndex] ? `command-item-${selectedIndex}` : undefined"
           @keydown.esc.stop.prevent="dialog?.close()" @keydown="onKeydown" />
@@ -21,14 +22,14 @@
       </div>
       <div v-else id="command-results" class="command-results" role="listbox" aria-label="匹配的快捷操作">
         <p v-if="!matches.length" class="command-empty">没有找到匹配项</p>
-        <button v-for="(item, index) in matches" :key="item.key" :id="`command-item-${index}`" type="button"
-          role="option" :aria-selected="selectedIndex === index"
+        <div v-for="(item, index) in matches" :key="item.key" :id="`command-item-${index}`"
+          role="option" tabindex="-1" :aria-selected="selectedIndex === index"
           :class="['command-item', { selected: selectedIndex === index }]"
           @pointerenter="selectedIndex = index" @click="activate(item)">
           <span class="command-glyph" aria-hidden="true">{{ item.name.slice(0, 1).toUpperCase() }}</span>
           <span class="command-item-text"><strong>{{ item.name }}</strong><small>{{ item.target }}</small></span>
           <span class="command-kind">{{ item.kind }}</span>
-        </button>
+        </div>
       </div>
       <footer class="command-footer">
         <span>↑↓ 选择 · Enter 打开</span>
@@ -143,6 +144,16 @@ onMounted(() => {
 .command-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .command-confirm-actions button { border: 1px solid var(--hairline, #dce1e9); color: inherit; background: var(--surface-elevated, #fff); padding: 9px 12px; border-radius: 9px; cursor: pointer; }
 .command-confirm-actions .command-primary { background: var(--accent, #4f6ef7); color: #fff; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; clip: rect(0,0,0,0); overflow: hidden; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 @media (prefers-reduced-motion: reduce) { .command-dialog::backdrop { backdrop-filter: none; } }
 </style>
