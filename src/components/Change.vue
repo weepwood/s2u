@@ -190,6 +190,7 @@
       @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
     <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
+    <ConfirmDialog :request="confirmRequest" @resolve="settleConfirm" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
 </template>
@@ -203,7 +204,9 @@ import Toast from './Toast.vue'
 import ShortcutHelp from './ShortcutHelp.vue'
 import QrShareDialog from './QrShareDialog.vue'
 import CommandPalette from './CommandPalette.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
+import { useConfirm } from '../composables/useConfirm.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
@@ -239,6 +242,7 @@ function warmPanel(panel) {
 
 const MAX_IMPORT_SIZE = 2 * 1024 * 1024
 const { darkMode, toggle: toggleDark } = useDarkMode()
+const { pending: confirmRequest, ask: askConfirm, settle: settleConfirm } = useConfirm()
 
 const {
   history,
@@ -460,8 +464,8 @@ function deleteHistoryItem(scheme) {
   showToast('已删除记录', 'info')
 }
 
-function invalidHistory() {
-  if (!confirm('确定清空所有历史记录？此操作不可撤销。')) return
+async function invalidHistory() {
+  if (!(await askConfirm('确定清空所有历史记录？此操作不可撤销。', { danger: true }))) return
   if (!clearHistory()) {
     notifyStorageError()
     return
@@ -481,14 +485,14 @@ function onImportFile(event) {
   }
 
   const reader = new FileReader()
-  reader.onload = (loadEvent) => {
+  reader.onload = async (loadEvent) => {
     try {
       const imported = JSON.parse(String(loadEvent.target?.result ?? ''))
       const summary = inspectImport(imported)
       if (summary.valid === 0) throw new Error('文件中没有有效记录')
 
       const invalidHint = summary.invalid ? `，忽略 ${summary.invalid} 条无效记录` : ''
-      if (!confirm(`将合并 ${summary.valid} 条有效记录${invalidHint}，是否继续？`)) return
+      if (!(await askConfirm(`将合并 ${summary.valid} 条有效记录${invalidHint}，是否继续？`))) return
 
       const added = mergeImportHistory(imported)
       notifyStorageError()
@@ -569,7 +573,7 @@ async function importCommonLinks(file) {
       showToast('备份中的链接已全部存在，无需重复导入')
       return
     }
-    if (!confirm(`备份包含 ${summary.count} 条，预计新增 ${summary.added} 条，跳过重复 ${summary.duplicates} 条。确认追加导入？`)) return
+    if (!(await askConfirm(`备份包含 ${summary.count} 条，预计新增 ${summary.added} 条，跳过重复 ${summary.duplicates} 条。确认追加导入？`))) return
     const added = importCommonJSON(imported)
     if (added < 0) {
       showToast(commonStorageError.value, 'error', 4000)

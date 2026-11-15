@@ -154,11 +154,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
+import { useConfirm } from '../composables/useConfirm.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'pin', 'import', 'export'])
+const { ask: askConfirm } = useConfirm()
 const openWarningDialog = ref(null)
 const pendingTarget = ref('')
 
@@ -348,12 +350,12 @@ async function selectIcon(event) {
   }
 }
 
-function removeItem(item) {
-  if (window.confirm('确定删除“' + item.name + '”吗？')) emit('remove', item.id)
+async function removeItem(item) {
+  if (await askConfirm('确定删除“' + item.name + '”吗？', { danger: true })) emit('remove', item.id)
 }
 
-function resetItems() {
-  if (window.confirm('恢复内置的 4 个默认应用？当前自定义列表将被替换。')) {
+async function resetItems() {
+  if (await askConfirm('恢复内置的 4 个默认应用？当前自定义列表将被替换。', { danger: true })) {
     emit('reset')
   }
 }

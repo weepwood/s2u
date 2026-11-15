@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+async function confirmAction(page) {
+  const dialog = page.getByRole('dialog', { name: '请确认' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: '确认' }).click()
+}
+
 test('首页渲染与特殊字符分享链接预览', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
@@ -142,8 +148,8 @@ test('自定义常用链接可添加、编辑、删除且刷新后仍保留', as
   await page.getByRole('button', { name: '复制 资料库 分享链接' }).click()
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(copied).toContain('obsidian%3A%2F%2Fopen')
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: '删除 资料库' }).click()
+  await confirmAction(page)
   await expect(page.getByText('资料库')).toHaveCount(0)
 })
 
@@ -336,7 +342,6 @@ test('常用链接可以搜索、持久化排序及安全追加导入 JSON', asy
   const download = await downloadPromise
   expect(download.suggestedFilename()).toMatch(/^s2u-common-links-.*\.json$/)
 
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByLabel('选择常用链接备份文件').setInputFiles({
     name: 'links.json',
     mimeType: 'application/json',
@@ -346,6 +351,7 @@ test('常用链接可以搜索、持久化排序及安全追加导入 JSON', asy
       items: [{ id: 'import-safe', name: '我的网页', target: 'https://example.com/import' }],
     })),
   })
+  await confirmAction(page)
   await expect(page.getByText('我的网页')).toBeVisible()
 })
 
@@ -404,14 +410,14 @@ test('上传应用图标后刷新持久化，并可携带图标导出及重新�
   const backup = JSON.parse(await readFile(await backupFile.path(), 'utf8'))
   expect(backup.items.find((item) => item.id === 'obsidian').icon).toMatch(/^data:image\/(png|webp);base64,/)
 
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: '删除 Obsidian' }).click()
+  await confirmAction(page)
   await expect(page.getByRole('button', { name: '打开 Obsidian' })).not.toBeVisible()
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByLabel('选择常用链接备份文件').setInputFiles({
     name: 's2u-icons.json', mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(backup)),
   })
+  await confirmAction(page)
   await expect(page.locator('img[alt="Obsidian 图标"]')).toHaveAttribute('src', /^data:image\/(png|webp);base64,/)
 })
 
@@ -623,8 +629,8 @@ test('删除筛选标签最后一条收藏时自动返回全部列表', async ({
   await page.getByRole('tab', { name: /常用链接/ }).click()
   await page.getByRole('button', { name: '唯一标签', exact: true }).click()
   await expect(page.locator('.common-card')).toHaveCount(1)
-  page.once('dialog', async (dialog) => dialog.accept())
   await page.getByRole('button', { name: '删除 唯一收藏' }).click()
+  await confirmAction(page)
   await expect(page.locator('.common-card')).toHaveCount(1)
   await expect(page.locator('.common-card').first()).toContainText('普通收藏')
   await expect(page.getByRole('button', { name: '唯一标签', exact: true })).toHaveCount(0)
@@ -946,3 +952,30 @@ test('缺少 closedby 的浏览器仍能点击遮罩关闭弹窗', async ({ page
   await page.mouse.click(8, 8)
   await expect(dialog).not.toBeVisible()
 })
+
+
+test('确认弹窗取消后不会删除常用链接', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '删除 Obsidian' }).click()
+  const dialog = page.getByRole('dialog', { name: '请确认' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: '取消' }).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+})
+
+test('确认弹窗按 Esc 视为取消，且点击遮罩不会误触发', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await page.getByRole('button', { name: '删除 Obsidian' }).click()
+  const dialog = page.getByRole('dialog', { name: '请确认' })
+  await expect(dialog).toBeVisible()
+  await page.mouse.click(8, 8)
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+})
+
+
