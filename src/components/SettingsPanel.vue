@@ -274,7 +274,7 @@ function formatDate(timestamp) {
   outline: 0;
   background: transparent;
   color: var(--card-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 

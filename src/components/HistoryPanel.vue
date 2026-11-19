@@ -355,7 +355,7 @@ function formatDate(timestamp) {
 .history-content strong {
   overflow: hidden;
   color: var(--card-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 550;
   text-overflow: ellipsis;
