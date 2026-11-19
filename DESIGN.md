@@ -47,6 +47,17 @@ s2u 是单页 URL Scheme 转换/分享工具，重点是快速理解、少步骤
 | 移动适配 | 保证 320px 视口无水平溢出，必要时收纳次要动作 |
 | 长链接 | URL 在卡片中省略；完整内容通过 title、复制操作或编辑表单访问 |
 
+### 字体
+
+所有文本使用系统字体栈，不加载任何远程字体文件，因此字体 CSS 不会阻塞首屏渲染：
+
+| 语义变量 | 值（首选 → 回退） | 用途 |
+| --- | --- | --- |
+| `--font-sans` | `system-ui`、`-apple-system`、`BlinkMacSystemFont`、`Segoe UI`、`PingFang SC`、`Hiragino Sans GB`、`Microsoft YaHei`、`Noto Sans SC`、sans-serif | 正文、标题、界面控件 |
+| `--font-mono` | `ui-monospace`、`Menlo`、`Consolas`、`Liberation Mono`、`JetBrains Mono`、monospace | 网址、URL Scheme、编码后的分享链接、数字 |
+| 字号基准 | `14px`，行高 `1.6` | 正文可读性 |
+| 标题字号 | `17px` / `21px`，`letter-spacing: -0.02em` 更紧凑 | 区块标题 |
+
 标题、标签、说明文字遵循各组件现有 `font-size` 级别，不以字号堆叠多个视觉主角。对长 Scheme 优先采用 CSS `min-width: 0`、省略和可复制操作。
 
 ## 4. 页面结构

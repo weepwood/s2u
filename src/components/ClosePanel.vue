@@ -83,7 +83,7 @@ defineEmits(['cancel'])
 
 .countdown-wrap strong {
   color: var(--card-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 24px;
   font-weight: 600;
 }
@@ -168,7 +168,7 @@ defineEmits(['cancel'])
   border: 0;
   background: transparent;
   color: var(--card-text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
