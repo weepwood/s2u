@@ -903,3 +903,23 @@ test('快捷启动在 320/375px 手机宽度仍位于右上角且可点开', asy
     await expect(page.getByRole('dialog', { name: '快捷启动命令面板' })).not.toBeVisible()
   }
 })
+
+test('顶部导航与工作区页签在桌面及移动端左右对齐', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  for (const width of [320, 375, 768, 1280, 1920]) {
+    await page.setViewportSize({ width, height: 800 })
+    const bounds = await page.evaluate(() => {
+      const header = document.querySelector('.app-header').getBoundingClientRect()
+      const workspaceHead = document.querySelector('.workspace-head').getBoundingClientRect()
+      return {
+        leftDelta: Math.abs(header.left - workspaceHead.left),
+        rightDelta: Math.abs(header.right - workspaceHead.right),
+        widthDelta: Math.abs(header.width - workspaceHead.width),
+      }
+    })
+    expect(bounds.leftDelta).toBeLessThanOrEqual(1)
+    expect(bounds.rightDelta).toBeLessThanOrEqual(1)
+    expect(bounds.widthDelta).toBeLessThanOrEqual(1)
+  }
+})

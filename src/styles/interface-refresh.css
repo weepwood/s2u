@@ -1,4 +1,5 @@
 .app-shell {
+  --workspace-max-width: 820px;
   --motion-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-gentle: cubic-bezier(0.16, 1, 0.3, 1);
   --panel-enter-x: 16px;
@@ -22,7 +23,7 @@
 
 /* 顶部只承担品牌与工具入口，不与主卡片争夺视觉重心。 */
 .app-shell .app-header {
-  width: min(960px, 100%);
+  width: min(var(--workspace-max-width), 100%);
   animation: s2u-header-arrive 460ms var(--motion-gentle) both;
 }
 
@@ -124,7 +125,7 @@
 
 /* 压缩叙事区，为链接与历史卡片让出首屏空间。 */
 .app-shell .workspace {
-  width: min(820px, 100%);
+  width: min(var(--workspace-max-width), 100%);
   margin-top: clamp(30px, 5.5vh, 58px);
 }
 
