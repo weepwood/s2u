@@ -64,7 +64,7 @@ npm run build
 npm run check
 ```
 
-CI 会在提交到 `master` 或创建 Pull Request 时执行 ESLint、Node 单元测试、生产构建与 Chromium 浏览器回归。更多视觉与验收要求参见 [`DESIGN.md`](DESIGN.md) 和 [`docs/device-qa.md`](docs/device-qa.md)。
+CI 在所有 Pull Request 执行 ESLint、Node 单元测试、生产构建及 gzip 体积门禁。仅 Markdown 文档变更跳过浏览器；仅共享 CSS/文档变更执行视觉相关冒烟；涉及 Vue、JS、安全、同步、存储、依赖、CI 或未知路径的变更执行完整根路径与子路径回归。master push 和手动触发始终完整回归。首屏 JS/CSS gzip ≤ 80 KiB，总 JS/CSS gzip ≤ 110 KiB（#69 基线 61.06 / 83.85 KiB）。更多视觉与验收要求参见 [`DESIGN.md`](DESIGN.md) 和 [`docs/device-qa.md`](docs/device-qa.md)。
 
 ## 使用说明
 
