@@ -153,6 +153,8 @@
               @copy="copyCommonLink"
               @copy-raw="copyCommonRaw"
               @move="moveCommonLink"
+              @reorder="reorderCommonLink"
+              @rename-tag="renameCommonTag"
               @pin="pinCommonLink"
               @export="exportCommonLinks"
               @import="importCommonLinks"
@@ -271,6 +273,8 @@ const {
   remove: deleteCommonLink,
   restoreDefaults: restoreCommonLinks,
   move: moveCommonLinkStore,
+  reorder: reorderCommonLinkStore,
+  renameTag: renameCommonTagStore,
   pin: pinCommonLinkStore,
   exportJSON: exportCommonJSON,
   inspectImport: inspectCommonImport,
@@ -587,6 +591,22 @@ function copy() {
     urlError.value = ''
     autoSync()
   })
+}
+
+function reorderCommonLink(id, targetId, position) {
+  if (reorderCommonLinkStore(id,targetId,position)) showToast('链接顺序已保存','success')
+  else if (commonStorageError.value) showToast(commonStorageError.value,'error',4000)
+}
+
+function renameCommonTag(previous,next) {
+  try {
+    if (renameCommonTagStore(previous,next)) {
+      commonPanel.value?.finishTagEdit(next)
+      showToast(next ? '标签已更新' : '标签已移除','success')
+    } else if (commonStorageError.value) {
+      commonPanel.value?.showTagError(commonStorageError.value)
+    }
+  } catch (error) { commonPanel.value?.showTagError(error.message || '标签无效') }
 }
 
 function pinCommonLink(id) {
