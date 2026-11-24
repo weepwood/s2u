@@ -1,5 +1,8 @@
 name: Cross-browser UI acceptance
 on:
+  push:
+    branches: [master]
+    paths: ['package.json']
   pull_request:
     branches: [master]
     paths:
