@@ -1,7 +1,9 @@
 import { ref, watch } from 'vue'
 
+export const DARK_MODE_STORAGE_KEY = 'dark_mode'
+
 export function useDarkMode() {
-  const STORAGE_KEY = 'dark_mode'
+  const STORAGE_KEY = DARK_MODE_STORAGE_KEY
 
   function loadDarkMode() {
     try {
@@ -16,7 +18,7 @@ export function useDarkMode() {
   const darkMode = ref(loadDarkMode())
 
   watch(darkMode, (val) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(val)) } catch { /* 不让主题存储异常中断业务 */ }
   })
 
   function toggle() {

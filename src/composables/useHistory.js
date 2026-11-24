@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
-const STORAGE_KEY = 'scheme_history'
+export const HISTORY_STORAGE_KEY = 'scheme_history'
+const STORAGE_KEY = HISTORY_STORAGE_KEY
 const HISTORY_FORMAT = 's2u-history'
 const HISTORY_VERSION = 2
 const MAX_HISTORY_ITEMS = 500

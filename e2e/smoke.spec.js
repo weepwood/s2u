@@ -1185,3 +1185,28 @@ test('快速切换三页后只保留最终活动面板',async({page})=>{
   await expect(page.locator('.content-card .panel-enter-active,.content-card .panel-leave-active')).toHaveCount(0)
   await expect(nav.getByRole('tab',{name:/创建链接/})).toHaveAttribute('aria-selected','true')
 })
+
+
+test('工作区备份先预览再合并，保留已有收藏并暂停自动同步',async({page})=>{
+  await page.goto('/')
+  await page.getByRole('button',{name:'打开云同步设置'}).click()
+  const dialog=page.getByRole('dialog',{name:'云端同步'})
+  await dialog.getByRole('button',{name:'备份恢复',exact:true}).click()
+  const input=dialog.getByLabel('导入工作区备份文件')
+  const backup={format:'s2u-workspace-backup',version:1,savedAt:1,
+    history:{format:'s2u-history',version:2,records:[{scheme:'https://backup.example/',count:1,recently:1000,updatedAt:1000}],tombstones:[]},
+    commonLinks:{format:'s2u-common-links',version:1,items:[{id:'backup-link',name:'备份链接',target:'https://backup.example/'}]},
+    settings:{version:1,darkMode:true}}
+  await input.setInputFiles({name:'workspace.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))})
+  await expect(dialog.getByText('恢复预览',{exact:true})).toBeVisible()
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('s2u_workspace_before_restore_v1'))).toBe(null)
+  page.once('dialog',prompt=>prompt.accept())
+  await dialog.getByRole('button',{name:'确认合并恢复'}).click()
+  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_common_links_v1')||'{}').items?.map(i=>i.id)||[])).toContain('backup-link')
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_common_links_v1')).items.map(i=>i.id))).toContain('obsidian')
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('scheme_history')).records.map(i=>i.scheme))).toContain('https://backup.example/')
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_gist_preferences_v1')).auto)).toBe(false)
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_workspace_before_restore_v1')).commonLinks.items.map(i=>i.id))).not.toContain('backup-link')
+  await expect(page.locator('.app-shell')).not.toHaveClass(/dark/)
+  await expect(dialog.getByText('恢复预览',{exact:true})).toHaveCount(0)
+})
