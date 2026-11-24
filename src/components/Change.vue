@@ -211,17 +211,13 @@ import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
 import { openWorkspace } from '../domain/storage/workspaceScope.js'
-import { useClipboard, writeClipboardText } from '../composables/useClipboard.js'
+import { useCreateLinkActions } from '../composables/workspace/useCreateLinkActions.js'
 import { useWorkspaceSync } from '../composables/workspace/useWorkspaceSync.js'
 import { useShareRedirect } from '../composables/workspace/useShareRedirect.js'
 import { useBookmarkActions } from '../composables/workspace/useBookmarkActions.js'
 import { useWorkspaceNavigation } from '../composables/workspace/useWorkspaceNavigation.js'
 import { useHistoryActions } from '../composables/workspace/useHistoryActions.js'
-import {
-  encodeShareLink,
-  getAppBaseUrl,
-  normalizeTarget,
-} from '../domain/linkCodec.js'
+import { getAppBaseUrl } from '../domain/linkCodec.js'
 
 // 仅首屏创建面板同步加载。历史/收藏 UI 在用户访问对应标签时再下载。
 const loadHistoryWorkspace = () => import('./HistoryWorkspace.vue')
@@ -279,7 +275,6 @@ const { links:commonLinks, storageError:commonStorageError, load:loadCommonLinks
 const cloud = useCloudSync(workspace)
 const { syncStatus, pending, loadConfig } = cloud
 const commonPanel = ref(null)
-const { copyText, copyToClipboard, cleanup:cleanupClipboard } = useClipboard()
 const qrShareUrl = ref('')
 const url = ref('')
 const urlError = ref('')
@@ -288,28 +283,6 @@ const origin = getAppBaseUrl()
 
 const toast = ref({ message: '', type: 'info', duration: 2500, key: 0 })
 let toastKey = 0
-
-const toUrl = computed(() => {
-  if (!url.value.trim()) return ''
-  try {
-    return encodeShareLink(origin, url.value)
-  } catch {
-    return ''
-  }
-})
-
-const recentLinks = computed(() =>
-  history.value.slice(0, 20).flatMap((item) => {
-    try {
-      const normalized = normalizeTarget(item.scheme)
-      if (!normalized.ok) return []
-      // 展示真实目标，分享地址仅用于原有复制及打开操作。
-      return [{ target: normalized.target, shareUrl: encodeShareLink(origin, normalized.target) }]
-    } catch {
-      return []
-    }
-  }),
-)
 
 const filteredHistory = computed(() => filterHistory())
 
@@ -323,50 +296,6 @@ function notifyStorageError() {
   showToast(storageError.value, 'error', 4000)
 }
 
-function gotoUrl(fullUrl) {
-  if (!fullUrl) return
-  // 剪贴板不可用不能阻断打开；保持 window.open 在用户点击的同步调用栈内。
-  writeClipboardText(fullUrl).catch(() => showToast('未能复制分享链接，请检查剪贴板权限', 'error', 4000))
-  window.open(fullUrl, '_blank', 'noopener,noreferrer')
-}
-
-function toHistoryUrl(scheme) {
-  const normalized = normalizeTarget(scheme)
-  if (!normalized.ok) {
-    showToast(normalized.error, 'error', 4000)
-    return
-  }
-
-  writeClipboardText(encodeShareLink(origin, normalized.target)).catch(() => showToast('未能复制分享链接，请检查剪贴板权限', 'error', 4000))
-  window.open(normalized.target, '_blank', 'noopener,noreferrer')
-}
-
-function openQrShare(shareUrl) {
-  // 避免外部事件注入二维码内容。
-  if (shareUrl && shareUrl === toUrl.value) qrShareUrl.value = shareUrl
-}
-
-function copy() {
-  const submittedUrl = url.value
-  const normalized = normalizeTarget(submittedUrl)
-  if (!normalized.ok) {
-    urlError.value = normalized.error
-    return
-  }
-
-  const shareLink = encodeShareLink(origin, normalized.target)
-  copyToClipboard(shareLink, () => {
-    const saved = addHistory(normalized.target)
-    if (!saved) notifyStorageError()
-    // 剪贴板写入可能等待权限；不能清除等待期间用户编辑的新地址。
-    if (url.value === submittedUrl) {
-      url.value = ''
-      urlError.value = ''
-    }
-    autoSync()
-  })
-}
-
 // 视图仅装配各业务模块；依赖显式注入，复用已有 store，不创建第二套数据。
 const {
   workspaceProfiles, showSettings, openSyncSettings, closeSyncSettings, switchWorkspace, addWorkspace,
@@ -374,6 +303,7 @@ const {
   previewWorkspace, restoreWorkspace, syncGist, connectGist, testGistConnection, restoreGistRecovery,
   exportGistBundle, exportGistRecovery, disconnectGist, scheduleInitialSync, startSyncLifecycle, stopSyncLifecycle,
 } = useWorkspaceSync({workspace, cloud, historyStore, commonStore, darkMode, showCloseMsg, showToast, notifyStorageError})
+const { toUrl, recentLinks, copyText, copy, gotoUrl, toHistoryUrl, openQrShare, cleanup:cleanupClipboard } = useCreateLinkActions({url, urlError, qrShareUrl, history, origin, addHistory, autoSync, notifyStorageError, showToast})
 const {
   redirectPolicy, redirectAttempted, attemptRedirect, readShareHash, cancelClose, startRedirectLifecycle, stopRedirectLifecycle,
 } = useShareRedirect({showCloseMsg, urlError, addHistory, autoSync, showToast, notifyStorageError})

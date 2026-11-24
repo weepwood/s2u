@@ -6,34 +6,44 @@ export async function writeClipboardText(value, clipboard = globalThis.navigator
   await clipboard.writeText(value)
 }
 
-export function useClipboard() {
+export function useClipboard({ write = writeClipboardText } = {}) {
   const copyText = ref('Copy')
   let copyTimer = null
+  let sequence = 0
+  let disposed = false
 
   async function copyToClipboard(url, onSuccess) {
+    if (disposed) return false
+    const attempt = ++sequence
+    clearTimeout(copyTimer)
+    copyText.value = 'Copy'
     try {
-      await writeClipboardText(url)
-      copyText.value = 'Copied!'
+      await write(url)
+      if (disposed) return false
       if (onSuccess) onSuccess()
-      scheduleReset(1200)
+      if (attempt === sequence) {
+        copyText.value = 'Copied!'
+        scheduleReset(1200)
+      }
+      return true
     } catch {
-      copyText.value = 'Failed'
-      scheduleReset(1500)
+      if (!disposed && attempt === sequence) {
+        copyText.value = 'Failed'
+        scheduleReset(1500)
+      }
+      return false
     }
   }
 
   function scheduleReset(delay) {
-    if (copyTimer) clearTimeout(copyTimer)
-    copyTimer = setTimeout(() => {
-      copyText.value = 'Copy'
-    }, delay)
+    clearTimeout(copyTimer)
+    copyTimer = setTimeout(() => { copyText.value = 'Copy'; copyTimer = null }, delay)
   }
 
   function cleanup() {
-    if (copyTimer) {
-      clearTimeout(copyTimer)
-      copyTimer = null
-    }
+    disposed = true
+    clearTimeout(copyTimer)
+    copyTimer = null
   }
 
   return { copyText, copyToClipboard, cleanup }
