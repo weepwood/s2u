@@ -315,3 +315,50 @@ test('非法标签被拒绝，不改变现有链接；旧版不带 tags 的 JSON
     assert.equal(previous.items.every((item) => !('tags' in item)), true)
   } finally { fake.restore() }
 })
+
+
+test('拖拽重排稳定 ID，前后位置及无效目标，保留原数据格式',()=>{
+  const mock=useFakeStorage()
+  try{
+    const store=useCommonLinks()
+    assert.equal(store.reorder('obsidian','weixin','after'),true)
+    assert.deepEqual(store.links.value.map(i=>i.id),['vscode','weixin','obsidian','orpheus'])
+    assert.equal(store.reorder('orpheus','vscode','before'),true)
+    assert.deepEqual(store.links.value.map(i=>i.id),['orpheus','vscode','weixin','obsidian'])
+    for(const args of [['orpheus','vscode','before'],['invalid','vscode','after'],['vscode','invalid','before'],['vscode','vscode','after'],['vscode','obsidian','invalid']])assert.equal(store.reorder(...args),false)
+    const restored=useCommonLinks();restored.load()
+    assert.deepEqual(restored.links.value,store.links.value)
+    assert.equal(JSON.parse(localStorage.getItem('s2u_common_links_v1')).version,1)
+  }finally{mock.restore()}
+})
+test('标签重命名不区分大小写、合并重复标签，删除标签不删除链接',()=>{
+  const mock=useFakeStorage()
+  try{
+    const store=useCommonLinks()
+    store.save({id:'obsidian',name:'Obsidian',target:'obsidian://',tags:['Work','笔记'],icon:'data:image/png;base64,AAAA'})
+    store.save({id:'vscode',name:'Visual Studio Code',target:'vscode://',tags:['work','项目']})
+    assert.equal(store.renameTag('WORK','项目'),true)
+    assert.deepEqual(store.links.value[0].tags,['项目','笔记'])
+    assert.deepEqual(store.links.value[1].tags,['项目'])
+    assert.equal(store.links.value[0].icon,'data:image/png;base64,AAAA')
+    assert.equal(store.renameTag('项目'),true)
+    assert.deepEqual(store.links.value[0].tags,['笔记'])
+    assert.equal(store.links.value[1].tags,undefined)
+    assert.equal(store.links.value.length,4)
+    assert.throws(()=>store.renameTag('笔记','x'.repeat(19)),/标签/)
+    assert.equal(store.renameTag('unknown','test'),false)
+  }finally{mock.restore()}
+})
+test('拖拽和批量标签修改存储失败均不产生假成功',()=>{
+  const mock=useFakeStorage()
+  try{
+    const store=useCommonLinks()
+    store.save({id:'obsidian',name:'Obsidian',target:'obsidian://',tags:['笔记']})
+    const before=JSON.stringify(store.links.value),raw=localStorage.getItem('s2u_common_links_v1')
+    localStorage.setItem=()=>{throw Error('quota')}
+    assert.equal(store.reorder('obsidian','weixin','after'),false)
+    assert.equal(store.renameTag('笔记','新标签'),false)
+    assert.equal(JSON.stringify(store.links.value),before)
+    assert.equal(localStorage.getItem('s2u_common_links_v1'),raw)
+  }finally{mock.restore()}
+})
