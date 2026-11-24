@@ -8,6 +8,14 @@ async function seed(page) {
     localStorage.setItem('scheme_history',JSON.stringify({format:'s2u-history',version:2,records,tombstones:[]}))
   })
 }
+async function settledCard(page){
+  await expect.poll(()=>page.evaluate(()=>{
+    const card=document.querySelector('.content-card'),panel=card?.querySelector('[role=tabpanel]:not(.panel-leave-active)')
+    if(!panel)return false
+    const style=getComputedStyle(card)
+    return !card.style.overflow && !panel.classList.contains('panel-enter-active') && card.clientHeight+2>=Math.max(panel.offsetHeight,panel.scrollHeight)+parseFloat(style.paddingTop)+parseFloat(style.paddingBottom)
+  })).toBe(true)
+}
 const panels=[['创建链接','create','输入目标地址'],['历史记录','history','历史记录'],['常用链接','common','常用链接']]
 async function capture(page,testInfo,width,theme) {
   for(const [name,id,heading] of panels){
@@ -58,11 +66,14 @@ async function capture(page,testInfo,width,theme) {
     }
     if(id==='common'){
       await page.getByRole('button',{name:'列表视图'}).click()
+      await settledCard(page)
+      await expect.poll(()=>page.locator('.common-card').last().evaluate(el=>el.getBoundingClientRect().bottom<=el.closest('.content-card').getBoundingClientRect().bottom+1)).toBe(true)
       const copy=page.getByRole('button',{name:'复制 Obsidian 分享链接'})
       await expect(copy).toHaveCSS('white-space','nowrap')
       expect(await copy.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
       await page.screenshot({path:testInfo.outputPath('ui-'+width+'-'+theme+'-common-list.png'),animations:'disabled'})
       await page.getByRole('button',{name:'网格视图'}).click()
+      await settledCard(page)
     }
   }
 }
@@ -84,7 +95,10 @@ test('三页浅深主题真实截图及弹窗焦点',async({page},testInfo)=>{
   await dialog.locator('#gist-mode').click()
   await expect(dialog.getByRole('listbox')).toBeVisible()
   await expect(dialog.getByRole('option',{name:'创建新的 Gist'})).toBeVisible()
-  await page.screenshot({path:testInfo.outputPath('ui-1280-dark-select.png'),animations:'disabled'})
+  await page.keyboard.press('End')
+  await expect(dialog.locator('#gist-mode')).toHaveAttribute('aria-activedescendant',/options-2$/)
+  await page.keyboard.press('Home')
+  await page.screenshot({path:testInfo.outputPath('ui-1280-dark-cloud-select.png'),animations:'disabled'})
   await dialog.getByRole('option',{name:'输入 Gist ID / 地址'}).click()
   await expect(dialog.locator('#gist-mode')).toContainText('输入 Gist ID / 地址')
   await dialog.locator('#gist-mode').click()
