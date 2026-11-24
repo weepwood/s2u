@@ -63,13 +63,6 @@
 .app-shell .common-panel .card-actions button:focus-visible,
 .app-shell .history-panel button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app-shell dialog.qr-share-dialog,
-.app-shell dialog.command-dialog,
-.app-shell dialog.shortcut-dialog {
-  border-color: var(--hairline-strong);
-  background: var(--card-bg-solid);
-  box-shadow: var(--shadow-popover);
-}
 .app-shell dialog.command-dialog .command-item:hover,
 .app-shell dialog.command-dialog .command-item.selected { background: var(--accent-soft); }
 .app-shell dialog :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
