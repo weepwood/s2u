@@ -1,6 +1,5 @@
+import { sampleSpring, SPRING_DURATION } from './springMotion.js'
 const CARD_SELECTOR = '.content-card'
-const DEFAULT_DURATION = 300
-const DEFAULT_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
 export function installCardHeightTransition() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
@@ -33,6 +32,7 @@ function setupAutoHeight(card) {
   let resizeTimer = null
   let activeAnimation = null
   let activeTarget = null
+  let activeSpring = null
   let observedPanel = null
   let isDestroyed = false
 
@@ -73,13 +73,16 @@ function setupAutoHeight(card) {
   }
 
   const cancelActiveAnimation = () => {
-    if (!activeAnimation) return
+    if (!activeAnimation) return 0
 
     const currentHeight = readCurrentHeight()
+    const velocity = activeSpring ? sampleSpring(...activeSpring, Number(activeAnimation.currentTime) || 0).velocity : 0
     activeAnimation.cancel()
     activeAnimation = null
     activeTarget = null
     card.style.height = `${currentHeight}px`
+    activeSpring = null
+    return velocity
   }
 
   const animateToPanel = () => {
@@ -93,7 +96,7 @@ function setupAutoHeight(card) {
     // 文案、toast 或观察器反复通知但高度不变时，不重启动画。
     if (activeAnimation && !reducedMotion.matches && Math.abs(targetHeight - activeTarget) < 1) return
 
-    cancelActiveAnimation()
+    const velocity = cancelActiveAnimation()
     const currentHeight = readCurrentHeight()
 
     if (Math.abs(targetHeight - currentHeight) < 1) {
@@ -111,16 +114,11 @@ function setupAutoHeight(card) {
       return
     }
 
-    const style = window.getComputedStyle(card)
-    const duration = Number.parseFloat(style.getPropertyValue('--motion-panel-duration')) || DEFAULT_DURATION
-    const easing = style.getPropertyValue('--motion-standard').trim() || DEFAULT_EASING
-    const animation = card.animate(
-      [{ height: `${currentHeight}px` }, { height: `${targetHeight}px` }],
-      {
-        duration,
-        easing,
-      },
-    )
+    activeSpring = [currentHeight, targetHeight, velocity]
+    const frames = Array.from({length:31}, (_, i) => ({
+      height: `${Math.max(0, i === 30 ? targetHeight : sampleSpring(...activeSpring, i * 16).value)}px`,
+    }))
+    const animation = card.animate(frames, { duration: SPRING_DURATION, easing: 'linear' })
 
     activeAnimation = animation
     activeTarget = targetHeight
@@ -128,12 +126,14 @@ function setupAutoHeight(card) {
       if (activeAnimation !== animation) return
       activeAnimation = null
       activeTarget = null
+      activeSpring = null
       finishAnimation()
     }
     animation.oncancel = () => {
       if (activeAnimation === animation) {
         activeAnimation = null
         activeTarget = null
+        activeSpring = null
       }
     }
   }
