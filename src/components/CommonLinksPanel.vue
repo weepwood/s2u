@@ -99,12 +99,44 @@
         <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden-import" aria-label="选择常用链接备份文件" @change="selectImport" />
       </div>
     </div>
+    <div class="common-view-tools">
+      <span class="common-result-count" aria-live="polite">{{ visibleItems.length }} / {{ items.length }} 个链接</span>
+      <div class="common-view-toggle" role="group" aria-label="收藏显示方式">
+        <button type="button" :aria-pressed="view === 'grid'" aria-label="网格视图" title="网格视图" @click="view = 'grid'">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="4" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="14" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="14" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.7"/></svg>
+        </button>
+        <button type="button" :aria-pressed="view === 'list'" aria-label="列表视图" title="列表视图" @click="view = 'list'">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.1M4 12h.1M4 18h.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
     <div v-if="availableTags.length" class="common-tags" aria-label="按标签筛选">
       <button type="button" :aria-pressed="selectedTag === ''" @click="selectedTag = ''">全部</button>
-      <button v-for="tag in availableTags" :key="tag" type="button" :aria-pressed="selectedTag === tag" @click="selectedTag = tag">{{ tag }}</button>
+      <button v-for="tag in availableTags" :key="tag" type="button" :aria-pressed="tagKey(selectedTag) === tagKey(tag)" :title="tag + ' · ' + tagCount(tag) + ' 条'" @click="selectedTag = tag">{{ tag }}</button>
     </div>
-    <TransitionGroup v-if="visibleItems.length" tag="div" name="workspace-list" class="common-grid">
-      <article v-for="item in visibleItems" :key="item.id" class="common-card">
+    <details v-if="availableTags.length" class="common-tag-manager">
+      <summary>管理标签</summary>
+      <div class="common-tag-fields">
+        <label for="manage-tag">选择标签</label>
+        <select id="manage-tag" v-model="managedTag" @change="beginTagEdit">
+          <option value="">请选择</option>
+          <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}（{{ tagCount(tag) }}）</option>
+        </select>
+        <template v-if="managedTag">
+          <label for="rename-tag">标签名称</label>
+          <BaseInput id="rename-tag" v-model="newTag" maxlength="18" placeholder="输入新名称"/>
+          <div class="common-tag-actions">
+            <BaseButton :disabled="!newTag.trim() || newTag.trim() === managedTag" @click="submitTag(false)">重命名标签</BaseButton>
+            <BaseButton @click="submitTag(true)">移除标签</BaseButton>
+          </div>
+          <p v-if="tagError" role="alert" class="form-error">{{ tagError }}</p>
+        </template>
+      </div>
+    </details>
+    <TransitionGroup v-if="visibleItems.length" tag="div" name="workspace-list" class="common-grid" :class="{'common-list-view':view === 'list'}">
+      <article v-for="item in visibleItems" :key="item.id" class="common-card"
+        :class="{'common-dragging':dragId === item.id,'common-drop-before':dropId === item.id && dropPosition === 'before','common-drop-after':dropId === item.id && dropPosition === 'after'}"
+        @dragover="dragOver($event,item.id)" @drop="dropItem($event,item.id)" @dragleave="leaveDrop($event,item.id)">
         <div class="card-main">
           <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item) }">
             <img v-if="getIcon(item)" :src="getIcon(item)" :alt="item.name + ' 图标'" width="48" height="48" />
@@ -120,6 +152,9 @@
           </div>
         </div>
         <div class="card-actions" role="group" :aria-label="'管理 ' + item.name">
+          <span v-if="canDrag" class="common-drag-handle" draggable="true" title="拖动调整顺序（也可使用上下移按钮）" aria-hidden="true" @dragstart="startDrag($event,item.id)" @dragend="resetDrag">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </span>
           <button v-if="items[0]?.id !== item.id" type="button" class="pin-button" :aria-label="'置顶 ' + item.name" title="移至首位" @click="$emit('pin', item.id)">置顶</button>
           <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
             <button type="button" :disabled="items[items.length - 1]?.id === item.id" :aria-label="'下移 ' + item.name" title="下移" @click="$emit('move', item.id, 1)">↓</button>
@@ -154,12 +189,14 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import BaseButton from './ui/BaseButton.vue'
+import BaseInput from './ui/BaseInput.vue'
 import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'pin', 'import', 'export'])
+const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'reorder', 'rename-tag', 'pin', 'import', 'export'])
 const openWarningDialog = ref(null)
 const pendingTarget = ref('')
 
@@ -189,19 +226,69 @@ function copyPendingRaw() {
 
 const search = ref('')
 const selectedTag = ref('')
-const availableTags = computed(() => [...new Set(props.items.flatMap((item) => item.tags || []))].sort((a, b) => a.localeCompare(b, 'zh')))
-watch(availableTags, (next) => {
-  // 移除最后一个带该标签的收藏后，不要让筛选器停留在不存在的分类上。
-  if (selectedTag.value && !next.includes(selectedTag.value)) selectedTag.value = ''
+const view = ref('grid')
+const managedTag = ref(''), newTag = ref(''), tagError = ref('')
+const tagKey = value => String(value || '').toLowerCase()
+const availableTags = computed(() => {
+  const tags = new Map()
+  for (const item of props.items) for (const tag of item.tags || []) if (!tags.has(tagKey(tag))) tags.set(tagKey(tag),tag)
+  return [...tags.values()].sort((a,b)=>a.localeCompare(b,'zh'))
+})
+const tagCount = tag => props.items.filter(item=>(item.tags || []).some(value=>tagKey(value)===tagKey(tag))).length
+watch(availableTags, next => {
+  if (selectedTag.value && !next.some(tag=>tagKey(tag)===tagKey(selectedTag.value))) selectedTag.value = ''
+  if (managedTag.value && !next.some(tag=>tagKey(tag)===tagKey(managedTag.value))) { managedTag.value='';newTag.value='';tagError.value='' }
 })
 const visibleItems = computed(() => {
-  const term = search.value.trim().toLowerCase()
-  return props.items.filter((item) => {
-    if (selectedTag.value && !(item.tags || []).includes(selectedTag.value)) return false
-    return !term || item.name.toLowerCase().includes(term) || item.target.toLowerCase().includes(term) ||
-      (item.tags || []).some((tag) => tag.toLowerCase().includes(term))
+  const terms = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  return props.items.filter(item => {
+    if (selectedTag.value && !(item.tags || []).some(tag=>tagKey(tag)===tagKey(selectedTag.value))) return false
+    const haystack = [item.name,item.target,...(item.tags || [])].join(' ').toLowerCase()
+    return terms.every(term=>haystack.includes(term))
   })
 })
+function beginTagEdit() { newTag.value=managedTag.value;tagError.value='' }
+function submitTag(remove) {
+  const name=managedTag.value, next=remove?'':newTag.value.trim()
+  if(!name||(!remove&&!next))return
+  const action=remove?'移除标签“'+name+'”':'将标签“'+name+'”重命名为“'+next+'”'
+  if(confirm(action+'？将影响 '+tagCount(name)+' 条收藏，不删除链接。')) emit('rename-tag',name,next)
+}
+function finishTagEdit(next) {
+  if(tagKey(selectedTag.value)===tagKey(managedTag.value))selectedTag.value=next
+  managedTag.value=availableTags.value.find(tag=>tagKey(tag)===tagKey(next)) || ''
+  beginTagEdit()
+}
+const canDrag=computed(()=>!search.value.trim()&&!selectedTag.value&&props.items.length>1)
+const dragId=ref(''),dropId=ref(''),dropPosition=ref('before')
+function resetDrag(){dragId.value='';dropId.value='';dropPosition.value='before'}
+watch(canDrag,value=>{if(!value)resetDrag()})
+// 外部拖放不被接受，dataTransfer 不写入 URL 或收藏内容。
+function startDrag(event,id){
+  if(!canDrag.value||!event.dataTransfer){event.preventDefault();return}
+  dragId.value=id
+  event.dataTransfer.effectAllowed='move'
+  event.dataTransfer.setData('text/plain','s2u-bookmark-reorder')
+}
+function dragOver(event,id){
+  if(!canDrag.value||!dragId.value||id===dragId.value)return
+  event.preventDefault()
+  if(event.dataTransfer)event.dataTransfer.dropEffect='move'
+  const rect=event.currentTarget.getBoundingClientRect()
+  dropId.value=id
+  dropPosition.value=event.clientY < rect.top+rect.height/2?'before':'after'
+}
+function leaveDrop(event,id){
+  if(dropId.value===id&&!event.currentTarget.contains(event.relatedTarget))dropId.value=''
+}
+function dropItem(event,id){
+  if(!canDrag.value||!dragId.value||id===dragId.value)return
+  event.preventDefault()
+  const rect=event.currentTarget.getBoundingClientRect()
+  const position=event.clientY < rect.top+rect.height/2?'before':'after'
+  emit('reorder',dragId.value,id,position)
+  resetDrag()
+}
 const importInput = ref(null)
 
 function triggerImport() { importInput.value?.click() }
@@ -363,7 +450,7 @@ function resetItems() {
   }
 }
 
-defineExpose({ cancelEdit, showError: (value) => { formError.value = value } })
+defineExpose({ cancelEdit, finishTagEdit, showTagError: value => { tagError.value = value }, showError: (value) => { formError.value = value } })
 </script>
 
 <style scoped>
@@ -486,6 +573,32 @@ button { font: inherit; cursor: pointer; }
 @media (max-width: 620px) { .common-grid { grid-template-columns: 1fr; } .common-footer { flex-direction: column; } }
 @media (max-width: 360px) { .card-main { gap: 6px; } .app-icon { width: 40px; height: 40px; } .card-actions { gap: 0; } .card-actions button { width: 24px; } }
 @media (prefers-reduced-motion: reduce) { .common-card { transition: none; transform: none !important; } }
+.common-view-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.common-result-count { font-size:12px; color:var(--card-text-muted); }
+.common-view-toggle { display:flex; gap:3px; padding:3px; border:1px solid var(--hairline); border-radius:10px; background:var(--surface-soft); }
+.common-view-toggle button { border:0; background:transparent; color:var(--card-text-muted); display:grid; place-items:center; width:29px; height:29px; padding:0; border-radius:7px; }
+.common-view-toggle button[aria-pressed=true] { color:var(--accent); background:var(--surface-elevated); box-shadow:0 1px 3px #0001; }
+.common-view-toggle svg { width:17px; height:17px; }
+.common-list-view { grid-template-columns:minmax(0,1fr); }
+.common-list-view .common-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 12px; }
+.common-list-view .card-buttons { grid-column:2; margin-top:0; }
+.common-list-view .card-main { grid-row:span 2; }
+.common-drag-handle { width:22px; height:30px; display:grid; place-items:center; flex:none; cursor:grab; color:var(--card-text-muted); }
+.common-drag-handle:active { cursor:grabbing; }
+.common-dragging { opacity:.55; }
+.common-drop-before { box-shadow:inset 0 3px var(--accent); }
+.common-drop-after { box-shadow:inset 0 -3px var(--accent); }
+.common-tag-manager { padding:9px 12px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-soft); }
+.common-tag-manager summary { font-size:12px; color:var(--card-text-muted); cursor:pointer; }
+.common-tag-fields { display:grid; gap:9px; margin-top:10px; font-size:12px; }
+.common-tag-fields select { box-sizing:border-box; min-height:40px; width:100%; border:1px solid var(--hairline); border-radius:var(--radius-control); color:var(--card-text); background:var(--surface-elevated); padding:0 10px; font:inherit; }
+.common-tag-actions { display:flex; flex-wrap:wrap; gap:8px; }
+@media(max-width:600px) {
+  .common-list-view .common-card { display:flex; align-items:stretch; }
+  .common-drag-handle { display:none; }
+}
+@media(pointer:coarse) { .common-drag-handle { display:none; } }
+@media(prefers-reduced-motion:reduce) { .common-dragging,.common-drop-before,.common-drop-after { transition:none; } }
 </style>
 
 <style scoped>

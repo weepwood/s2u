@@ -187,6 +187,38 @@ export function useCommonLinks(storage = globalThis.localStorage) {
     return persist(items)
   }
 
+  // 使用稳定 ID 重排，不接受来自拖放文本或外部页面的完整记录。
+  function reorder(id, targetId, position = 'before') {
+    if (id === targetId || !['before','after'].includes(position)) return false
+    const from = links.value.findIndex(item => item.id === id)
+    if (from < 0 || !links.value.some(item => item.id === targetId)) return false
+    const items = [...links.value]
+    const [item] = items.splice(from,1)
+    const target = items.findIndex(entry => entry.id === targetId)
+    items.splice(target + (position === 'after' ? 1 : 0),0,item)
+    if (items.every((entry,index) => entry.id === links.value[index].id)) return false
+    return persist(items)
+  }
+
+  function renameTag(previous, next = '') {
+    if (typeof previous !== 'string' || !previous.trim()) return false
+    if (typeof next !== 'string') throw new TypeError('标签无效')
+    const key = previous.trim().toLowerCase()
+    const renamed = next.trim()
+    if (renamed && !normalizeTags([renamed])) throw new TypeError('标签需为 1–18 字且不能包含控制字符')
+    let changed = false
+    const items = links.value.map(item => {
+      if (!(item.tags || []).some(tag => tag.toLowerCase() === key)) return item
+      const tags = normalizeTags(item.tags.flatMap(tag => tag.toLowerCase() === key ? (renamed ? [renamed] : []) : [tag]))
+      if (JSON.stringify(tags) === JSON.stringify(item.tags)) return item
+      changed = true
+      const updated = {...item}
+      delete updated.tags
+      return withTags(updated,tags)
+    })
+    return changed && persist(items)
+  }
+
   function pin(id) {
     const index = links.value.findIndex((item) => item.id === id)
     if (index <= 0) return false
@@ -283,5 +315,5 @@ export function useCommonLinks(storage = globalThis.localStorage) {
     if (!persist(merged)) throw new Error(storageError.value)
     return true
   }
-  return { links, storageError, load, save, move, pin, remove, restoreDefaults, exportJSON, inspectImport, importJSON, validateSync, syncSnapshot, applySync }
+  return { links, storageError, load, save, move, reorder, renameTag, pin, remove, restoreDefaults, exportJSON, inspectImport, importJSON, validateSync, syncSnapshot, applySync }
 }
