@@ -67,3 +67,17 @@
 .app-shell .ui-select:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 .app-shell .ui-select:disabled { opacity:.5; cursor:not-allowed; }
 .app-shell .ui-search-field .control-field__clear:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+
+
+/* 异步资源反馈：沿用共享弹窗及主题变量，不覆盖实际业务组件。 */
+.app-shell .lazy-panel-loading {
+  min-height: 160px; display: grid; align-content: center; justify-items: center;
+  gap: 12px; padding: 16px; text-align: center; font-size: 13px;
+  color: var(--card-text-muted); box-sizing: border-box;
+}
+.app-shell .lazy-panel-loading p, .app-shell .lazy-view-dialog p { margin: 0; line-height: 1.6; }
+.app-shell .lazy-view-dialog { width: min(360px, calc(100vw - 32px)); box-sizing: border-box; padding: 22px; }
+.app-shell .lazy-view-dialog h2 { margin: 0 0 12px; font-size: 18px; }
+.app-shell .lazy-view-dialog p { color: var(--card-text-muted); font-size: 13px; }
+.app-shell .lazy-view-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.app-shell .lazy-view-dialog .lazy-view-actions { justify-content: flex-end; margin-top: 18px; }
