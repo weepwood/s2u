@@ -1,7 +1,7 @@
 import test, { afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { useCloudSync } from '../src/composables/useCloudSync.js'
-import { parseGistId, readFile, encodeFile } from '../src/domain/sync/gistClient.js'
+import { createGistClient, parseGistId, readFile, encodeFile } from '../src/domain/sync/gistClient.js'
 import { samePayload, mergeWorkspace } from '../src/domain/sync/syncEngine.js'
 
 const storage = new Map(), session = new Map()
@@ -132,4 +132,18 @@ test('只读连接测试不写入 Gist',async()=>{
   globalThis.fetch=async(url,opts)=>{if(opts.method!=='GET')writes++;return reply(url.endsWith('/user')?{login:'test-user'}:gist(history(0)))}
   assert.deepEqual(await sync.testConnection(),history(0))
   assert.equal(writes,0)
+})
+
+
+test('认证错误引导最小 Gist 权限，不回显 Token 或服务端消息', async () => {
+  const client = createGistClient()
+  for (const [status, hint] of [[401, /Token 无效或已过期/], [403, /Gists 读写权限.*无需扩大仓库权限/], [404, /Gist ID、归属/]]) {
+    globalThis.fetch = async () => ({ ok: false, status, json: async () => ({ message: 'secret-token' }) })
+    await assert.rejects(client.request('/gists/abcde12345', { token: 'secret-token' }), error => {
+      assert.equal(error.status, status)
+      assert.match(error.message, hint)
+      assert.doesNotMatch(error.message, /secret-token/)
+      return true
+    })
+  }
 })

@@ -25,9 +25,34 @@
         </div>
       </template>
       <template v-else>
-        <div class="cloud-label"><label for="gist-token">GitHub Token</label><a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">创建 Token ↗</a></div>
-        <input id="gist-token" v-model="token" :disabled="finding || busy" type="password" autocomplete="off" placeholder="输入具备 Gist 权限的 Token"/>
-        <p class="cloud-note">仅保存在当前标签页会话。Secret Gist 知道地址的人仍可能读取，请勿同步敏感链接。</p>
+        <div class="cloud-label">
+          <label for="gist-token">GitHub Token</label>
+          <a href="https://github.com/settings/personal-access-tokens/new?name=S2U%20Gist%20Sync&amp;description=S2U%20workspace%20sync&amp;expires_in=90&amp;gists=write" target="_blank" rel="noopener noreferrer">创建最小权限 Token ↗</a>
+        </div>
+        <input id="gist-token" v-model="token" :disabled="finding || busy" type="password" autocomplete="off" placeholder="粘贴 GitHub Token" aria-describedby="gist-token-note"/>
+        <p id="gist-token-note" class="cloud-note">只需 Gist 读写权限，Token 仅保存在当前标签页会话。</p>
+        <details class="token-guide">
+          <summary>如何创建 Token？</summary>
+          <div class="token-guide-body">
+            <strong>推荐：Fine-grained token</strong>
+            <ol>
+              <li>点击上方创建入口，名称和 Gists 权限会预填。</li>
+              <li>Resource owner 选择自己的账号，有效期建议 90 天。</li>
+              <li>Repository access 选择 Public repositories（仅公开仓库），不要添加仓库权限。</li>
+              <li>Permissions → Account permissions：仅添加 Gists，选择 Read and write。GitHub 自动附带的只读权限保持默认。</li>
+              <li>确认权限后点击 Generate token，复制生成的 Token，返回本页粘贴。</li>
+            </ol>
+            <div class="token-guide-permission"><span>Gists</span><strong>Read and write</strong></div>
+            <p>不需要 Contents、Actions、组织或其他账号权限。Gists 权限可访问该账号的 Gist，并非只限于 S2U 的单个 Gist。</p>
+            <div class="token-guide-divider"></div>
+            <strong>兼容：Tokens (classic)</strong>
+            <p>仅勾选 <code>gist</code>，其余 scope 留空（包括 repo、workflow、user、admin:org）。</p>
+            <a href="https://github.com/settings/tokens/new?description=S2U%20Gist%20Sync&amp;scopes=gist" target="_blank" rel="noopener noreferrer">创建 Classic Token ↗</a>
+            <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener noreferrer">管理或撤销细粒度 Token ↗</a>
+            <p>创建后请立即复制，不要分享 Token、截图或提交到代码仓库。读取成功不代表具备写权限。</p>
+          </div>
+        </details>
+        <p class="cloud-note">Secret Gist 知道地址的人仍可能读取，请勿同步敏感链接。</p>
         <label for="gist-mode">连接方式</label>
         <select id="gist-mode" v-model="mode" :disabled="finding || busy"><option value="existing">查找已有 Gist</option><option value="manual">输入 Gist ID / 地址</option><option value="new">创建新的 Gist</option></select>
         <template v-if="mode === 'existing'">
@@ -121,6 +146,17 @@ async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { 
 .cloud-details { display:grid; grid-template-columns:auto minmax(0,1fr); gap:9px 14px; margin:0; padding:14px; background:var(--surface-soft); border-radius:12px; }.cloud-details dt { color:var(--card-text-muted); }.cloud-details dd { margin:0; overflow-wrap:anywhere; text-align:right; }
 .cloud-actions { display:flex; flex-wrap:wrap; gap:6px; }.cloud-dialog .cloud-primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent,#fff); min-height:42px; }.cloud-dialog .cloud-primary:hover:not(:disabled) { background:var(--accent-hover); }
 .cloud-divider { height:1px; background:var(--hairline); }.cloud-backup { padding:10px; background:var(--surface-soft); border-radius:10px; }
-.cloud-dialog :is(button,input,select,a):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.token-guide { border:1px solid var(--hairline); border-radius:12px; background:var(--surface-soft); min-width:0; }
+.token-guide summary { cursor:pointer; padding:11px 12px; color:var(--card-text-soft); font-size:12px; font-weight:650; }
+.token-guide[open] summary { border-bottom:1px solid var(--hairline); }
+.token-guide-body { display:grid; gap:9px; padding:12px; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.token-guide-body ol { margin:0; padding-inline-start:20px; display:grid; gap:5px; }
+.token-guide-body p { margin:0; color:var(--card-text-muted); }
+.token-guide-body a { width:fit-content; color:var(--accent); font-weight:600; text-decoration:none; }
+.token-guide-body a:hover { text-decoration:underline; }
+.token-guide-permission { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; background:var(--surface-elevated); border:1px solid var(--hairline); border-radius:8px; padding:8px 10px; }
+.token-guide-permission strong { color:var(--accent); }
+.token-guide-divider { height:1px; background:var(--hairline); margin-block:2px; }
+.cloud-dialog :is(button,input,select,a,summary):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 @media(max-width:420px) { .cloud-dialog { padding:16px; } .cloud-actions button { font-size:12px; } }
 </style>

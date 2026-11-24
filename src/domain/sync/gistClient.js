@@ -18,7 +18,10 @@ export function createGistClient() {
       })
       if (!response.ok) {
         // 不回显不可信的服务端消息或认证信息。
-        const error = new Error('GitHub API 请求失败（' + response.status + '）')
+        const hint = response.status === 401 ? '：Token 无效或已过期，请重新创建或更换' :
+          response.status === 403 ? '：请检查 Gists 读写权限（Classic 仅需 gist），或稍后重试 API 限流；无需扩大仓库权限' :
+          response.status === 404 && path.startsWith('/gists/') ? '：请检查 Gist ID、归属及 Token 的 Gist 权限' : ''
+        const error = new Error('GitHub API 请求失败（' + response.status + '）' + hint)
         error.status = response.status
         throw error
       }

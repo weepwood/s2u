@@ -94,7 +94,7 @@ https://s2u2.netlify.app/#target=weixin%3A%2F%2Fopen
 ### GitHub Gist 同步
 
 1. 打开“历史记录”并展开“云端同步”。
-2. 创建具备 Gist 读写权限的 GitHub Token。
+2. [创建最小权限 Fine-grained Token](https://github.com/settings/personal-access-tokens/new?name=S2U%20Gist%20Sync&description=S2U%20workspace%20sync&expires_in=90&gists=write)：选择自己的账号、建议 90 天有效期、Repository access 仅 Public repositories；Account permissions 只设置 Gists → Read and write，不添加其他权限。GitHub 自动附带的只读权限保持默认。若使用 [Classic Token](https://github.com/settings/tokens/new?description=S2U%20Gist%20Sync&scopes=gist)，只勾选 `gist`，不勾选 `repo`、`workflow`、`user` 或组织权限。生成后复制 Token，切勿公开。
 3. 输入 Token 并连接。
 4. 应用会创建或使用私密 Gist `scheme-history.json`。
 
@@ -214,3 +214,5 @@ CI 通过 `node scripts/performance-report.mjs` 展示构建后入口 JavaScript
 连接关闭不删除远端文件；自动同步可暂停，保留待同步标记，网络恢复/焦点返回时检查。无变化不 PATCH，写前备份并检查远端内容，写后重新读取确认。GitHub Gist PATCH 没有原子 CAS，仍可能出现极短并发窗口；Secret Gist 并非真正私密存储，也未提供端到端加密。备份保留最近三份，可导出历史/完整快照，恢复历史先校验和确认后合并至本机；旧删除标记仍有效，不提供强制覆盖恢复。账号切换取消旧请求，浏览器工作区数据不按账号分区。
 
 只读「测试连接」仅验证身份、归属和历史结构，不承诺 Token 有写权限。每次拉取失败会清除已观察远端内容；未成功拉取禁止推送。网络恢复时仅自动重试暂时性网络/5xx 错误，不重试权限与冲突错误。
+
+Token 创建入口使用 GitHub 官方支持的预填参数（`gists=write`），仍由用户确认权限并生成。权限授予的是账户的 Gist，而非单独某个 Gist；不要扩大到仓库或其他账户权限。401/403/404 提供权限或凭据排查提示，读取通过并不证明写入权限。参考：[GitHub Token 官方说明](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) 与 [Gist API](https://docs.github.com/en/rest/gists/gists)。
