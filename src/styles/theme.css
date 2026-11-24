@@ -49,6 +49,9 @@
     radial-gradient(ellipse at 84% 80%, rgba(98, 186, 211, .10), transparent 32%),
     linear-gradient(155deg, #f8faff, var(--page-bg) 62%, #edf2fa);
   --radius-control: 12px;
+  --radius-option: 8px;
+  --focus-outline: 2px solid var(--accent);
+  --shadow-menu: 0 8px 24px rgba(25,40,72,.16);
   --control-height: 54px;
   --toolbar-actions-width: 210px;
   --control-icon-size: 18px;
@@ -110,6 +113,7 @@
   --shadow-sm: 0 4px 16px rgba(0, 0, 0, .13);
   --shadow-indicator: 0 3px 12px rgba(0, 0, 0, .22);
   --shadow-popover: 0 24px 65px rgba(0, 0, 0, .40);
+  --shadow-menu: 0 8px 24px rgba(0,0,0,.32);
   --ambient-opacity: .16;
   --page-gradient:
     radial-gradient(ellipse at 16% 9%, rgba(83, 108, 207, .19), transparent 35%),

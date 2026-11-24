@@ -38,7 +38,7 @@ function setupAutoHeight(card) {
 
   // 卡片从初始化开始就保持明确高度。这样新面板挂载时不会先以 auto 高度
   // 完整展开，再被脚本锁回旧高度。
-  card.style.height = `${card.offsetHeight}px`
+  if (!reducedMotion.matches) card.style.height = `${card.offsetHeight}px`
   card.dataset.autoHeightTransition = 'true'
 
   const getRenderedPanel = () =>
@@ -92,6 +92,13 @@ function setupAutoHeight(card) {
       return
     }
 
+    // 减少动态效果时使用自然高度，列表切换不等待下一帧解除裁切。
+    if (reducedMotion.matches) {
+      cancelActiveAnimation(readCurrentHeight())
+      card.style.removeProperty('height')
+      finishAnimation()
+      return
+    }
     const targetHeight = measurePanelHeight(panel)
     // 文案、toast 或观察器反复通知但高度不变时，不重启动画。
     if (activeAnimation && !reducedMotion.matches && Math.abs(targetHeight - activeTarget) < 1) return
@@ -143,7 +150,7 @@ function setupAutoHeight(card) {
 
     // 在下一帧统一读取新面板的完整布局高度。此时外层卡片仍保持旧高度，
     // 因而不会把新内容的自然高度提前暴露到页面中。
-    card.style.overflow = 'hidden'
+    if (!reducedMotion.matches) card.style.overflow = 'hidden'
     animationFrame = window.requestAnimationFrame(animateToPanel)
   }
 

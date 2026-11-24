@@ -37,10 +37,16 @@
 
 /* 基础组件复用原版主题；原生语义保留。 */
 .app-shell .ui-button { box-sizing:border-box; min-height:var(--dialog-action-height); padding:7px 12px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); font:inherit; font-size:13px; cursor:pointer; transition:background var(--motion-fast) ease,border-color var(--motion-fast) ease,color var(--motion-fast) ease; }
+.app-shell .ui-button { display:inline-flex; align-items:center; justify-content:center; gap:7px; font-weight:600; white-space:nowrap; }
+.app-shell .ui-button:hover:not(:disabled) { border-color:var(--hairline-strong); background:var(--surface-hover); }
+.app-shell .ui-button[aria-busy=true]::before { content:''; width:12px; height:12px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:s2u-button-spin .8s linear infinite; }
+@keyframes s2u-button-spin { to { transform:rotate(360deg); } }
 .app-shell .ui-button--primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
-.app-shell .ui-button--primary:hover:not(:disabled) { background:var(--accent-hover); }
+.app-shell .ui-button--primary:hover:not(:disabled) { background:var(--accent-hover); border-color:var(--accent-hover); }
 .app-shell .ui-button:disabled { opacity:.5; cursor:not-allowed; }
 .app-shell .ui-input { min-width:0; width:100%; box-sizing:border-box; min-height:var(--dialog-field-height); border-radius:var(--radius-control); border:1px solid var(--hairline-strong); padding:0 12px; background:var(--surface-elevated); color:var(--card-text); font:inherit; }
+.app-shell .ui-input:disabled { opacity:.55; cursor:not-allowed; }
+.app-shell .ui-input::placeholder { color:var(--card-text-muted); }
 .app-shell .ui-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 .app-shell .ui-switch { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:36px; cursor:pointer; }
 .app-shell .ui-switch-control { position:relative; display:inline-flex; width:38px; height:22px; flex:none; }
@@ -60,14 +66,19 @@
 /* 共享自定义下拉框；浮层传送到当前弹窗或应用外壳，避免面板裁切。 */
 .app-shell .ui-select { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; min-height:var(--dialog-field-height); border:1px solid var(--hairline-strong); border-radius:var(--radius-control); padding:0 12px; background:var(--surface-elevated); color:var(--card-text); font:inherit; cursor:pointer; }
 .app-shell .ui-select--compact { min-height:34px; }
+.app-shell .ui-select:hover:not(:disabled) { border-color:var(--hairline-strong); background:var(--surface-hover); }
+.app-shell .ui-select[aria-expanded=true] svg { transform:rotate(180deg); }
 .app-shell .ui-select span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-shell .ui-select svg { width:16px; height:16px; flex:none; color:var(--card-text-muted); }
 .app-shell .ui-select[aria-expanded=true],.app-shell .ui-select:focus-visible { border-color:var(--accent); outline:2px solid var(--accent-soft); }
 .app-shell .ui-select:disabled { opacity:.5; cursor:not-allowed; }
-.app-shell .ui-select-menu { position:fixed; z-index:100; box-sizing:border-box; overflow:auto; overscroll-behavior:contain; padding:4px; border:1px solid var(--hairline-strong); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); box-shadow:var(--shadow-popover); font-size:13px; }
-.app-shell .ui-select-menu [role=option] { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:36px; padding:7px 10px; border-radius:7px; box-sizing:border-box; overflow-wrap:anywhere; cursor:pointer; }
+.app-shell .ui-select-menu { position:fixed; z-index:100; box-sizing:border-box; overflow:auto; overscroll-behavior:contain; padding:4px; border:1px solid var(--hairline-strong); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); box-shadow:var(--shadow-menu); font-size:13px; }
+.app-shell .ui-select-menu [role=option] { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:36px; padding:7px 10px; border-radius:var(--radius-option); box-sizing:border-box; overflow-wrap:anywhere; cursor:pointer; }
 .app-shell .ui-select-menu .is-active { background:var(--surface-hover); }
-.app-shell .ui-select-menu [aria-selected=true] { color:var(--accent); }
+.app-shell .ui-select-menu [aria-selected=true] { color:var(--accent); font-weight:650; }
+.app-shell .ui-select-menu [aria-selected=true]:not(.is-active) { background:var(--accent-soft); }
+.app-shell :is(.ui-button,.ui-select,.action-btn):focus-visible { outline:var(--focus-outline); outline-offset:2px; }
+@media(prefers-reduced-motion:reduce) { .app-shell .ui-button[aria-busy=true]::before { animation:none; } }
 @media(pointer:coarse) { .app-shell .ui-select,.app-shell .ui-select-menu [role=option] { min-height:44px; } }
 .app-shell .ui-search-field .control-field__clear:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
 

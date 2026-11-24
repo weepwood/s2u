@@ -413,21 +413,22 @@ button { font: inherit; cursor: pointer; }
 .visually-hidden-import { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .common-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .common-card { position: relative; padding: 17px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-soft); min-width: 0; display: flex; flex-direction: column; gap: 13px; transition: border-color .2s, transform .2s; }
-.common-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+@media(hover:hover) and (pointer:fine) { .common-card:hover { border-color:var(--hairline-strong); transform:translateY(-1px); } }
 .card-main { display: flex; align-items: center; min-width: 0; gap: 11px; }
 .app-icon { width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; overflow: hidden; border-radius: 13px; background: var(--surface-elevated); }
 .app-icon img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .fallback-icon { color: #fff; background: linear-gradient(135deg, #298ae5, #165cad); font-size: 16px; font-weight: 750; }
 .card-actions { display: flex; gap: 3px; flex-shrink: 0; align-items: center; justify-content: flex-end; }
-.card-actions button { width: 27px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
-.card-actions button:hover { background: var(--surface-elevated); color: var(--card-text); }
+.card-actions button { width: 32px; height: 32px; padding:0; display: grid; place-items: center; border: 0; border-radius: 8px; color: var(--card-text-muted); background: transparent; }
+.card-actions button:hover { background:var(--surface-hover); color:var(--card-text); }
+.card-actions button:last-child:hover { color:var(--danger); }
 .card-actions button:disabled { opacity: .3; cursor: not-allowed; }
 .card-actions svg { width: 16px; height: 16px; }
  .card-meta { display: grid; gap: 5px; min-width: 0; flex: 1; }
-.card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta strong { font-size: 15px; font-weight: 650; line-height:1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta > span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }
-.card-buttons button { flex: 1; padding: 0 12px; white-space:nowrap; }
+.card-buttons button { flex: 1; padding: 0 12px; white-space:nowrap; line-height:1.25; }
 .primary { background: var(--accent) !important; color: var(--on-accent) !important; border-color: var(--accent) !important; }
 .primary:hover { filter: brightness(.94); }
 .editor-dialog {
@@ -527,14 +528,15 @@ button { font: inherit; cursor: pointer; }
 .common-list-view { grid-template-columns:minmax(0,1fr); }
 .common-list-view .common-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 12px; }
 .common-list-view .card-buttons { grid-column:2; margin-top:0; }
-.common-list-view .card-buttons button { flex:none; }
+.common-list-view .card-buttons button { flex:none; min-width:64px; }
 .common-list-view .card-main { grid-column:1; grid-row:1 / span 2; }
 .common-tag-manager { padding:9px 12px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-soft); }
 .common-tag-manager summary { font-size:12px; color:var(--card-text-muted); cursor:pointer; }
 .common-tag-fields { display:grid; gap:9px; margin-top:10px; font-size:12px; }
 .common-tag-actions { display:flex; flex-wrap:wrap; gap:8px; }
-@media(max-width:620px) { .common-list-view .common-card { display:flex; align-items:stretch; } .common-list-view .card-buttons button { flex:1; } }
+@media(max-width:620px) { .common-list-view .common-card { display:flex; align-items:stretch; } .common-list-view .card-buttons button { flex:1; min-width:0; } .common-card { padding:14px; gap:10px; } .card-actions { gap:5px; } }
 @media(min-width:621px) { .common-list-view .common-card .card-actions { position:static; grid-column:2; grid-row:1; opacity:1; transform:none; pointer-events:auto; padding:0; border:0; box-shadow:none; background:transparent; } .common-list-view .card-buttons { grid-row:2; } }
+@media(min-width:761px) { .common-list-view .common-card { grid-template-columns:minmax(0,1fr) auto auto; gap:12px; min-height:64px; box-sizing:border-box; } .common-list-view .card-main { grid-row:1; } .common-list-view .common-card .card-actions { grid-column:2; grid-row:1; } .common-list-view .card-buttons { grid-column:3; grid-row:1; } }
 </style>
 
 <style scoped>
