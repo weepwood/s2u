@@ -51,20 +51,36 @@
       </div>
     </div>
 
-    <div v-if="filteredHistory.length === 0" class="empty-state">
+    <div v-if="history.length" class="history-filters">
+      <div class="history-filter-fields">
+        <select v-model="protocol" aria-label="按协议筛选">
+          <option value="">全部协议</option>
+          <option v-for="value in protocols" :key="value" :value="value">{{ value.slice(0,-1) }}</option>
+        </select>
+        <select v-model="order" aria-label="历史排序">
+          <option value="recent">最近使用</option>
+          <option value="count">使用频率</option>
+        </select>
+      </div>
+      <span aria-live="polite">{{ visibleHistory.length }} / {{ history.length }} 条</span>
+    </div>
+
+    <div v-if="visibleHistory.length === 0" class="empty-state">
       <span class="empty-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none">
           <path d="M4 7.5h16M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4Z" stroke="currentColor" stroke-width="1.6"/>
           <path d="M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
       </span>
-      <h3>{{ searchQuery ? '没有找到匹配记录' : '还没有创建过链接' }}</h3>
-      <p v-if="!searchQuery">复制链接后自动保存。</p>
-      <button v-if="searchQuery" type="button" @click="$emit('update:searchQuery', '')">清除搜索</button>
+      <h3>{{ history.length ? '没有找到匹配记录' : '还没有创建过链接' }}</h3>
+      <p v-if="!history.length">复制链接后自动保存。</p>
+      <button v-if="history.length || searchQuery" type="button" @click="clearFilters">清除搜索</button>
     </div>
 
     <TransitionGroup v-else tag="div" name="workspace-list" class="history-list">
-      <article v-for="item in filteredHistory" :key="item.scheme" class="history-item">
+      <template v-for="group in groups" :key="group.key">
+      <h3 v-if="order === 'recent'" class="history-day-heading">{{ group.label }}</h3>
+      <article v-for="item in group.items" :key="item.scheme" class="history-item">
         <button
           type="button"
           class="history-main"
@@ -91,6 +107,12 @@
           </span>
         </button>
 
+        <div class="history-actions">
+        <button type="button" class="history-bookmark" :aria-label="isBookmarked(item.scheme) ? '已收藏 ' + item.scheme : '收藏 ' + item.scheme"
+          :title="isBookmarked(item.scheme) ? '已在常用链接中' : '添加到常用链接'"
+          :disabled="isBookmarked(item.scheme)" @click="beginBookmark(item.scheme)">
+          <svg viewBox="0 0 24 24" :fill="isBookmarked(item.scheme) ? 'currentColor' : 'none'" aria-hidden="true"><path d="M12 3.5 14.7 9l6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
         <button
           type="button"
           class="delete-btn"
@@ -102,21 +124,67 @@
             <path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5M14 11v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
+        </div>
       </article>
+      </template>
     </TransitionGroup>
+    <BaseDialog v-if="bookmarkTarget" ref="bookmarkDialog" class="editor-dialog history-bookmark-dialog" aria-labelledby="history-bookmark-title" @close="bookmarkTarget = ''">
+      <form class="history-bookmark-form" @submit.prevent="submitBookmark">
+        <h3 id="history-bookmark-title">添加到常用链接</h3>
+        <label for="history-bookmark-name">应用名称</label>
+        <BaseInput id="history-bookmark-name" v-model="bookmarkName" maxlength="36" required />
+        <code>{{ bookmarkTarget }}</code>
+        <p v-if="bookmarkError" role="alert" class="bookmark-error">{{ bookmarkError }}</p>
+        <div class="history-bookmark-actions">
+          <BaseButton @click="bookmarkDialog?.close()">取消</BaseButton>
+          <BaseButton type="submit" variant="primary">保存收藏</BaseButton>
+        </div>
+      </form>
+    </BaseDialog>
   </section>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { normalizeTarget } from '../domain/linkCodec.js'
+import { historyProtocol, selectHistoryView, groupHistoryByDay, historyBookmarkName } from '../domain/historyView.js'
+import BaseDialog from './ui/BaseDialog.vue'
+import BaseButton from './ui/BaseButton.vue'
+import BaseInput from './ui/BaseInput.vue'
 
-defineProps({
+const props=defineProps({
   history: { type: Array, default: () => [] },
   searchQuery: { type: String, default: '' },
   filteredHistory: { type: Array, default: () => [] },
+  commonLinks: {type:Array,default:()=>[]},
+  saveBookmark: {type:Function,required:true},
 })
 
-defineEmits(['update:searchQuery', 'select', 'delete', 'export', 'importFile'])
+const emit=defineEmits(['update:searchQuery', 'select', 'delete', 'export', 'importFile'])
+const protocol=ref(''),order=ref('recent')
+const protocols=computed(()=>[...new Set(props.history.map(historyProtocol))].sort())
+watch(protocols,values=>{if(protocol.value&&!values.includes(protocol.value))protocol.value=''})
+const visibleHistory=computed(()=>selectHistoryView(props.history,{query:props.searchQuery,protocol:protocol.value,order:order.value}))
+const groups=computed(()=>order.value==='recent'?groupHistoryByDay(visibleHistory.value):[{key:'all',items:visibleHistory.value}])
+function clearFilters(){protocol.value='';emit('update:searchQuery','')}
+const bookmarkDialog=ref(null),bookmarkTarget=ref(''),bookmarkName=ref(''),bookmarkError=ref('')
+const targets=computed(()=>new Set(props.commonLinks.map(item=>item.target)))
+function isBookmarked(target){const result=normalizeTarget(target);return result.ok&&targets.value.has(result.target)}
+function beginBookmark(target) {
+  try{
+    const result=normalizeTarget(target)
+    if(!result.ok||isBookmarked(target))return
+    bookmarkName.value=historyBookmarkName(result.target)
+    bookmarkError.value=''
+    bookmarkTarget.value=result.target
+  }catch(error){bookmarkError.value=error.message}
+}
+function submitBookmark(){
+  try{
+    if(props.saveBookmark({name:bookmarkName.value,target:bookmarkTarget.value}))bookmarkDialog.value?.close()
+    else bookmarkError.value='无法保存收藏，请检查本机存储状态'
+  }catch(error){bookmarkError.value=error.message}
+}
 const importInput = ref(null)
 function triggerImport() { importInput.value?.click() }
 
@@ -370,4 +438,22 @@ function formatDate(timestamp) {
     opacity: 1;
   }
 }
+.history-filters { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--card-text-muted); }
+.history-filter-fields { display:flex; gap:8px; min-width:0; }
+.history-filter-fields select { min-width:0; max-width:150px; min-height:34px; padding:0 8px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); font:inherit; }
+.history-day-heading { font-size:12px; color:var(--card-text-muted); font-weight:650; margin:8px 4px 2px; }
+.history-actions { display:flex; gap:2px; align-items:center; }
+.history-bookmark { display:grid; place-items:center; width:30px; height:36px; padding:0; border:0; border-radius:10px; background:transparent; color:var(--card-text-muted); cursor:pointer; }
+.history-bookmark svg { width:17px; height:17px; }
+.history-bookmark:hover:not(:disabled),.history-bookmark:focus-visible { color:var(--accent); background:var(--accent-soft); }
+.history-bookmark:disabled { color:var(--accent); cursor:default; }
+.history-item:focus-within .delete-btn { opacity:1; }
+.history-bookmark-dialog { width:min(420px,calc(100vw - 24px)); max-width:none; max-height:calc(100dvh - 32px); padding:0; }
+.history-bookmark-form { display:grid; gap:12px; padding:22px; min-width:0; }
+.history-bookmark-form h3 { margin:0; font-size:18px; }
+.history-bookmark-form label { font-size:12px; }
+.history-bookmark-form code { font-size:12px; color:var(--card-text-muted); overflow-wrap:anywhere; }
+.history-bookmark-actions { display:flex; justify-content:flex-end; gap:8px; }
+.bookmark-error { margin:0; color:var(--danger); font-size:12px; }
+@media(max-width:640px){.history-actions{gap:0}.history-bookmark{width:28px}.history-filter-fields select{max-width:130px}.history-bookmark-form{padding:16px}}
 </style>

@@ -4,6 +4,8 @@
       :history="history"
       :search-query="searchQuery"
       :filtered-history="filteredHistory"
+      :common-links="commonLinks"
+      :save-bookmark="saveBookmark"
       @update:search-query="$emit('update:searchQuery', $event)"
       @select="$emit('select', $event)"
       @delete="$emit('delete', $event)"
@@ -23,7 +25,7 @@ import HistoryPanel from './HistoryPanel.vue'
 import HistoryFooter from './HistoryFooter.vue'
 
 defineProps([
-  'history', 'searchQuery', 'filteredHistory', 'showSettings',
+  'history', 'searchQuery', 'filteredHistory', 'showSettings', 'commonLinks', 'saveBookmark',
 ])
 defineEmits([
   'update:searchQuery', 'select', 'delete', 'clear', 'export',
