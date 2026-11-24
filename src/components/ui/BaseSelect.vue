@@ -21,6 +21,7 @@ const props=defineProps({modelValue:{type:[String,Number],default:''},options:{t
 const emit=defineEmits(['update:modelValue','change'])
 const trigger=ref(null),menu=ref(null),host=ref(null),open=ref(false),active=ref(0),position=ref({})
 const listId=useId()+'-options'
+let typed='',lastTyped=0
 function place(){
   const r=trigger.value?.getBoundingClientRect()
   if(!r)return
@@ -46,6 +47,7 @@ function show(){
   trigger.value.focus({preventScroll:true})
   host.value=trigger.value.closest('dialog[open]')||trigger.value.closest('.app-shell')
   if(!host.value)return
+  typed=''
   active.value=Math.max(0,props.options.findIndex(o=>o.value===props.modelValue))
   if(!place())return
   open.value=true
@@ -74,13 +76,17 @@ function keys(e){
   if(e.key==='Escape'&&open.value){e.preventDefault();e.stopPropagation();close();return}
   if(!['ArrowDown','ArrowUp','Home','End','Enter',' '].includes(e.key)){
     if(open.value&&e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
-      const i=props.options.findIndex(o=>String(o.label).toLowerCase().startsWith(e.key.toLowerCase()))
+      const now=Date.now(),char=e.key.toLowerCase()
+      typed=now-lastTyped>600?char:typed+char
+      lastTyped=now
+      let i=props.options.findIndex(o=>String(o.label).toLowerCase().startsWith(typed))
+      if(i<0){typed=char;i=props.options.findIndex(o=>String(o.label).toLowerCase().startsWith(char))}
       if(i>=0){active.value=i;reveal();e.preventDefault()}
     }
     return
   }
   e.preventDefault();e.stopPropagation()
-  if(!open.value){show();return}
+  if(!open.value){show();if(open.value&&e.key==='Home'){active.value=0;nextTick(reveal)}else if(open.value&&e.key==='End'){active.value=props.options.length-1;nextTick(reveal)}return}
   if(e.key==='Enter'||e.key===' '){choose(active.value);return}
   active.value=e.key==='Home'?0:e.key==='End'?props.options.length-1:Math.max(0,Math.min(props.options.length-1,active.value+(e.key==='ArrowDown'?1:-1)))
   reveal()

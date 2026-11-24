@@ -58,8 +58,10 @@
 .app-shell .common-panel .app-icon { box-shadow:var(--surface-rim); border:1px solid var(--hairline); box-sizing:border-box; }
 .app-shell .common-panel .card-tags span { border:1px solid var(--hairline); max-width:100%; overflow-wrap:anywhere; }
 .app-shell .common-panel .common-list-view .common-card { padding:12px; }
+.app-shell .common-panel .common-result-count { font-variant-numeric:tabular-nums; }
+.app-shell .history-panel .history-content > span { font-size:11px; font-variant-numeric:tabular-nums; }
 .app-shell .common-panel .common-list-view .app-icon { width:40px; height:40px; }
-.app-shell .history-panel .history-day-heading { display:flex; align-items:center; gap:10px; }
+.app-shell .history-panel .history-day-heading { display:flex; align-items:center; gap:10px; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
 .app-shell .history-panel .history-day-heading::after { content:''; height:1px; flex:1; background:var(--hairline); }
 .app-shell .history-panel .history-page-controls { padding-top:10px; border-top:1px solid var(--hairline); }
 .app-shell .history-panel .history-item:focus-within { background:var(--surface-hover); }

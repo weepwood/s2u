@@ -23,7 +23,10 @@ function backdrop(event) {
 function close() { if (element.value?.open) element.value.close() }
 function restoreFocus() {
   const target = trigger
-  nextTick(() => { if (target?.isConnected && !document.querySelector('dialog[open]')) target.focus({preventScroll:true}) })
+  nextTick(() => {
+    const remaining=[...document.querySelectorAll('dialog[open]')]
+    if(target?.isConnected&&(!remaining.length||remaining.at(-1).contains(target)))target.focus({preventScroll:true})
+  })
 }
 function closed() { if (closing) return; closing = true; emit('close'); restoreFocus() }
 function showModal() {

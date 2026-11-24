@@ -46,8 +46,8 @@
 .app-shell .action-btn {
   box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 36px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: var(--radius-control);
-  background: var(--surface-elevated); color: var(--card-text-soft); font: inherit; font-size: 12px;
-  font-weight: 650; white-space: nowrap; cursor: pointer;
+  background: var(--surface-elevated); color: var(--card-text-soft); font: inherit; font-size: 13px;
+  font-weight: 600; white-space: nowrap; cursor: pointer;
   transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 .app-shell .action-btn svg { width: 16px; height: 16px; flex: none; }
@@ -57,6 +57,7 @@
 .app-shell .action-btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
 .app-shell .action-btn--primary.copied { background: var(--success); border-color: var(--success); color: var(--on-status); }
 .app-shell .action-btn--primary.failed { background: var(--danger); border-color: var(--danger); color: var(--on-status); }
+.app-shell .action-btn:disabled { opacity:.55; cursor:not-allowed; }
 .app-shell .action-btn--secondary { background: var(--page-bg-soft); }
 .app-shell .control-visually-hidden {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;

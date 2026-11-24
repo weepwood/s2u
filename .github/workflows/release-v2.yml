@@ -1,4 +1,4 @@
-name: Release v2.0.0
+name: Release v2.1.0
 on:
   push:
     branches: [master]
@@ -27,7 +27,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          node -e 'const p=require("./package.json"),l=require("./package-lock.json");if(p.version!=="2.0.0"||l.version!==p.version||l.packages[""].version!==p.version)process.exit(1)'
+          node -e 'const p=require("./package.json"),l=require("./package-lock.json");if(p.version!=="2.1.0"||l.version!==p.version||l.packages[""].version!==p.version)process.exit(1)'
           for workflow in ci.yml pages.yml cross-browser.yml browser-compat.yml; do
             for attempt in $(seq 1 80); do
               run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$GITHUB_SHA&branch=master&event=push&per_page=10" --jq '.workflow_runs[0] // empty')
@@ -84,15 +84,15 @@ jobs:
         run: |
           set -euo pipefail
           test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/master --jq .object.sha)" = "$GITHUB_SHA"
-          if gh release view v2.0.0 >/dev/null 2>&1; then
+          if gh release view v2.1.0 >/dev/null 2>&1; then
             echo "Release already exists; no changes made"
-            test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.0.0 --jq .object.sha)" = "$GITHUB_SHA"
+            test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.1.0 --jq .object.sha)" = "$GITHUB_SHA"
             exit 0
           fi
-          if gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.0.0 >/dev/null 2>&1; then
-            test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.0.0 --jq .object.sha)" = "$GITHUB_SHA"
-            gh release create v2.0.0 --verify-tag --title "S2U v2.0.0" --notes-file CHANGELOG.md
+          if gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.1.0 >/dev/null 2>&1; then
+            test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.1.0 --jq .object.sha)" = "$GITHUB_SHA"
+            gh release create v2.1.0 --verify-tag --title "S2U v2.1.0" --notes-file CHANGELOG.md
           else
-            gh release create v2.0.0 --target "$GITHUB_SHA" --title "S2U v2.0.0" --notes-file CHANGELOG.md
+            gh release create v2.1.0 --target "$GITHUB_SHA" --title "S2U v2.1.0" --notes-file CHANGELOG.md
           fi
-          gh release view v2.0.0 --json url,tagName,isDraft,isPrerelease
+          gh release view v2.1.0 --json url,tagName,isDraft,isPrerelease
