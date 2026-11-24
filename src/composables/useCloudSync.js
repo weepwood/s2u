@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { assertWorkspaceIdentity } from '../domain/storage/workspaceScope.js'
 import { createGistClient, parseGistId, readFile, encodeFile, HISTORY_FILE, COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
 import { samePayload, mergeWorkspace, describeWorkspaceConflict, resolveWorkspaceConflict } from '../domain/sync/syncEngine.js'
 import { listBackups, saveBackup } from '../domain/sync/backupManager.js'
@@ -13,7 +14,8 @@ const BASE_PREFIX = 's2u_gist_baseline_'
 const OWNER_KEY = 's2u_gist_owner'
 const defaults = { auto: true, delay: 3000, common: false, icons: false, theme: false }
 
-export function useCloudSync() {
+export function useCloudSync(workspace = {storage:globalThis.localStorage,session:globalThis.sessionStorage,owner:'',unavailable:false}) {
+  const { storage, session } = workspace
   const cloudToken = ref(''), cloudGistId = ref(''), account = ref('')
   const syncStatus = ref(''), syncError = ref(''), lastSyncTime = ref(null)
   const preferences = ref({ ...defaults }), pending = ref(false)
@@ -50,24 +52,25 @@ export function useCloudSync() {
   }
   function loadConfig() {
     try {
-      const legacy = JSON.parse(localStorage.getItem(LEGACY_CONFIG_KEY) || 'null')
-      if (legacy?.token) sessionStorage.setItem(TOKEN_SESSION_KEY, legacy.token)
-      if (legacy?.gistId) localStorage.setItem(GIST_ID_KEY, legacy.gistId)
-      localStorage.removeItem(LEGACY_CONFIG_KEY)
-      cloudToken.value = sessionStorage.getItem(TOKEN_SESSION_KEY) || ''
-      cloudGistId.value = localStorage.getItem(GIST_ID_KEY) || ''
-      account.value = localStorage.getItem(OWNER_KEY) || ''
-      const binding = JSON.parse(sessionStorage.getItem(BINDING_SESSION_KEY) || 'null')
+      const legacy = JSON.parse(storage.getItem(LEGACY_CONFIG_KEY) || 'null')
+      if (legacy?.token) session.setItem(TOKEN_SESSION_KEY, legacy.token)
+      if (legacy?.gistId) storage.setItem(GIST_ID_KEY, legacy.gistId)
+      storage.removeItem(LEGACY_CONFIG_KEY)
+      cloudToken.value = session.getItem(TOKEN_SESSION_KEY) || ''
+      cloudGistId.value = storage.getItem(GIST_ID_KEY) || ''
+      account.value = storage.getItem(OWNER_KEY) || ''
+      if (workspace.unavailable || (workspace.owner && account.value && account.value.toLowerCase() !== workspace.owner)) throw new Error('工作区账号不一致')
+      const binding = JSON.parse(session.getItem(BINDING_SESSION_KEY) || 'null')
       if (cloudToken.value && binding && (binding.id !== cloudGistId.value || binding.account !== account.value)) {
         cloudToken.value = ''
-        sessionStorage.removeItem(TOKEN_SESSION_KEY)
-        sessionStorage.removeItem(BINDING_SESSION_KEY)
+        session.removeItem(TOKEN_SESSION_KEY)
+        session.removeItem(BINDING_SESSION_KEY)
         syncError.value = '另一标签页已更换 Gist 连接，请重新连接'
         syncStatus.value = 'error'
       }
-      const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}')
+      const p = JSON.parse(storage.getItem(PREF_KEY) || '{}')
       preferences.value = { auto: p.auto !== false, delay: [3000,5000,10000].includes(p.delay) ? p.delay : 3000, common: p.common === true, icons: p.icons === true, theme: p.theme === true }
-      pending.value = localStorage.getItem(PENDING_PREFIX + connectionKey()) === '1'
+      pending.value = storage.getItem(PENDING_PREFIX + connectionKey()) === '1'
     } catch { cloudToken.value = ''; syncError.value = '同步配置无法读取，请重新连接' }
     if (cloudToken.value && cloudGistId.value) { syncStatus.value = 'ready'; return true }
     return false
@@ -76,7 +79,7 @@ export function useCloudSync() {
     const p = { ...preferences.value, ...next }
     if (!p.common) p.icons = false
     if (![3000,5000,10000].includes(p.delay)) return
-    localStorage.setItem(PREF_KEY, JSON.stringify(p))
+    storage.setItem(PREF_KEY, JSON.stringify(p))
     preferences.value = p
     if (next.common === true || next.theme === true || next.icons === true) markPending()
     if (!p.auto && syncTimer) { clearTimeout(syncTimer); syncTimer = null }
@@ -85,21 +88,21 @@ export function useCloudSync() {
     if (value) pendingRevision++
     pending.value = value
     if (connectionKey()) {
-      try { if (value) localStorage.setItem(PENDING_PREFIX + connectionKey(), '1')
-        else localStorage.removeItem(PENDING_PREFIX + connectionKey()) } catch { /* 本地业务数据仍保留 */ }
+      try { if (value) storage.setItem(PENDING_PREFIX + connectionKey(), '1')
+        else storage.removeItem(PENDING_PREFIX + connectionKey()) } catch { /* 本地业务数据仍保留 */ }
     }
   }
   function saveConfig() {
-    sessionStorage.setItem(TOKEN_SESSION_KEY, cloudToken.value)
-    localStorage.setItem(GIST_ID_KEY, cloudGistId.value)
-    localStorage.setItem(OWNER_KEY, account.value)
-    sessionStorage.setItem(BINDING_SESSION_KEY, JSON.stringify({ id: cloudGistId.value, account: account.value }))
+    session.setItem(TOKEN_SESSION_KEY, cloudToken.value)
+    storage.setItem(GIST_ID_KEY, cloudGistId.value)
+    storage.setItem(OWNER_KEY, account.value)
+    session.setItem(BINDING_SESSION_KEY, JSON.stringify({ id: cloudGistId.value, account: account.value }))
   }
   function assertBinding(ctx) {
     // 旧版本未写绑定时仍可连接；新版本绑定后禁止跟随其他标签页的连接变化。
-    const binding = JSON.parse(sessionStorage.getItem(BINDING_SESSION_KEY) || 'null')
+    const binding = JSON.parse(session.getItem(BINDING_SESSION_KEY) || 'null')
     if (binding && (binding.id !== ctx.id || binding.account !== account.value ||
-      localStorage.getItem(GIST_ID_KEY) !== ctx.id || localStorage.getItem(OWNER_KEY) !== binding.account)) {
+      storage.getItem(GIST_ID_KEY) !== ctx.id || storage.getItem(OWNER_KEY) !== binding.account)) {
       throw new Error('另一标签页已更换 Gist 连接，请重新连接')
     }
   }
@@ -107,6 +110,9 @@ export function useCloudSync() {
     candidates.value = []
     const ctx = context()
     const user = await client.request('/user', { token })
+    assertCurrent(ctx)
+    // 发现 Gist 只校验身份，不建立数字 ID 绑定；正式连接时才持久化。
+    if (workspace.owner && user?.login?.toLowerCase() !== workspace.owner) throw new Error('Token 所属账号与当前工作区不一致')
     const result = []
     // 分页上限防止过度消耗 API 配额；也可手动指定 ID。
     for (let page = 1; page <= 10; page++) {
@@ -129,10 +135,11 @@ export function useCloudSync() {
       const user = await client.request('/user', { token })
       if (generation !== attempt) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' })
       if (typeof user?.login !== 'string' || !user.login) throw new Error('GitHub 响应格式错误')
-      const previousOwner = localStorage.getItem(OWNER_KEY)
+      assertWorkspaceIdentity(workspace,user)
+      const previousOwner = storage.getItem(OWNER_KEY)
       // 当前业务数据仍属于一个本机工作区，禁止无迁移地把它上传给另一账号。
       if (previousOwner && previousOwner.toLowerCase() !== user.login.toLowerCase()) {
-        throw new Error('本机工作区已绑定其他 GitHub 账号。请先导出数据，并使用独立浏览器配置连接其他账号')
+        throw new Error('本机工作区已绑定其他 GitHub 账号。请切换到对应的独立工作区后连接')
       }
       let gist
       if (create) {
@@ -156,7 +163,7 @@ export function useCloudSync() {
     cleanup()
     cloudToken.value = ''; syncStatus.value = ''; syncError.value = ''; lastSyncTime.value = null
     lastObservedContent = null; lastObservedFiles = {}; candidates.value = []; revisions.value = []
-    try { sessionStorage.removeItem(TOKEN_SESSION_KEY); sessionStorage.removeItem(BINDING_SESSION_KEY); localStorage.removeItem(LEGACY_CONFIG_KEY) } catch { /* ignore */ }
+    try { session.removeItem(TOKEN_SESSION_KEY); session.removeItem(BINDING_SESSION_KEY); storage.removeItem(LEGACY_CONFIG_KEY) } catch { /* ignore */ }
     // 保留最近 Gist ID、账户与备份，方便重连，不保留 Token。
   }
   async function fetchGist(ctx, suffix = '') {
@@ -172,10 +179,11 @@ export function useCloudSync() {
       assertCurrent(ctx)
       assertBinding(ctx)
       if (user.login !== gist.owner.login) throw new Error('Gist 不属于当前 GitHub 账号')
+      assertWorkspaceIdentity(workspace,user)
       account.value = user.login
       verifiedIdentity = { token: ctx.token, id: ctx.id, account: user.login }
       // 仅迁移实际已保存的会话，不创建额外凭据。
-      if (sessionStorage.getItem(TOKEN_SESSION_KEY) === ctx.token) saveConfig()
+      if (session.getItem(TOKEN_SESSION_KEY) === ctx.token) saveConfig()
     }
     return gist
   }
@@ -202,7 +210,7 @@ export function useCloudSync() {
     const raw = lastObservedFiles[name]
     const remote = raw === null ? null : validate(JSON.parse(raw))
     const key = BASE_PREFIX + connectionKey() + ':' + name
-    const stored = localStorage.getItem(key)
+    const stored = storage.getItem(key)
     const base = stored ? validate(JSON.parse(stored)) : null
     const previous = reviewedConflicts.get(name)
     const unchanged = previous && samePayload(previous.local,local) && samePayload(previous.remote,remote) && samePayload(previous.base,base)
@@ -263,7 +271,7 @@ export function useCloudSync() {
           if (raw === null || !samePayload(JSON.parse(raw), value)) files[name] = { content: encodeFile(value) }
         }
         if (Object.keys(files).length) {
-          saveBackup(ctx.id, freshContent, before)
+          saveBackup(ctx.id, freshContent, before, storage)
           assertCurrent(ctx)
           assertBinding(ctx)
           await client.request('/gists/' + encodeURIComponent(ctx.id), { token: ctx.token, method: 'PATCH', body: { files } })
@@ -279,7 +287,7 @@ export function useCloudSync() {
           }
         } else lastObservedContent = freshContent
         assertCurrent(ctx)
-        for (const [name, value] of Object.entries(extras)) localStorage.setItem(BASE_PREFIX + ctx.id + ':' + name, encodeFile(value))
+        for (const [name, value] of Object.entries(extras)) storage.setItem(BASE_PREFIX + ctx.id + ':' + name, encodeFile(value))
         pushed = true
         if (!pendingPayload && revision === pendingRevision) markPending(false)
         syncStatus.value = 'connected'; syncError.value = ''; lastSyncTime.value = Date.now(); retryCount = 0
@@ -298,14 +306,15 @@ export function useCloudSync() {
     assertCurrent(ctx)
     const gist = await fetchGist(ctx)
     if (gist.owner.login !== user.login) throw new Error('Gist 不属于当前 GitHub 账号')
+    assertWorkspaceIdentity(workspace,user)
     const payload = JSON.parse(readFile(gist, HISTORY_FILE))
     assertCurrent(ctx)
     return payload
   }
-  function refreshBackups() { backups.value = listBackups(connectionKey()).map(({ savedAt, remoteContent, files }) => ({ savedAt, bytes: new TextEncoder().encode(remoteContent + JSON.stringify(files || {})).length })) }
-  function getBackupBundle(index) { const item = listBackups(connectionKey())[index]; return item ? { savedAt: item.savedAt, history: JSON.parse(item.remoteContent), files: item.files || {} } : null }
+  function refreshBackups() { backups.value = listBackups(connectionKey(), storage).map(({ savedAt, remoteContent, files }) => ({ savedAt, bytes: new TextEncoder().encode(remoteContent + JSON.stringify(files || {})).length })) }
+  function getBackupBundle(index) { const item = listBackups(connectionKey(), storage)[index]; return item ? { savedAt: item.savedAt, history: JSON.parse(item.remoteContent), files: item.files || {} } : null }
   function getLatestRecovery(index = -1) {
-    const items = listBackups(connectionKey())
+    const items = listBackups(connectionKey(), storage)
     const item = index < 0 ? items.at(-1) : items[index]
     return item ? JSON.parse(item.remoteContent) : null
   }
