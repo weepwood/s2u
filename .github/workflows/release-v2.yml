@@ -2,7 +2,7 @@ name: Release v2.0.0
 on:
   push:
     branches: [master]
-    paths: ['package.json']
+    paths: ['package.json', '.github/workflows/release-v2.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Verify version and exact-commit gates
+        id: verified
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -36,6 +37,7 @@ jobs:
                 if [ "$state" = completed ]; then
                   echo "$workflow: $(jq -r '.html_url' <<< "$run") $conclusion"
                   test "$conclusion" = success
+                  if [ "$workflow" = pages.yml ]; then echo "pages_run=$(jq -r .id <<< "$run")" >> "$GITHUB_OUTPUT"; fi
                   break
                 fi
               fi
@@ -44,9 +46,19 @@ jobs:
             done
           done
       - run: npm ci
-      - run: npm run build
+      - name: Download the exact deployed Pages artifact
         env:
-          VITE_PUBLIC_BASE_URL: https://weepwood.github.io/s2u/
+          GH_TOKEN: ${{ github.token }}
+          PAGES_RUN: ${{ steps.verified.outputs.pages_run }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGES_RUN"
+          gh run download "$PAGES_RUN" --name github-pages --dir "$RUNNER_TEMP/s2u-pages"
+          test -s "$RUNNER_TEMP/s2u-pages/artifact.tar"
+          mkdir -p dist
+          tar -xf "$RUNNER_TEMP/s2u-pages/artifact.tar" -C dist
+          test -s dist/index.html
+          echo "Verified Pages artifact from run $PAGES_RUN"
       - run: node scripts/performance-report.mjs
       - run: npx playwright install --with-deps chromium
       - name: Verify deployed production in isolated browser
