@@ -1,5 +1,5 @@
 <template>
-  <dialog ref="dialog" class="qr-share-dialog" aria-labelledby="qr-share-title" @close="emit('close')" @click="onBackdrop">
+  <BaseDialog ref="dialog" class="qr-share-dialog" aria-labelledby="qr-share-title" @close="emit('close')" @opened="renderQr">
     <div class="qr-share-inner">
       <header class="qr-share-heading">
         <div><h2 id="qr-share-title">分享二维码</h2><p>仅在本地生成，不会上传目标地址</p></div>
@@ -17,11 +17,12 @@
       </div>
       <p v-if="message" class="qr-share-message" role="status">{{ message }}</p>
     </div>
-  </dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import BaseDialog from './ui/BaseDialog.vue'
 
 const props = defineProps({ shareUrl: { type: String, required: true } })
 const emit = defineEmits(['close'])
@@ -31,9 +32,6 @@ const error = ref('')
 const message = ref('')
 const busy = ref(true)
 
-function onBackdrop(event) {
-  if (event.target === dialog.value) dialog.value.close()
-}
 
 async function renderQr() {
   busy.value = true
@@ -86,10 +84,6 @@ async function copy() {
   }
 }
 
-onMounted(() => {
-  dialog.value?.showModal()
-  renderQr()
-})
 </script>
 
 <style scoped>

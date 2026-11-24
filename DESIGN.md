@@ -130,3 +130,8 @@ Gist Token 仅置于 sessionStorage，不出现在日志、界面 DOM 的持久�
 - 云同步弹窗固定 620px 高（窄屏限制为可视高度减 32px），标题/页签不随内容滚动，长内容内部滚动；不同页签不改变外壳大小。
 - `shared-dialog.css` 统一原生弹窗圆角、阴影、遮罩、关闭按钮、表单、操作反馈及 reduced-motion。保留每个弹窗的语义和功能。
 - 基于已合并云同步实现，保留原版主题的渐变和玻璃。收藏同步文案与实际可选同步一致。
+
+
+## UI Foundation 第一批基础组件
+
+`src/components/ui` 提供 BaseDialog、BaseButton、BaseInput、BaseSwitch、SegmentedTabs；云同步接入全部五种，二维码和快捷键帮助复用 BaseDialog。保留原生 input、button、dialog，确认取消时受控开关恢复真实状态；不改变存储或同步协议。主页面仍使用原有可访问 tablist，后续逐步迁移，避免一次性破坏快捷键和预加载。

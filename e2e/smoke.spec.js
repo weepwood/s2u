@@ -1133,6 +1133,30 @@ test('三个页面共享输入尺寸和工具栏基线，窄屏仍可操作', as
 })
 
 
+test('共享开关取消授权不改变实际状态，页签支持方向键与 Home/End', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion:'reduce' })
+  await page.goto('/')
+  const trigger = page.getByRole('button',{name:'打开云同步设置'})
+  await trigger.click()
+  const dialog = page.getByRole('dialog',{name:'云端同步'})
+  const settings = dialog.getByRole('button',{name:'同步设置',exact:true})
+  await settings.click()
+  const common = dialog.getByLabel('常用链接、标签与排序')
+  await expect(common).not.toBeChecked()
+  page.once('dialog', prompt => prompt.dismiss())
+  await common.click()
+  await expect(common).not.toBeChecked()
+  await settings.focus()
+  await page.keyboard.press('End')
+  await expect(dialog.getByRole('button',{name:'备份恢复',exact:true})).toBeFocused()
+  await page.keyboard.press('Home')
+  await expect(dialog.getByRole('button',{name:'连接',exact:true})).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+})
+
+
 test('快捷启动键盘选中项保持在结果可视区域', async ({ page }) => {
   await page.setViewportSize({width:390,height:540})
   await page.goto('/')
