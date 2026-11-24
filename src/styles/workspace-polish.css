@@ -268,3 +268,12 @@
   .app-shell .starter-chip,
   .app-shell .recent-item { transition: none !important; transform: none !important; }
 }
+
+/* 云同步独立入口，复用原主题尺寸。 */
+.app-shell .header-actions .cloud-trigger { position:relative; display:inline-grid; place-items:center; width:40px; height:40px; padding:0; border:1px solid var(--hairline); border-radius:12px; background:var(--page-bg-soft); color:var(--card-text-muted); cursor:pointer; flex:none; }
+.app-shell .cloud-trigger svg { width:18px; height:18px; }
+.app-shell .cloud-trigger:hover { color:var(--accent); border-color:var(--hairline-strong); }
+.app-shell .cloud-dot { position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+.app-shell .cloud-trigger[data-status=connected] .cloud-dot { background:var(--success); }
+.app-shell .cloud-trigger[data-status=error] .cloud-dot { background:var(--danger); }
+@media(max-width:420px) { .app-shell .header-actions .cloud-trigger { width:32px; height:32px; border-radius:9px; } }

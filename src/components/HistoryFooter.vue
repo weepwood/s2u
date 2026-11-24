@@ -16,14 +16,14 @@
       <button
         type="button"
         :class="{ active: showSettings }"
-        :aria-expanded="showSettings"
+        aria-haspopup="dialog"
         @click="$emit('toggleSettings')"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M9.5 4.5 10 3h4l.5 1.5 1.7.7 1.4-.7 2 2-.7 1.4.7 1.7L21 10v4l-1.4.4-.7 1.7.7 1.4-2 2-1.4-.7-1.7.7L14 21h-4l-.5-1.5-1.7-.7-1.4.7-2-2 .7-1.4-.7-1.7L3 14v-4l1.4-.4.7-1.7-.7-1.4 2-2 1.4.7 1.7-.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
           <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
         </svg>
-        {{ showSettings ? '收起同步' : '云端同步' }}
+        云端同步
       </button>
       <button type="button" class="danger-action" @click="$emit('clear')">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

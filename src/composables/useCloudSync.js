@@ -97,6 +97,7 @@ export function useCloudSync() {
         validate(JSON.parse(readFile(gist, HISTORY_FILE)))
       }
       if (generation !== attempt) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' })
+      if (typeof id !== 'string' || !id || typeof user.login !== 'string') throw new Error('GitHub 响应格式错误')
       cloudToken.value = token; cloudGistId.value = id; account.value = user.login
       lastObservedContent = null; lastObservedFiles = {}; lastSyncTime.value = null
       saveConfig(); markPending()
@@ -156,8 +157,8 @@ export function useCloudSync() {
     markPending()
     if (!pushPromise) {
       const task = drainPushQueue()
-      pushPromise = task.finally(() => { if (pushPromise === wrapped) pushPromise = null })
-      const wrapped = pushPromise
+      const wrapped = task.finally(() => { if (pushPromise === wrapped) pushPromise = null })
+      pushPromise = wrapped
     }
     return pushPromise
   }
@@ -237,7 +238,7 @@ export function useCloudSync() {
       } catch { /* 同步错误由调用方展示 */ }
     }, delay)
   }
-  function resumePending() { if (retryTask && pending.value && preferences.value.auto) scheduleAutoSync(retryTask, 0) }
+  function resumePending(task = retryTask) { if (task && pending.value && preferences.value.auto) scheduleAutoSync(task, 0) }
   function cleanup() {
     generation++
     if (syncTimer) clearTimeout(syncTimer)
