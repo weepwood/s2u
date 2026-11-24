@@ -92,3 +92,15 @@ test('打开策略不会绕过危险协议与非法输入拦截', () => {
     assert.equal(result.needsConfirmation, false)
   }
 })
+
+
+test('分享入口的未知协议仍需确认，旧格式与新格式共享安全策略', () => {
+  for (const hash of ['#customapp://open?x=1', '#target=customapp%3A%2F%2Fopen%3Fx%3D1']) {
+    const policy = getTargetOpenPolicy(decodeShareTarget(hash))
+    assert.equal(policy.ok, true)
+    assert.equal(policy.needsConfirmation, true)
+  }
+  for (const hash of ['#javascript:alert(1)', '#target=file%3A%2F%2F%2Fetc%2Fpasswd']) {
+    assert.equal(getTargetOpenPolicy(decodeShareTarget(hash)).ok, false)
+  }
+})

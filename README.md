@@ -111,6 +111,18 @@ https://s2u2.netlify.app/#target=weixin%3A%2F%2Fopen
 - 单个导入文件最大 2 MB。
 - 导入前会显示有效与无效记录数量。
 
+## GitHub Pages 自动部署
+
+在仓库 Settings → Pages → Build and deployment 中将 Source 设为 **GitHub Actions**。
+合并到 master 后，`.github/workflows/pages.yml` 通过 configure-pages 获取公开 URL，使用既有 Vite 子路径配置构建并发布 dist。
+项目站点预期入口为 https://weepwood.github.io/s2u/；Netlify 原入口与 Hash 分享链接继续保留。
+旧 `docs/index.html` 是已停用的安全占位页，不再作为部署源，也不会重新启用未经验证的旧跳转脚本。
+无需 SPA 服务器重写：分享目标在 Hash 中，直接访问或刷新只需加载站点根页面。
+
+普通网页链接自动导航。已知应用协议自动尝试启动，始终提供手动重试、原始链接复制和返回入口；未知协议需要主动确认，危险协议继续拦截。页面不再强制尝试关闭窗口，也不宣称应用启动成功。
+生产 HTML 使用 no-referrer 和 CSP meta 防护；Netlify 继续使用原有完整安全响应头。GitHub Pages 不支持项目自定义响应头，因此 meta 无法等价实现 frame-ancestors、X-Frame-Options、Permissions-Policy、X-Content-Type-Options 等响应头。需要这些完整策略时优先使用 Netlify 或支持自定义响应头的反向代理。
+两个域名的本地存储独立，历史可通过已有 Gist 同步机制迁移，常用链接可导出与导入。
+
 ## 子路径部署
 
 默认部署在域名根路径，Vite `base` 为 `/`。部署到 `/s2u/` 等子路径时，需要在**构建阶段**设置完整的公开 URL：
@@ -135,7 +147,7 @@ CI 分别构建并使用 Chromium 检查根路径与 `/s2u/` 的页面、favicon
 | 云同步 | GitHub Gist API |
 | 测试 | Node.js Test Runner + Playwright Chromium（每周 Firefox/WebKit 冒烟） |
 | 代码检查 | ESLint |
-| 部署 | Netlify |
+| 部署 | Netlify / GitHub Pages（Actions） |
 
 ## 项目结构
 

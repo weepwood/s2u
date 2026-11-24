@@ -111,8 +111,10 @@
           <ClosePanel
             v-if="showCloseMsg"
             key="redirect"
-            :count-down="countDown"
-            :origin="origin"
+            :policy="redirectPolicy"
+            :attempted="redirectAttempted"
+            @open="attemptRedirect"
+            @copy="copyCommonRaw(redirectPolicy.target)"
             @cancel="cancelClose"
           />
 
@@ -212,6 +214,7 @@ import {
   decodeShareTarget,
   encodeShareLink,
   getAppBaseUrl,
+  getTargetOpenPolicy,
   normalizeTarget,
 } from '../domain/linkCodec.js'
 
@@ -350,10 +353,9 @@ function handleTabNavigation(event) {
 }
 const showSettings = ref(false)
 const showCloseMsg = ref(false)
-const countDown = ref(5)
+const redirectPolicy = ref(null)
+const redirectAttempted = ref(false)
 const origin = getAppBaseUrl()
-const targetScheme = decodeShareTarget(window.location.hash)
-let countdownTimer = null
 
 const toast = ref({ message: '', type: 'info', duration: 2500, key: 0 })
 let toastKey = 0
@@ -390,48 +392,63 @@ function notifyStorageError() {
 }
 
 function changeUrl(inputUrl) {
-  stopCountdown()
+  const policy = getTargetOpenPolicy(inputUrl)
+  redirectPolicy.value = null
+  redirectAttempted.value = false
+  showCloseMsg.value = false
 
-  const normalized = normalizeTarget(inputUrl)
-  if (!normalized.ok) {
-    urlError.value = normalized.error
-    showToast(normalized.error, 'error', 4000)
+  if (!policy.ok) {
+    urlError.value = policy.error
+    showToast(policy.error, 'error', 4000)
     return
   }
 
-  const saved = addHistory(normalized.target)
-  if (!saved) notifyStorageError()
-  autoSync()
-  startCountdown()
-  window.location.replace(normalized.target)
-}
+  // 未知应用协议在明确确认前不导航，也不写入历史。
+  if (policy.needsConfirmation) {
+    redirectPolicy.value = policy
+    showCloseMsg.value = true
+    return
+  }
 
-function startCountdown() {
+  redirectPolicy.value = policy
   showCloseMsg.value = true
-  countDown.value = 5
-  countdownTimer = setInterval(() => {
-    countDown.value--
-    if (countDown.value > 0) return
-
-    stopCountdown()
-    try {
-      window.close()
-    } catch {
-      // 非脚本打开的窗口无法关闭。
-    }
-  }, 1000)
+  attemptRedirect()
 }
 
-function stopCountdown() {
-  if (!countdownTimer) return
-  clearInterval(countdownTimer)
-  countdownTimer = null
+function attemptRedirect() {
+  const policy = redirectPolicy.value
+  if (!policy?.ok) return
+
+  // 手动点击时保持同步导航，不能在用户操作与 Scheme 调用之间等待网络。
+  if (!redirectAttempted.value) {
+    const saved = addHistory(policy.target)
+    if (!saved) notifyStorageError()
+    autoSync()
+  }
+  redirectAttempted.value = true
+  try {
+    window.location.replace(policy.target)
+  } catch {
+    showToast('无法打开此链接，请确认浏览器与目标应用支持该协议', 'error', 4000)
+  }
+  // 外部应用是否真正启动无法可靠检测；始终保留手动重试及复制入口。
+}
+
+function readShareHash() {
+  const target = decodeShareTarget(window.location.hash)
+  if (target) {
+    changeUrl(target)
+  } else {
+    showCloseMsg.value = false
+    redirectPolicy.value = null
+    redirectAttempted.value = false
+  }
 }
 
 function cancelClose() {
-  stopCountdown()
-  showCloseMsg.value = false
-  window.history.replaceState(null, '', `${origin}/`)
+  // 不依赖配置的公开域名，避免预览站点上的跨域 replaceState 异常。
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  readShareHash()
 }
 
 function gotoUrl(fullUrl) {
@@ -851,9 +868,10 @@ onMounted(() => {
   }
 
   const hasSavedConfig = loadConfig()
-  if (targetScheme) {
+  window.addEventListener('hashchange', readShareHash)
+  if (window.location.hash) {
     // 分享链接转发优先；无需与初始云同步竞争网络资源。
-    changeUrl(targetScheme)
+    readShareHash()
   } else if (hasSavedConfig) {
     // 有效数据已从本地恢复。等首屏有机会绘制后再执行可选的云同步。
     scheduleInitialSync()
@@ -863,7 +881,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (initialSyncIdle !== null) window.cancelIdleCallback(initialSyncIdle)
   if (initialSyncFallback !== null) window.clearTimeout(initialSyncFallback)
-  stopCountdown()
+  window.removeEventListener('hashchange', readShareHash)
   cleanupClipboard()
   cleanupSync()
 })
