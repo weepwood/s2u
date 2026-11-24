@@ -708,7 +708,9 @@ function currentWorkspace() {
   return makeWorkspaceBackup({ history: historySnapshot(), commonLinks: commonSyncSnapshot(true), darkMode: darkMode.value })
 }
 function downloadWorkspace(data, name) {
-  const href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}))
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'})
+  if (blob.size > MAX_WORKSPACE_BACKUP_BYTES) throw new Error('备份超过 8 MiB，请分别导出历史与收藏')
+  const href = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = href; link.download = name
   document.body.appendChild(link); link.click(); link.remove()
@@ -748,7 +750,7 @@ function restoreWorkspace({ theme = false } = {}) {
   try {
     const before = currentWorkspace()
     const plan = planWorkspaceRestore(before, workspaceIncoming, validateCommonSync)
-    if (!confirm('合并备份至本机？已有同地址收藏保持不变，历史删除标记仍有效。恢复前保存快照，并暂停自动同步。')) return
+    if (!confirm('合并 ' + plan.summary.history + ' 条历史、' + plan.summary.tombstones + ' 个删除标记，新增 ' + plan.summary.added + ' 条收藏？已有同地址收藏保持不变，历史删除标记仍有效。恢复前保存快照，并暂停自动同步。')) return
     cloud.setPreferences({auto:false})
     applyingRemote = true
     try {
@@ -972,12 +974,12 @@ function scheduleInitialSync() {
   if ('requestIdleCallback' in window) {
     initialSyncIdle = window.requestIdleCallback(() => {
       initialSyncIdle = null
-      syncGist({ silent: true }).catch(() => {})
+      if (preferences.value.auto) syncGist({ silent: true }).catch(() => {})
     }, { timeout: 2000 })
   } else {
     initialSyncFallback = window.setTimeout(() => {
       initialSyncFallback = null
-      syncGist({ silent: true }).catch(() => {})
+      if (preferences.value.auto) syncGist({ silent: true }).catch(() => {})
     }, 800)
   }
 }
