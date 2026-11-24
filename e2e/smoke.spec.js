@@ -14,6 +14,39 @@ test('首页渲染与特殊字符分享链接预览', async ({ page, context }) 
     .toBe('https://example.com/path?q=100%25#%E7%AB%A0%E8%8A%82')
 })
 
+
+test('剪贴板权限不可用时打开测试仍响应用户点击', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+    window.open = (url) => { window.__openedShare = url }
+  })
+  await page.goto('/')
+  await page.locator('#url').fill('https://example.com/test')
+  await page.getByRole('button', { name: '打开测试' }).click()
+  await expect.poll(() => page.evaluate(() => window.__openedShare)).toContain('#target=')
+  await expect(page.getByText('未能复制分享链接，请检查剪贴板权限')).toBeVisible()
+})
+
+test('剪贴板延迟完成不会清除正在编辑的新地址', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: () => new Promise(resolve => { window.__finishClipboard = resolve }),
+    } })
+  })
+  await page.goto('/')
+  const input = page.locator('#url')
+  await input.fill('https://example.com/first')
+  await page.getByRole('button', { name: '复制链接' }).click()
+  await expect.poll(() => page.evaluate(() => typeof window.__finishClipboard)).toBe('function')
+  await input.fill('https://example.com/second')
+  await page.evaluate(() => window.__finishClipboard())
+  await expect(page.getByRole('button', { name: '已复制' })).toBeVisible()
+  await expect(input).toHaveValue('https://example.com/second')
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.locator('#history-panel').getByText('https://example.com/first')).toBeVisible()
+  await expect(page.locator('#history-panel').getByText('https://example.com/second')).toHaveCount(0)
+})
+
 test('危险协议必须被拒绝且不得写入历史记录', async ({ page }) => {
   await page.goto('/')
   await page.locator('#url').fill('javascript:alert(1)')

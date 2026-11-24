@@ -1,4 +1,5 @@
 import { encodeShareLink, normalizeTarget } from '../../domain/linkCodec.js'
+import { writeClipboardText } from '../useClipboard.js'
 
 export function useBookmarkActions({ commonStore, commonPanel, origin, addHistory, autoSync, notifyStorageError, showToast }) {
   const { storageError:commonStorageError, save:persistCommonLink, remove:deleteCommonLink, restoreDefaults:restoreCommonLinks, move:moveCommonLinkStore, reorder:reorderCommonLinkStore, renameTag:renameCommonTagStore, pin:pinCommonLinkStore, exportJSON:exportCommonJSON, inspectImport:inspectCommonImport, importJSON:importCommonJSON } = commonStore
@@ -83,7 +84,7 @@ export function useBookmarkActions({ commonStore, commonPanel, origin, addHistor
       return
     }
     try {
-      await navigator.clipboard.writeText(normalized.target)
+      await writeClipboardText(normalized.target)
       showToast('原始链接已复制', 'success')
     } catch {
       showToast('复制原始链接失败，请检查剪贴板权限', 'error', 4000)
@@ -145,7 +146,7 @@ export function useBookmarkActions({ commonStore, commonPanel, origin, addHistor
     }
     try {
       const shareLink = encodeShareLink(origin, normalized.target)
-      await navigator.clipboard.writeText(shareLink)
+      await writeClipboardText(shareLink)
       const saved = addHistory(normalized.target)
       if (!saved) notifyStorageError()
       autoSync()
