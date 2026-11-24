@@ -34,3 +34,25 @@
   .app-shell dialog::backdrop { backdrop-filter:none; }
   .app-shell .sync-panel-enter-from,.app-shell .sync-panel-leave-to { transform:none; }
 }
+
+/* 基础组件复用原版主题；原生语义保留。 */
+.app-shell .ui-button { box-sizing:border-box; min-height:var(--dialog-action-height); padding:7px 12px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); font:inherit; font-size:13px; cursor:pointer; transition:background var(--motion-fast) ease,border-color var(--motion-fast) ease,color var(--motion-fast) ease; }
+.app-shell .ui-button--primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.app-shell .ui-button--primary:hover:not(:disabled) { background:var(--accent-hover); }
+.app-shell .ui-button:disabled { opacity:.5; cursor:not-allowed; }
+.app-shell .ui-input { min-width:0; width:100%; box-sizing:border-box; min-height:var(--dialog-field-height); border-radius:var(--radius-control); border:1px solid var(--hairline-strong); padding:0 12px; background:var(--surface-elevated); color:var(--card-text); font:inherit; }
+.app-shell .ui-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.app-shell .ui-switch { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:36px; cursor:pointer; }
+.app-shell .ui-switch-control { position:relative; display:inline-flex; width:38px; height:22px; flex:none; }
+.app-shell .ui-switch-control input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+.app-shell .ui-switch-track { pointer-events:none; display:block; width:100%; height:100%; border-radius:999px; background:var(--hairline-strong); transition:background var(--motion-fast) ease; }
+.app-shell .ui-switch-track::before { content:''; display:block; width:16px; height:16px; margin:3px; border-radius:50%; background:#fff; box-shadow:0 1px 3px #0002; transition:transform var(--motion-fast) var(--motion-standard); }
+.app-shell .ui-switch-control input:checked + .ui-switch-track { background:var(--accent); }
+.app-shell .ui-switch-control input:checked + .ui-switch-track::before { transform:translateX(16px); }
+.app-shell .ui-switch-control input:focus-visible + .ui-switch-track { outline:2px solid var(--accent); outline-offset:3px; }
+.app-shell .ui-switch-control input:disabled + .ui-switch-track { opacity:.5; }
+.app-shell .ui-switch-control input:disabled { cursor:not-allowed; }
+/* Vue 的 scoped 样式不会进入子组件内部，页签按钮在共享样式定义。 */
+.app-shell .ui-segmented button { position:relative; z-index:1; min-width:0; min-height:var(--tab-height); padding:0 4px; border:0; border-radius:var(--tab-radius); background:transparent; color:var(--card-text-muted); font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; transition:color var(--motion-fast) ease,transform var(--motion-fast) ease; }
+.app-shell .ui-segmented button[aria-pressed=true] { color:var(--card-text); }
+.app-shell .ui-segmented:not(.tabs-ready) button[aria-pressed=true] { background:var(--tab-indicator-bg); }
