@@ -923,3 +923,52 @@ test('顶部导航与工作区页签在桌面及移动端左右对齐', async ({
     expect(bounds.widthDelta).toBeLessThanOrEqual(1)
   }
 })
+
+
+test('原版玻璃主题保持渐变、半透明主卡片及胶囊选中态', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
+  await page.goto('/')
+  const shell = page.locator('.app-shell')
+  const card = page.locator('.content-card')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  await expect(nav).toHaveClass(/tabs-ready/)
+  await expect(shell).toHaveCSS('background-image', /radial-gradient/)
+  await expect(card).toHaveCSS('border-radius', '23px')
+  await expect(card).toHaveCSS('backdrop-filter', /blur\(20px\)/)
+  await expect(card).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.89)')
+  await expect(page.locator('.ambient-one')).toHaveCSS('animation-name', 'none')
+  const indicator = await nav.evaluate(node => {
+    const css = getComputedStyle(node, '::before')
+    return { radius: css.borderRadius, height: parseFloat(css.height) }
+  })
+  expect(indicator.radius).toBe('11px')
+  expect(indicator.height).toBeGreaterThan(30)
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(shell).toHaveClass(/dark/)
+  await expect(shell).toHaveCSS('background-image', /radial-gradient/)
+  await expect(card).toHaveCSS('background-color', 'rgba(21, 29, 44, 0.9)')
+  await page.getByRole('button', { name: '填入网页示例' }).click()
+  await expect(page.locator('.copy-btn')).toHaveCSS('color', 'rgb(23, 34, 60)')
+  await page.setViewportSize({ width: 320, height: 740 })
+  await expect(card).toHaveCSS('backdrop-filter', /blur\(14px\)/)
+  await expect(card).toHaveCSS('border-radius', '19px')
+})
+
+test('同页跳转确认返回后重新绑定胶囊指示器', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  await expect(nav).toHaveClass(/tabs-ready/)
+  await page.evaluate(() => { location.hash = 'target=' + encodeURIComponent('testunknown://open') })
+  await expect(page.getByRole('heading', { name: '确认打开外部应用' })).toBeVisible()
+  await expect(nav).toHaveCount(0)
+  await page.getByRole('button', { name: '返回创建页' }).click()
+  await expect(nav).toHaveClass(/tabs-ready/)
+  await nav.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  await expect.poll(() => nav.evaluate(node => {
+    const selected = node.querySelector('[aria-selected="true"]')
+    const x = new DOMMatrixReadOnly(getComputedStyle(node, '::before').transform).m41
+    return Math.abs(x - selected.offsetLeft)
+  })).toBeLessThan(1.5)
+})

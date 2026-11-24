@@ -12,7 +12,6 @@
         </span>
         <span class="brand-copy">
           <strong>Scheme to URL</strong>
-          <small>Link bridge</small>
         </span>
       </a>
 
@@ -914,7 +913,6 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped src="../styles/change.css"></style>
 <style>/* 仅用于首次加载非默认标签时的短暂占位；请求完成后立即展示真实组件。 */
 .app-shell .lazy-panel-loading {
   min-height: 160px;

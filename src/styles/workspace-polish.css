@@ -1,119 +1,8 @@
-/*
- * s2u Workspace Polish
- * 单次界面改进的覆盖层：保留现有 Vue 交互、滑动页签、数据逻辑与 CSP。
- * 所有视觉属性依赖 .app-shell 的语义变量，兼容系统减少动态效果。
- */
-.app-shell.app-shell {
-  --page-bg: #f3f6fc;
-  --card-text: #1b2943;
-  --card-text-soft: #495974;
-  --card-text-muted: #63738c;
-  --accent: #4e68df;
-  --accent-hover: #3d56c8;
-  --accent-soft: rgba(78, 104, 223, 0.11);
-  --hairline: rgba(43, 62, 100, 0.13);
-  --hairline-strong: rgba(43, 62, 100, 0.24);
-  background:
-    radial-gradient(ellipse at 16% 9%, rgba(127, 151, 255, 0.18), transparent 35%),
-    radial-gradient(ellipse at 84% 80%, rgba(98, 186, 211, 0.1), transparent 32%),
-    linear-gradient(155deg, #f8faff, var(--page-bg) 62%, #edf2fa);
-  -webkit-font-smoothing: antialiased;
-}
-
-.app-shell.app-shell.dark {
-  --page-bg: #0e1420;
-  --card-bg-solid: #151d2c;
-  --surface-soft: #1b2536;
-  --surface-elevated: #202c3d;
-  --surface-hover: #29374a;
-  --card-text: #edf3ff;
-  --card-text-soft: #c0cbe0;
-  --card-text-muted: #a3b0c5;
-  --accent: #90a4ff;
-  --accent-hover: #b0bcff;
-  --accent-soft: rgba(144, 164, 255, 0.16);
-  --hairline: rgba(185, 199, 230, 0.17);
-  --hairline-strong: rgba(185, 199, 230, 0.3);
-  background:
-    radial-gradient(ellipse at 16% 9%, rgba(83, 108, 207, 0.19), transparent 35%),
-    radial-gradient(ellipse at 84% 80%, rgba(48, 124, 155, 0.11), transparent 36%),
-    linear-gradient(155deg, #111b2a, var(--page-bg) 70%, #0c121b);
-}
-
-.app-shell .app-header .brand { opacity: 1; }
-.app-shell .app-header .brand-mark {
-  width: 40px; height: 40px; border-radius: 13px;
-  background: var(--card-bg-solid);
-  border: 1px solid var(--hairline);
-  box-shadow: 0 5px 14px rgba(41, 56, 95, 0.08);
-}
-.app-shell .app-header .brand-mark svg { width: 20px; height: 20px; }
-.app-shell .app-header .brand-copy strong { color: var(--card-text); font-size: 13px; letter-spacing: -0.02em; }
-.app-shell .app-header .brand-copy small { color: var(--card-text-muted); font-size: 9px; letter-spacing: 0.1em; }
-.app-shell .header-actions .github-link,
-.app-shell .header-actions .theme-toggle,
-.app-shell .header-actions .shortcut-help-trigger {
-  width: 40px; min-width: 40px; height: 40px; min-height: 40px;
-  border-radius: 12px; background: var(--card-bg-solid);
-  border: 1px solid var(--hairline);
-}
-.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger):hover {
-  border-color: var(--hairline-strong);
-  background: var(--surface-hover);
-}
-
-.app-shell .workspace {
-  margin-top: clamp(28px, 5vh, 60px);
-}
-.app-shell .header-actions .launch-trigger {
-  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  flex: 0 0 auto; height: 40px; min-height: 40px; padding: 0 10px;
-  border: 1px solid var(--hairline-strong); border-radius: 12px;
-  background: var(--card-bg-solid); color: var(--card-text-soft);
-  box-shadow: 0 5px 15px rgba(36, 55, 98, 0.05);
-  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
-}
-.app-shell .header-actions .launch-trigger svg { width: 16px; height: 16px; color: var(--accent); }
-.app-shell .header-actions .launch-trigger kbd {
-  padding: 4px 6px; border-radius: 6px; background: var(--surface-soft);
-  color: var(--card-text-muted); font-size: 10px; font-family: inherit; font-weight: 700;
-  white-space: nowrap;
-}
-.app-shell .header-actions .launch-trigger:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateY(-1px); }
-.app-shell .header-actions .launch-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-.app-shell .workspace-head { margin: 0 0 14px; text-align: left; }
-.app-shell .mode-tabs {
-  width: 100%; box-sizing: border-box; margin: 0;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 5px; border-radius: 15px;
-  background: var(--surface-soft); border: 1px solid var(--hairline);
-  box-shadow: none;
-}
-.app-shell .mode-tabs button { justify-content: center; min-width: 0; min-height: 42px; font-size: 12px; }
-.app-shell .mode-tabs .tab-count { font-size: 10px; }
-.app-shell .mode-tabs::before { top: 5px; bottom: 5px; border-radius: 11px; }
-
-.app-shell .content-card {
-  border-color: var(--hairline);
-  border-radius: 23px;
-  background: var(--card-bg-solid);
-  box-shadow: 0 22px 70px rgba(35, 53, 88, 0.085), 0 1px 4px rgba(35, 53, 88, 0.045);
-}
-.app-shell.dark .content-card {
-  background: var(--card-bg-solid);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
-}
-.app-shell .content-card::before {
-  inset: 0 16% auto;
-  background: linear-gradient(90deg, transparent, var(--accent-soft), transparent);
-}
-
+/* 组件间视觉一致性：只保留跨组件规则，不再覆盖主题和外壳布局。 */
 .app-shell .url-input-panel { gap: 25px; }
 .app-shell .url-input-panel .section-heading h2,
 .app-shell .history-panel .section-heading h2,
-.app-shell .common-panel .common-heading h2 { letter-spacing: -0.04em; font-weight: 750; }
+.app-shell .common-panel .common-heading h2 { letter-spacing: -0.025em; font-weight: 680; line-height: 1.35; }
 .app-shell .url-input-panel .section-heading h2 { font-size: 23px; }
 .app-shell .url-input-panel .privacy-badge {
   background: color-mix(in srgb, var(--success) 9%, var(--card-bg-solid));
@@ -123,27 +12,30 @@
 }
 .app-shell .url-input-panel .field-group { gap: 10px; }
 .app-shell .url-input-panel .field-group > label {
-  font-size: 12px; font-weight: 720; color: var(--card-text-soft);
+  font-size: 13px; font-weight: 650; color: var(--card-text-soft);
 }
 .app-shell .url-input-panel .input-wrap {
-  height: 55px; border-radius: 13px;
+  height: 54px; border-radius: var(--radius-control);
   border-color: var(--hairline-strong);
   box-shadow: inset 0 1px 2px rgba(26, 40, 77, 0.025);
 }
-.app-shell .url-input-panel .input-wrap:hover:not(:focus-within) { border-color: var(--accent); }
+.app-shell .url-input-panel .input-wrap:hover:not(:focus-within):not(.error) { border-color: var(--hairline-strong); }
+.app-shell .url-input-panel .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.app-shell .url-input-panel .input-wrap.error { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent); }
+.app-shell .url-input-panel .copy-btn:disabled { box-shadow: none; }
 .app-shell .url-input-panel .text-input {
   font-size: 13px; font-variant-ligatures: none;
 }
 .app-shell .url-input-panel .copy-btn {
-  height: 55px; min-width: 142px; border-radius: 13px;
-  box-shadow: 0 8px 22px rgba(78, 104, 223, 0.2);
+  height: 54px; min-width: 142px; border-radius: var(--radius-control);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 17%, transparent);
 }
-.app-shell .url-input-panel .copy-btn:hover:not(:disabled) { box-shadow: 0 10px 26px rgba(78, 104, 223, 0.24); }
+.app-shell .url-input-panel .copy-btn:hover:not(:disabled) { box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 21%, transparent); }
 .app-shell .url-input-panel .field-message { margin: 0; min-height: 16px; }
 
 .app-shell .starter-links {
-  display: flex; align-items: flex-start; flex-wrap: wrap;
-  gap: 10px 13px; margin-top: 2px;
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 8px 12px; margin-top: 2px;
 }
 .app-shell .starter-label {
   display: inline-flex; align-items: center; min-height: 30px;
@@ -188,7 +80,7 @@
   -webkit-line-clamp: 2; overflow-wrap: anywhere;
 }
 .app-shell .recent-section { gap: 12px; padding-top: 2px; }
-.app-shell .recent-head { align-items: flex-end; }
+.app-shell .recent-head { align-items: center; }
 .app-shell .recent-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .app-shell .recent-item { min-height: 54px; border: 1px solid var(--hairline); border-radius: 11px; background: var(--surface-soft); }
 .app-shell .recent-item:hover { background: var(--surface-hover); border-color: var(--hairline-strong); transform: translateY(-1px); }
@@ -197,6 +89,7 @@
   width: 23px; height: 23px; border-radius: 7px;
   color: var(--card-text-muted); background: var(--card-bg-solid);
 }
+.app-shell .recent-index svg { width: 14px; height: 14px; }
 .app-shell .recent-url { color: var(--card-text-soft); }
 
 /* 统一收藏卡片与历史行的质感，避免改变内部操作按钮和数据结构。 */
@@ -207,7 +100,7 @@
 }
 .app-shell .common-panel .common-card:hover {
   border-color: var(--hairline-strong);
-  box-shadow: 0 11px 25px rgba(33, 47, 80, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 .app-shell .common-panel .common-tags button { min-height: 31px; }
 .app-shell .common-panel .common-toolbar input:focus-visible,
@@ -223,48 +116,19 @@
 .app-shell dialog.shortcut-dialog {
   border-color: var(--hairline-strong);
   background: var(--card-bg-solid);
-  box-shadow: 0 28px 85px rgba(13, 26, 54, 0.28);
+  box-shadow: var(--shadow-popover);
 }
 .app-shell dialog.command-dialog .command-item:hover,
 .app-shell dialog.command-dialog .command-item.selected { background: var(--accent-soft); }
 .app-shell dialog :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-@media (max-width: 760px) {
-  .app-shell .header-actions .launch-trigger kbd { display: none; }
-}
 @media (max-width: 640px) {
-  .app-shell .workspace { margin-top: 28px; }
-  .app-shell .header-actions .launch-trigger {
-    width: 40px; min-width: 40px; height: 40px; padding: 0;
-  }
-  .app-shell .header-actions .launch-trigger span { display: none; }
-  .app-shell .header-actions .launch-trigger svg { width: 18px; height: 18px; }
-  .app-shell .content-card { border-radius: 19px; }
-  .app-shell .mode-tabs { gap: 0; }
-  .app-shell .mode-tabs button { min-height: 41px; }
   .app-shell .recent-list { grid-template-columns: 1fr; }
   .app-shell .preview-card .preview-url { -webkit-line-clamp: 3; }
 }
 @media (max-width: 420px) {
-  .app-shell .header-actions { gap: 4px; }
-  .app-shell .header-actions .launch-trigger,
-  .app-shell .header-actions .github-link,
-  .app-shell .header-actions .shortcut-help-trigger,
-  .app-shell .header-actions .theme-toggle {
-    width: 34px; min-width: 34px; height: 34px; min-height: 34px;
-  }
-  .app-shell .app-header .brand-mark { width: 34px; height: 34px; }
-  .app-shell .app-header .brand { gap: 7px; }
-  .app-shell .app-header .brand-copy strong { font-size: 11px; }
-  .app-shell .mode-tabs button { padding-inline: 3px; font-size: 11px; }
-  .app-shell .content-card { --panel-pad-inline: 15px; }
   .app-shell .url-input-panel .section-heading h2 { font-size: 21px; }
   .app-shell .preview-actions { width: 100%; justify-content: flex-start; }
   .app-shell .starter-links { gap: 7px; }
   .app-shell .starter-label { width: 100%; min-height: auto; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .app-shell .header-actions .launch-trigger,
-  .app-shell .starter-chip,
-  .app-shell .recent-item { transition: none !important; transform: none !important; }
 }

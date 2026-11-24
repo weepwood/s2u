@@ -325,7 +325,7 @@ function formatDate(timestamp) {
 .primary-action {
   border: 0;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .primary-action:hover:not(:disabled) {

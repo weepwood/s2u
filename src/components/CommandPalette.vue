@@ -146,7 +146,7 @@ onMounted(() => {
 .command-confirm p { margin: 0; word-break: break-all; color: var(--card-text-muted, #7c879b); }
 .command-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .command-confirm-actions button { border: 1px solid var(--hairline, #dce1e9); color: inherit; background: var(--surface-elevated, #fff); padding: 9px 12px; border-radius: 9px; cursor: pointer; }
-.command-confirm-actions .command-primary { background: var(--accent, #4f6ef7); color: #fff; }
+.command-confirm-actions .command-primary { background: var(--accent, #4f6ef7); color: var(--on-accent); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; clip: rect(0,0,0,0); overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .command-dialog::backdrop { backdrop-filter: none; } }
 </style>

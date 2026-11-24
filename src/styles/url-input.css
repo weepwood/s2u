@@ -170,7 +170,7 @@
   border: 0;
   border-radius: 14px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 750;
@@ -197,10 +197,12 @@
 
 .copy-btn.copied {
   background: var(--success);
+  color: var(--on-status);
 }
 
 .copy-btn.failed {
   background: var(--danger);
+  color: var(--on-status);
 }
 
 .copy-btn svg {

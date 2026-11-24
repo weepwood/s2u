@@ -2,13 +2,13 @@
 
 > 本规范记录 **Scheme to URL（s2u）现有实现**，不是 UI 重新设计提案，也不是其他品牌的视觉规范。
 >
-> 代码事实来源：`src/styles/change.css`、`src/styles/interface-refresh.css`、`src/styles/url-input.css`、`src/components/CommonLinksPanel.vue`、`src/components/Change.vue`。
+> 代码事实来源：`src/styles/theme.css`、`src/styles/change.css`、`src/styles/interface-refresh.css`、`src/styles/workspace-polish.css`、`src/styles/url-input.css`、`src/components/CommonLinksPanel.vue`、`src/components/Change.vue`。
 > 如本文件和代码不一致，以运行中的组件和样式为准，并同步修正文档。
 
 ## 1. 产品定位与原则
 
 s2u 是单页 URL Scheme 转换/分享工具，重点是快速理解、少步骤完成操作、尽量不收集数据。
-保留三个主标签：「创建链接」「历史记录」「常用链接」，以及页眉的品牌/主题切换和底部快捷键提示。
+保留三个主标签：「创建链接」「历史记录」「常用链接」，以及页眉的品牌、主题切换、快捷启动和键盘帮助入口。
 
 - **轻量与明确**：每页有一个清楚的主任务；将复制、打开和管理区别开。
 - **不隐藏风险**：未知协议提示风险，不声称浏览器已经成功打开目标应用；Gist 同步失败必须可见。
@@ -18,17 +18,17 @@ s2u 是单页 URL Scheme 转换/分享工具，重点是快速理解、少步骤
 
 ## 2. 视觉 Token
 
-根作用域为 `.app-shell`，深色主题为 `.app-shell.dark`。以下数值对应当前 `change.css`。
+根作用域为 `.app-shell`，深色主题为 `.app-shell.dark`。以下数值对应 `theme.css`，以原版蓝紫渐变和玻璃拟态为设计基线；禁止为了精简代码而替换整体主题。
 
 | 语义变量 | 浅色 | 深色 | 用途 |
 | --- | --- | --- | --- |
-| `--page-bg` | `#f3f5f9` | `#0d111a` | 页面底色 |
-| `--card-bg-solid` | `#ffffff` | `#121824` | 不透明弹窗/卡片 |
-| `--surface-soft` | `#f5f7fa` | `#171e2c` | 次层表面 |
-| `--surface-elevated` | `#ffffff` | `#1b2332` | 输入框和按钮 |
-| `--card-text` | `#172033` | `#f2f5fb` | 主文本 |
-| `--card-text-muted` | `#7c879b` | `#7f8aa0` | 次文本、辅助说明 |
-| `--accent` | `#4f6ef7` | `#7d96ff` | 主操作、焦点色 |
+| `--page-bg` | `#f3f6fc` | `#0e1420` | 页面底色 |
+| `--card-bg-solid` | `#ffffff` | `#151d2c` | 不透明弹窗/卡片 |
+| `--surface-soft` | `#f5f7fa` | `#1b2536` | 次层表面 |
+| `--surface-elevated` | `#ffffff` | `#202c3d` | 输入框和按钮 |
+| `--card-text` | `#1b2943` | `#edf3ff` | 主文本 |
+| `--card-text-muted` | `#63738c` | `#a3b0c5` | 次文本、辅助说明 |
+| `--accent` | `#4e68df` | `#90a4ff` | 主操作、焦点色 |
 | `--danger` | `#d84b55` | `#ff747d` | 错误提示 |
 | `--success` | `#2f9d69` | `#62c995` | 成功反馈 |
 
@@ -38,10 +38,10 @@ s2u 是单页 URL Scheme 转换/分享工具，重点是快速理解、少步骤
 
 | 区域 | 当前约束 |
 | --- | --- |
-| 页眉 | `interface-refresh.css` 中最终使用 `min(960px, 100%)` |
+| 页眉 | 与工作区统一 `min(820px, 100%)` |
 | 工作区 | 桌面宽度 `min(820px, 100%)`，内容居中 |
-| 主输入 | 52px 高，输入框 14px 圆角，复制按钮 52px 高 |
-| 常用链接列表 | 桌面两列，窄屏一列；每个卡片 18px 圆角、约 17px 内边距 |
+| 主输入 | 54px 高，输入框与复制按钮共用 12px 圆角 |
+| 常用链接列表 | 桌面两列，窄屏一列；每个卡片 16px 圆角、约 17px 内边距 |
 | 应用图标 | 卡片内约 52×52px，统一圆角；上传文件最终压缩为 96px 素材 |
 | 编辑弹窗 | 最宽 460px，宽度小于视口减 32px，最大高度 `90dvh` |
 | 移动适配 | 保证 320px 视口无水平溢出，必要时收纳次要动作 |
@@ -117,3 +117,13 @@ Gist Token 仅置于 sessionStorage，不出现在日志、界面 DOM 的持久�
 ## 8. 首屏性能策略
 
 默认创建界面保持立即可用，历史/收藏面板代码按需加载；首次导航期间若网络较慢，显示简短的「正在加载界面…」占位，不误报数据丢失。页签 hover/focus 可预取，异步界面就绪后沿用现有过渡和键盘处理。字体使用系统字体栈（不阻塞远程字体 CSS），页面不新增外部网络请求；可选 Gist 同步在首屏显示后空闲时启动，而带 Hash 的立即跳转不做初始云端拉取。通过入口 gzip 字节数与 Chromium 请求验证下载量，保留 LCP/CLS/INP 真实环境验收任务。
+
+## 9. 原版主题的维护边界
+
+- `theme.css`：唯一外壳主题 token、原有三层渐变、半透明玻璃、语义前景色和共享动效时长。
+- `change.css`：页眉、胶囊导航、主卡片布局及移动断点。
+- `interface-refresh.css`：交互过渡、首屏入场、选中指示器与减少动态效果；不再覆盖布局和颜色。
+- `workspace-polish.css`：跨组件一致性；组件私有样式继续由各 SFC 管理。
+- `long-link-guards.css`：长链接的防溢出规则，保持独立。
+- 主玻璃透明度浅色 89% / 深色 90%，桌面模糊 20px / 窄屏 14px；卡片使用低强度内高光与双层柔影。模糊不可用时使用实体背景。保留蓝紫及青色光斑，但移除无限漂浮动画，避免持续占用渲染资源；不宣称实测帧率提升。
+- 选中胶囊和高度过渡共享 300ms 节奏；返回跳转页重新连接页签观察器，同高度通知不重启动画。保留 320px、键盘、长链接和安全回归。

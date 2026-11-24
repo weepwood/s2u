@@ -107,7 +107,7 @@ onMounted(() => {
 .qr-share-actions { display: flex; gap: 10px; }
 .qr-share-actions button { border: 1px solid var(--hairline, #dce1e9); border-radius: 10px; padding: 10px 12px; font: inherit; cursor: pointer; flex: 1; color: inherit; background: var(--surface-elevated, #fff); }
 .qr-share-actions button:disabled { opacity: .5; cursor: not-allowed; }
-.qr-share-actions .qr-share-primary { background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); color: #fff; }
+.qr-share-actions .qr-share-primary { background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); color: var(--on-accent); }
 .qr-share-message { font-size: 12px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .qr-share-dialog::backdrop { backdrop-filter: none; } }
 </style>

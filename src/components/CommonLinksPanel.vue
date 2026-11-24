@@ -402,7 +402,7 @@ button { font: inherit; cursor: pointer; }
 .card-meta span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }
 .card-buttons button { flex: 1; padding: 0 8px; }
-.primary { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.primary { background: var(--accent) !important; color: var(--on-accent) !important; border-color: var(--accent) !important; }
 .primary:hover { filter: brightness(.94); }
 .editor-dialog {
   width: min(460px, calc(100vw - 32px));
@@ -496,7 +496,7 @@ button { font: inherit; cursor: pointer; }
 <style scoped>
 .common-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: -7px 0 2px; }
 .common-tags button { border: 1px solid var(--hairline, #dce1e9); background: var(--surface-soft, #f5f7fa); color: var(--card-text, #172033); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
-.common-tags button[aria-pressed="true"] { color: #fff; background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); }
+.common-tags button[aria-pressed="true"] { color: var(--on-accent); background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); }
 .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 .card-tags span { font-size: 10px; border-radius: 5px; background: var(--surface-soft, #f5f7fa); padding: 2px 6px; color: var(--card-text-muted, #7c879b); }
 </style>
