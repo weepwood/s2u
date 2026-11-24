@@ -45,7 +45,7 @@
       <template v-if="history.length || searchQuery" #actions><BaseButton @click="clearFilters">清除搜索</BaseButton></template>
     </EmptyState>
 
-    <TransitionGroup v-else tag="div" name="workspace-list" class="history-list">
+    <TransitionGroup v-else ref="list" tag="div" name="workspace-list" class="history-list">
       <template v-for="group in groups" :key="group.key">
       <h3 v-if="order === 'recent'" class="history-day-heading">{{ group.label }}</h3>
       <article v-for="item in group.items" :key="item.scheme" class="history-item">
@@ -63,7 +63,7 @@
           <span class="history-content">
             <strong>{{ item.scheme }}</strong>
             <span>
-              {{ formatDate(item.recently).relative }}
+              {{ formatDate(item.recently) }}
               <span aria-hidden="true">·</span>
               已使用 {{ item.count }} 次
             </span>
@@ -96,6 +96,10 @@
       </article>
       </template>
     </TransitionGroup>
+    <div v-if="visibleHistory.length > PAGE_SIZE" class="history-page-controls">
+      <span role="status">已显示 {{ renderedHistory.length }} / {{ visibleHistory.length }} 条</span>
+      <BaseButton v-if="renderedHistory.length < visibleHistory.length" @click="showMore">显示更多记录</BaseButton>
+    </div>
     <BaseDialog v-if="bookmarkTarget" ref="bookmarkDialog" class="editor-dialog history-bookmark-dialog" aria-labelledby="history-bookmark-title" @close="bookmarkTarget = ''">
       <form class="history-bookmark-form" @submit.prevent="submitBookmark">
         <h3 id="history-bookmark-title">添加到常用链接</h3>
@@ -113,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { normalizeTarget } from '../domain/linkCodec.js'
 import { historyProtocol, selectHistoryView, groupHistoryByDay, historyBookmarkName } from '../domain/historyView.js'
 import BaseDialog from './ui/BaseDialog.vue'
@@ -126,7 +130,6 @@ import BaseSelect from './ui/BaseSelect.vue'
 const props=defineProps({
   history: { type: Array, default: () => [] },
   searchQuery: { type: String, default: '' },
-  filteredHistory: { type: Array, default: () => [] },
   commonLinks: {type:Array,default:()=>[]},
   saveBookmark: {type:Function,required:true},
 })
@@ -136,11 +139,24 @@ const protocol=ref(''),order=ref('recent')
 const protocols=computed(()=>[...new Set(props.history.map(historyProtocol))].sort())
 watch(protocols,values=>{if(protocol.value&&!values.includes(protocol.value))protocol.value=''})
 const visibleHistory=computed(()=>selectHistoryView(props.history,{query:props.searchQuery,protocol:protocol.value,order:order.value}))
-const groups=computed(()=>order.value==='recent'?groupHistoryByDay(visibleHistory.value):[{key:'all',items:visibleHistory.value}])
+const PAGE_SIZE=60
+const renderLimit=ref(PAGE_SIZE)
+const renderedHistory=computed(()=>visibleHistory.value.slice(0,renderLimit.value))
+const groups=computed(()=>order.value==='recent'?groupHistoryByDay(renderedHistory.value):[{key:'all',items:renderedHistory.value}])
+watch([()=>props.searchQuery,protocol,order],()=>{renderLimit.value=PAGE_SIZE})
+const list=ref(null)
+async function showMore(){
+  const previous=renderedHistory.value.length
+  renderLimit.value+=PAGE_SIZE
+  await nextTick()
+  // 新记录在按钮之前插入，将焦点移至下一条，键盘用户不会跳过内容。
+  list.value?.$el?.querySelectorAll('.history-main')[previous]?.focus({preventScroll:true})
+}
 function clearFilters(){protocol.value='';emit('update:searchQuery','')}
 const bookmarkDialog=ref(null),bookmarkTarget=ref(''),bookmarkName=ref(''),bookmarkError=ref('')
 const targets=computed(()=>new Set(props.commonLinks.map(item=>item.target)))
-function isBookmarked(target){const result=normalizeTarget(target);return result.ok&&targets.value.has(result.target)}
+// 历史和收藏在存储入口已规范化；外部输入仍在 beginBookmark 重新校验。
+function isBookmarked(target){return targets.value.has(target)}
 function beginBookmark(target) {
   try{
     const result=normalizeTarget(target)
@@ -159,34 +175,19 @@ function submitBookmark(){
 const importInput = ref(null)
 function triggerImport() { importInput.value?.click() }
 
+const dayFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 function formatDate(timestamp) {
   const date = new Date(timestamp)
-  if (!Number.isFinite(date.getTime())) return { relative: '未知时间', full: '' }
-
-  const now = new Date()
-  const diff = Math.max(0, now.getTime() - date.getTime())
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  let relative
-  if (minutes < 1) relative = '刚刚'
-  else if (minutes < 60) relative = `${minutes} 分钟前`
-  else if (hours < 24) relative = `${hours} 小时前`
-  else if (days === 1) relative = '昨天'
-  else if (days < 30) relative = `${days} 天前`
-  else relative = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
-
-  return {
-    relative,
-    full: new Intl.DateTimeFormat('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date),
-  }
+  if (!Number.isFinite(date.getTime())) return '未知时间'
+  const minutes = Math.floor(Math.max(0, Date.now() - timestamp) / 60000)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  if (hours < 24) return `${hours} 小时前`
+  if (days === 1) return '昨天'
+  if (days < 30) return `${days} 天前`
+  return dayFormatter.format(date)
 }
 </script>
 
@@ -209,6 +210,7 @@ function formatDate(timestamp) {
   display: grid;
   gap: 7px;
 }
+.history-page-controls { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--card-text-muted); }
 
 .history-item {
   min-width: 0;
@@ -333,10 +335,6 @@ function formatDate(timestamp) {
 }
 
 @media (max-width: 640px) {
-  .history-item {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
   .history-main {
     gap: 9px;
     padding-left: 8px;

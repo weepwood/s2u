@@ -126,7 +126,6 @@
             key="history"
             :history="history"
             :search-query="searchQuery"
-            :filtered-history="filteredHistory"
             :common-links="commonLinks"
             :save-bookmark="saveHistoryBookmark"
             :show-settings="showSettings"
@@ -200,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { createAsyncView } from '../composables/useAsyncView.js'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
@@ -244,7 +243,7 @@ function warmPanel(panel) {
 const workspace = openWorkspace()
 const { darkMode, toggle:toggleDark } = useDarkMode(workspace.storage)
 const historyStore = useHistory(workspace.storage)
-const { history, searchQuery, storageError, load:loadHistory, add:addHistory, exportJSON:exportHistory, filtered:filterHistory } = historyStore
+const { history, searchQuery, storageError, load:loadHistory, add:addHistory, exportJSON:exportHistory } = historyStore
 const commonStore = useCommonLinks(workspace.storage)
 const { links:commonLinks, storageError:commonStorageError, load:loadCommonLinks } = commonStore
 const cloud = useCloudSync(workspace)
@@ -258,8 +257,6 @@ const origin = getAppBaseUrl()
 
 const toast = ref({ message: '', type: 'info', duration: 2500, key: 0 })
 let toastKey = 0
-
-const filteredHistory = computed(() => filterHistory())
 
 function showToast(message, type = 'info', duration = 2500) {
   toastKey++

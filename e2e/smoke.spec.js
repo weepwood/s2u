@@ -89,11 +89,15 @@ test('真实断网后的异步页面可退出，联网后不自动刷新或丢�
   await page.locator('#url').fill('https://example.com/offline-draft')
   await page.evaluate(() => { window.__offlineProbe = 'same-document' })
   await context.setOffline(true)
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false)
   try {
     await page.getByRole('tab', { name: /历史记录/ }).click()
     await expect(page.getByRole('alert').filter({ hasText: '界面加载失败' })).toBeVisible({ timeout: 20000 })
     await expect(page.getByRole('button', { name: '重试加载' })).toBeVisible()
   } finally { await context.setOffline(false) }
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true)
+  await page.getByRole('button', { name: '重试加载' }).click()
+  await expect(page.locator('#history-panel').getByText('还没有创建过链接')).toBeVisible()
   await page.getByRole('tab', { name: /创建链接/ }).click()
   await expect(page.locator('#url')).toHaveValue('https://example.com/offline-draft')
   expect(await page.evaluate(() => window.__offlineProbe)).toBe('same-document')

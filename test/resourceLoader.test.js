@@ -31,3 +31,15 @@ test('超时后的迟到结果不会覆盖新请求', async () => {
   finish('old')
   assert.equal(await load(), 'new')
 })
+
+test('已知离线不发起新导入，联网可重试，成功缓存仍可离线使用', async () => {
+  let online = false, calls = 0
+  const load = createResourceLoader(async () => { calls++; return 'ok' }, { isOnline: () => online })
+  await assert.rejects(load(), /离线/)
+  assert.equal(calls, 0)
+  online = true
+  assert.equal(await load(), 'ok')
+  online = false
+  assert.equal(await load(), 'ok')
+  assert.equal(calls, 1)
+})
