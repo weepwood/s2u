@@ -816,7 +816,7 @@ function syncGist({ silent = false, resolve = [] } = {}) {
       }
       if (prefs.theme) extras[SETTINGS_FILE] = cloud.prepareOptional(SETTINGS_FILE, { version: 1, darkMode: darkMode.value }, validateSettings, resolve)
       if (!cloud.isCurrent(ctx)) return false
-      if (cloud.conflicts.value.length) throw new Error('收藏或设置存在双端冲突，请核对差异后确认处理')
+      cloud.assertConflictsResolved(resolve)
       // 只在所有冲突均有有效选择且当前连接仍有效时才应用本地修改。
       if (Array.isArray(resolve) && resolve.length) {
         localStorage.setItem('s2u_workspace_before_conflict_v1', JSON.stringify(currentWorkspace()))

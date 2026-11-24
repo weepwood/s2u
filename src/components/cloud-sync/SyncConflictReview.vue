@@ -1,7 +1,7 @@
 <template>
   <section class="conflict-review" aria-label="同步冲突处理">
     <div class="conflict-heading"><strong>同步冲突</strong><BaseButton @click="$emit('export')">导出本机备份</BaseButton></div>
-    <p>请核对两端差异。未选择的记录不会被静默覆盖。</p>
+    <p>逐条选择保留无冲突修改；整份保留会替换该文件另一端的全部内容。</p>
     <fieldset v-for="item in conflicts" :key="item.id" :disabled="busy" class="conflict-group">
       <legend>{{ item.kind === 'common' ? '常用链接' : '深浅主题' }}</legend>
       <p>{{ item.message }}</p>

@@ -1210,3 +1210,49 @@ test('工作区备份先预览再合并，保留已有收藏并暂停自动同�
   await expect(page.locator('.app-shell')).not.toHaveClass(/dark/)
   await expect(dialog.getByText('恢复预览',{exact:true})).toHaveCount(0)
 })
+
+
+test('Gist 收藏冲突预览逐条确认，保留两端无冲突修改',async({page})=>{
+  const id='abcde12345', commonFile='s2u-common-links.json'
+  const snap=items=>({format:'s2u-common-links',version:1,items})
+  const a={id:'a',name:'共同 A',target:'https://example.com/a'},b={id:'b',name:'共同 B',target:'https://example.com/b'}
+  const base=snap([a,b]), local=snap([{...a,name:'本机 A'},b])
+  let remote=snap([{...a,name:'云端 A'},{...b,name:'云端 B'}]), patches=0
+  await page.addInitScript(({id,base,local})=>{
+    localStorage.setItem('cloud_gist_id',id)
+    localStorage.setItem('s2u_gist_owner','test-user')
+    sessionStorage.setItem('cloud_token_session','fake-token')
+    localStorage.setItem('s2u_gist_preferences_v1',JSON.stringify({auto:false,common:true,icons:false,theme:false}))
+    localStorage.setItem('s2u_common_links_v1',JSON.stringify(local))
+    localStorage.setItem('s2u_gist_baseline_'+id+':s2u-common-links.json',JSON.stringify(base))
+  },{id,base,local})
+  await page.route('https://api.github.com/**',async route=>{
+    const request=route.request()
+    if(request.url().endsWith('/user'))return route.fulfill({json:{login:'test-user'}})
+    if(request.method()==='PATCH'){patches++;remote=JSON.parse(request.postDataJSON().files[commonFile].content)}
+    return route.fulfill({json:{id,public:false,owner:{login:'test-user'},files:{
+      'scheme-history.json':{content:JSON.stringify({format:'s2u-history',version:2,records:[],tombstones:[]})},
+      [commonFile]:{content:JSON.stringify(remote)}
+    }}})
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/')
+  await page.getByRole('button',{name:'打开云同步设置'}).click()
+  const dialog=page.getByRole('dialog',{name:'云端同步'})
+  await dialog.getByRole('button',{name:'立即同步'}).click()
+  const review=dialog.getByRole('region',{name:'同步冲突处理'})
+  await expect(review).toBeVisible()
+  expect(patches).toBe(0)
+  await review.getByLabel('处理方式').selectOption('records')
+  const confirm=review.getByRole('button',{name:'确认处理冲突'})
+  await expect(confirm).toBeDisabled()
+  await review.getByRole('radio',{name:'保留本机',exact:true}).check()
+  await expect(confirm).toBeEnabled()
+  page.once('dialog',prompt=>prompt.accept())
+  await confirm.click()
+  await expect(dialog.getByRole('status').filter({hasText:'已同步'})).toBeVisible()
+  expect(patches).toBe(1)
+  expect(remote.items.map(item=>item.name)).toEqual(['本机 A','云端 B'])
+  await expect(review).toHaveCount(0)
+  expect(await page.evaluate(()=>!!localStorage.getItem('s2u_workspace_before_conflict_v1'))).toBe(true)
+})
