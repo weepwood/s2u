@@ -211,7 +211,7 @@ import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
 import { openWorkspace } from '../domain/storage/workspaceScope.js'
-import { useClipboard } from '../composables/useClipboard.js'
+import { useClipboard, writeClipboardText } from '../composables/useClipboard.js'
 import { useWorkspaceSync } from '../composables/workspace/useWorkspaceSync.js'
 import { useShareRedirect } from '../composables/workspace/useShareRedirect.js'
 import { useBookmarkActions } from '../composables/workspace/useBookmarkActions.js'
@@ -325,7 +325,8 @@ function notifyStorageError() {
 
 function gotoUrl(fullUrl) {
   if (!fullUrl) return
-  navigator.clipboard.writeText(fullUrl).catch(() => {})
+  // 剪贴板不可用不能阻断打开；保持 window.open 在用户点击的同步调用栈内。
+  writeClipboardText(fullUrl).catch(() => showToast('未能复制分享链接，请检查剪贴板权限', 'error', 4000))
   window.open(fullUrl, '_blank', 'noopener,noreferrer')
 }
 
@@ -336,7 +337,7 @@ function toHistoryUrl(scheme) {
     return
   }
 
-  navigator.clipboard.writeText(encodeShareLink(origin, normalized.target)).catch(() => {})
+  writeClipboardText(encodeShareLink(origin, normalized.target)).catch(() => showToast('未能复制分享链接，请检查剪贴板权限', 'error', 4000))
   window.open(normalized.target, '_blank', 'noopener,noreferrer')
 }
 
@@ -346,7 +347,8 @@ function openQrShare(shareUrl) {
 }
 
 function copy() {
-  const normalized = normalizeTarget(url.value)
+  const submittedUrl = url.value
+  const normalized = normalizeTarget(submittedUrl)
   if (!normalized.ok) {
     urlError.value = normalized.error
     return
@@ -356,8 +358,11 @@ function copy() {
   copyToClipboard(shareLink, () => {
     const saved = addHistory(normalized.target)
     if (!saved) notifyStorageError()
-    url.value = ''
-    urlError.value = ''
+    // 剪贴板写入可能等待权限；不能清除等待期间用户编辑的新地址。
+    if (url.value === submittedUrl) {
+      url.value = ''
+      urlError.value = ''
+    }
     autoSync()
   })
 }

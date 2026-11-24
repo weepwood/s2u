@@ -1,12 +1,18 @@
 import { ref } from 'vue'
 
+// 即使浏览器没有 Clipboard API，也统一以 Promise 拒绝报告失败。
+export async function writeClipboardText(value, clipboard = globalThis.navigator?.clipboard) {
+  if (typeof clipboard?.writeText !== 'function') throw new Error('Clipboard API unavailable')
+  await clipboard.writeText(value)
+}
+
 export function useClipboard() {
   const copyText = ref('Copy')
   let copyTimer = null
 
   async function copyToClipboard(url, onSuccess) {
     try {
-      await navigator.clipboard.writeText(url)
+      await writeClipboardText(url)
       copyText.value = 'Copied!'
       if (onSuccess) onSuccess()
       scheduleReset(1200)
