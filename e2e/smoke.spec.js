@@ -679,6 +679,40 @@ test('命令面板方向键移动时更新辅助技术的选中项', async ({ pa
   await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
 })
 
+test('命令面板按标签多关键词和来源筛选，外壳稳定并恢复焦点',async({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem('s2u_common_links_v1',JSON.stringify({version:1,items:[
+      {id:'editor',name:'Visual Studio Code',target:'vscode://',tags:['开发']},
+      {id:'notes',name:'Obsidian',target:'obsidian://',tags:['笔记']}
+    ]}))
+    localStorage.setItem('scheme_history',JSON.stringify({format:'s2u-history',version:2,records:[{scheme:'https://history.example/',count:1,recently:1000,updatedAt:1000}],tombstones:[]}))
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  const trigger=page.getByRole('button',{name:'打开快捷启动命令面板'})
+  await trigger.click()
+  const dialog=page.getByRole('dialog',{name:'快捷启动命令面板'})
+  const input=dialog.getByRole('searchbox',{name:'搜索命令'})
+  await expect(input).toBeFocused()
+  const before=await dialog.boundingBox()
+  await input.fill('visual 开发')
+  await expect(dialog.getByRole('option')).toHaveCount(1)
+  await expect(dialog.getByRole('option').first()).toContainText('Visual Studio Code')
+  await input.fill('')
+  await dialog.getByRole('button',{name:'历史记录',exact:true}).click()
+  await expect(dialog.getByRole('option')).toHaveCount(1)
+  await expect(dialog.getByRole('option').first()).toContainText('https://history.example/')
+  await input.fill('missing')
+  await expect(dialog.getByText('没有找到匹配项')).toBeVisible()
+  const after=await dialog.boundingBox()
+  expect(Math.abs(before.height-after.height)).toBeLessThan(1)
+  expect(Math.abs(before.y-after.y)).toBeLessThan(1)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+})
+
 test('二维码分享本地生成，保留特殊字符分享链接，并能关闭弹窗', async ({ page }) => {
   await page.goto('/')
   await page.getByPlaceholder('weixin://open 或 example.com').fill('obsidian://open?vault=笔记&file=A%20B')
