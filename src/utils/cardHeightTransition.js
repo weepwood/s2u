@@ -1,6 +1,6 @@
 const CARD_SELECTOR = '.content-card'
-const TRANSITION_DURATION = 420
-const TRANSITION_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const DEFAULT_DURATION = 300
+const DEFAULT_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
 export function installCardHeightTransition() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
@@ -32,6 +32,7 @@ function setupAutoHeight(card) {
   let animationFrame = null
   let resizeTimer = null
   let activeAnimation = null
+  let activeTarget = null
   let observedPanel = null
   let isDestroyed = false
 
@@ -77,6 +78,7 @@ function setupAutoHeight(card) {
     const currentHeight = readCurrentHeight()
     activeAnimation.cancel()
     activeAnimation = null
+    activeTarget = null
     card.style.height = `${currentHeight}px`
   }
 
@@ -87,10 +89,12 @@ function setupAutoHeight(card) {
     const panel = getRenderedPanel()
     if (!panel) return
 
-    cancelActiveAnimation()
-
-    const currentHeight = readCurrentHeight()
     const targetHeight = measurePanelHeight(panel)
+    // 文案、toast 或观察器反复通知但高度不变时，不重启动画。
+    if (activeAnimation && !reducedMotion.matches && Math.abs(targetHeight - activeTarget) < 1) return
+
+    cancelActiveAnimation()
+    const currentHeight = readCurrentHeight()
 
     if (Math.abs(targetHeight - currentHeight) < 1) {
       card.style.height = `${targetHeight}px`
@@ -107,22 +111,30 @@ function setupAutoHeight(card) {
       return
     }
 
+    const style = window.getComputedStyle(card)
+    const duration = Number.parseFloat(style.getPropertyValue('--motion-panel-duration')) || DEFAULT_DURATION
+    const easing = style.getPropertyValue('--motion-standard').trim() || DEFAULT_EASING
     const animation = card.animate(
       [{ height: `${currentHeight}px` }, { height: `${targetHeight}px` }],
       {
-        duration: TRANSITION_DURATION,
-        easing: TRANSITION_EASING,
+        duration,
+        easing,
       },
     )
 
     activeAnimation = animation
+    activeTarget = targetHeight
     animation.onfinish = () => {
       if (activeAnimation !== animation) return
       activeAnimation = null
+      activeTarget = null
       finishAnimation()
     }
     animation.oncancel = () => {
-      if (activeAnimation === animation) activeAnimation = null
+      if (activeAnimation === animation) {
+        activeAnimation = null
+        activeTarget = null
+      }
     }
   }
 
@@ -168,6 +180,7 @@ function setupAutoHeight(card) {
   }
 
   window.addEventListener('resize', handleResize, { passive: true })
+  reducedMotion.addEventListener?.('change', scheduleAnimation)
   document.fonts?.ready.then(() => {
     if (!isDestroyed) scheduleAnimation()
   })
@@ -180,6 +193,7 @@ function setupAutoHeight(card) {
     window.clearTimeout(resizeTimer)
     activeAnimation?.cancel()
     window.removeEventListener('resize', handleResize)
+    reducedMotion.removeEventListener?.('change', scheduleAnimation)
     card.style.removeProperty('height')
     card.style.removeProperty('overflow')
     card.style.removeProperty('will-change')

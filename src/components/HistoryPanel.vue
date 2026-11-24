@@ -1,38 +1,54 @@
 <template>
-  <section class="history-panel" aria-labelledby="history-list-title">
-    <div class="section-heading">
+  <section class="history-panel panel-stack" aria-labelledby="history-list-title">
+    <div class="section-heading panel-head">
       <div>
-        <span class="section-kicker">Link archive</span>
         <h2 id="history-list-title">历史记录</h2>
       </div>
-      <span class="total-badge">{{ history.length }} 条记录</span>
+      <span class="total-badge panel-meta">{{ history.length }} 条记录</span>
     </div>
 
-    <div v-if="history.length" class="search-wrap">
-      <span class="search-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/>
-          <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <input
-        :value="searchQuery"
-        class="search-input"
-        placeholder="搜索 URL、域名或 Scheme"
-        aria-label="搜索历史记录"
-        @input="$emit('update:searchQuery', $event.target.value)"
-      />
-      <button
-        v-if="searchQuery"
-        type="button"
-        class="search-clear"
-        aria-label="清除搜索"
-        @click="$emit('update:searchQuery', '')"
-      >
+    <div class="panel-toolbar">
+      <div class="search-wrap control-field">
+        <span class="search-icon control-field__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/>
+            <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <input
+          :value="searchQuery"
+          class="search-input control-field__input"
+          placeholder="搜索 URL、域名或 Scheme"
+          aria-label="搜索历史记录"
+          @input="$emit('update:searchQuery', $event.target.value)"
+        />
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="search-clear control-field__clear"
+          aria-label="清除搜索"
+          @click="$emit('update:searchQuery', '')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="panel-toolbar-actions" aria-label="历史记录导入导出">
+      <button class="action-btn" type="button" @click="$emit('export')">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+        导出
       </button>
+      <button class="action-btn" type="button" @click="triggerImport">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 15V3m0 0 4 4m-4-4L8 7M5 19h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        导入
+      </button>
+        <input ref="importInput" type="file" accept=".json,application/json" class="control-visually-hidden" tabindex="-1" aria-label="导入历史记录文件" @change="$emit('importFile', $event)" />
+      </div>
     </div>
 
     <div v-if="filteredHistory.length === 0" class="empty-state">
@@ -43,7 +59,7 @@
         </svg>
       </span>
       <h3>{{ searchQuery ? '没有找到匹配记录' : '还没有创建过链接' }}</h3>
-      <p>{{ searchQuery ? '尝试更换关键词，或清除当前搜索条件。' : '复制第一个跳转链接后，它会出现在这里。' }}</p>
+      <p v-if="!searchQuery">复制链接后自动保存。</p>
       <button v-if="searchQuery" type="button" @click="$emit('update:searchQuery', '')">清除搜索</button>
     </div>
 
@@ -92,13 +108,17 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+
 defineProps({
   history: { type: Array, default: () => [] },
   searchQuery: { type: String, default: '' },
   filteredHistory: { type: Array, default: () => [] },
 })
 
-defineEmits(['update:searchQuery', 'select', 'delete'])
+defineEmits(['update:searchQuery', 'select', 'delete', 'export', 'importFile'])
+const importInput = ref(null)
+function triggerImport() { importInput.value?.click() }
 
 function formatDate(timestamp) {
   const date = new Date(timestamp)
@@ -132,35 +152,6 @@ function formatDate(timestamp) {
 </script>
 
 <style scoped>
-.history-panel {
-  display: grid;
-  gap: 20px;
-}
-
-.section-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.section-kicker {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--card-text-muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.section-heading h2 {
-  margin: 0;
-  color: var(--card-text);
-  font-size: 21px;
-  letter-spacing: -0.025em;
-}
-
 .total-badge {
   min-height: 30px;
   padding: 0 10px;
@@ -173,72 +164,6 @@ function formatDate(timestamp) {
   font-size: 11px;
   font-weight: 650;
   white-space: nowrap;
-}
-
-.search-wrap {
-  height: 46px;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--hairline);
-  border-radius: 13px;
-  background: var(--surface-elevated);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.search-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
-}
-
-.search-icon {
-  width: 43px;
-  display: grid;
-  place-items: center;
-  color: var(--card-text-muted);
-}
-
-.search-icon svg {
-  width: 18px;
-  height: 18px;
-}
-
-.search-input {
-  min-width: 0;
-  flex: 1;
-  height: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--card-text);
-  font: inherit;
-  font-size: 13px;
-}
-
-.search-input::placeholder {
-  color: var(--card-text-muted);
-}
-
-.search-clear {
-  width: 34px;
-  height: 34px;
-  margin-right: 5px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--card-text-muted);
-  cursor: pointer;
-}
-
-.search-clear:hover {
-  background: var(--surface-soft);
-  color: var(--card-text);
-}
-
-.search-clear svg {
-  width: 15px;
-  height: 15px;
 }
 
 .empty-state {
@@ -420,10 +345,6 @@ function formatDate(timestamp) {
 }
 
 @media (max-width: 640px) {
-  .total-badge {
-    display: none;
-  }
-
   .history-item {
     grid-template-columns: minmax(0, 1fr) auto;
   }

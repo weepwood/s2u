@@ -1,11 +1,10 @@
 <template>
-  <section class="url-input-panel" aria-labelledby="create-link-title">
-    <div class="section-heading">
+  <section class="url-input-panel panel-stack" aria-labelledby="create-link-title">
+    <div class="section-heading panel-head">
       <div>
-        <span class="section-kicker">Create a bridge</span>
         <h2 id="create-link-title">输入目标地址</h2>
       </div>
-      <span class="privacy-badge">
+      <span class="privacy-badge panel-meta" title="目标地址在本地生成；Ctrl / ⌘ + Enter 可复制">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M7 10V8a5 5 0 0 1 10 0v2m-9 0h8a2 2 0 0 1 2 2v7H6v-7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
         </svg>
@@ -14,10 +13,10 @@
     </div>
 
     <div class="field-group">
-      <label for="url">网址或 URL Scheme</label>
-      <div class="input-row">
-        <div class="input-wrap" :class="{ error: urlError, filled: urlValue }">
-          <span class="input-icon" aria-hidden="true">
+      <label for="url" class="control-visually-hidden">网址或 URL Scheme</label>
+      <div class="input-row panel-toolbar">
+        <div class="input-wrap control-field" :class="{ error: urlError, filled: urlValue }">
+          <span class="input-icon control-field__icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M8.5 15.5 15.5 8.5M7 10H5.75A3.75 3.75 0 0 0 2 13.75v2.5A3.75 3.75 0 0 0 5.75 20h2.5A3.75 3.75 0 0 0 12 16.25V15m0-6V7.75A3.75 3.75 0 0 1 15.75 4h2.5A3.75 3.75 0 0 1 22 7.75v2.5A3.75 3.75 0 0 1 18.25 14H17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
             </svg>
@@ -26,20 +25,20 @@
             id="url"
             ref="urlInput"
             v-model="urlValue"
-            class="text-input"
+            class="text-input control-field__input"
             placeholder="weixin://open 或 example.com"
             autocomplete="off"
             autocapitalize="off"
             spellcheck="false"
             :aria-invalid="Boolean(urlError)"
-            :aria-describedby="urlError ? 'url-error' : 'url-help'"
+            :aria-describedby="urlError ? 'url-error' : undefined"
             @keydown.enter.exact="handleEnter"
             @input="emitError('')"
           />
           <button
             v-if="urlValue"
             type="button"
-            class="input-clear"
+            class="input-clear control-field__clear"
             aria-label="清空输入"
             @click="clearInput"
           >
@@ -51,7 +50,7 @@
 
         <button
           type="button"
-          class="copy-btn"
+          class="copy-btn action-btn action-btn--primary"
           :class="{ copied: copyText === 'Copied!', failed: copyText === 'Failed' }"
           :disabled="!urlValue.trim()"
           @click="emitCopy"
@@ -68,7 +67,6 @@
       </div>
 
       <div class="starter-links" role="group" aria-label="快速填入示例地址">
-        <span class="starter-label">快速填入</span>
         <div class="starter-actions">
           <button
             v-for="example in starterExamples"
@@ -92,17 +90,16 @@
         </svg>
         {{ urlError }}
       </p>
-      <p v-else id="url-help" class="field-message">
-        生成的链接不会上传目标地址；按 <kbd>Ctrl / ⌘ + Enter</kbd> 可快速复制。
-      </p>
     </div>
 
     <div v-if="urlValue && !urlError && shareUrl" class="preview-card">
       <div class="preview-head">
-        <div>
+        <div class="preview-title">
           <span class="preview-label">生成结果</span>
           <span class="preview-state">
-            <span aria-hidden="true"></span>
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="m3.5 8 3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
             可以分享
           </span>
         </div>
@@ -113,23 +110,27 @@
             </svg>
             二维码
           </button>
-          <button type="button" class="preview-open" @click="$emit('goto', shareUrl)">
-            打开测试
+          <button type="button" class="preview-open preview-test" @click="$emit('goto', shareUrl)">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
+            打开测试
           </button>
         </div>
       </div>
       <button type="button" class="preview-url" :title="safeDecode(shareUrl)" @click="$emit('goto', shareUrl)">
-        {{ safeDecode(shareUrl) }}
+        <span class="preview-link-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M9 15l6-6M8 16l-1 1a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-1 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="preview-url-text">{{ safeDecode(shareUrl) }}</span>
       </button>
     </div>
 
     <div v-if="recentUrls.length" class="recent-section">
       <div class="recent-head">
         <div>
-          <span class="section-kicker">Recently generated</span>
           <h3>最近复制</h3>
         </div>
         <span>{{ recentUrls.length }} 条</span>
@@ -137,14 +138,14 @@
 
       <div class="recent-list">
         <button
-          v-for="(item, index) in recentUrls"
+          v-for="item in recentUrls"
           :key="item"
           type="button"
           class="recent-item"
           :title="safeDecode(item)"
           @click="$emit('goto', item)"
         >
-          <span class="recent-index">{{ String(index + 1).padStart(2, '0') }}</span>
+          <span class="recent-index" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M9 15l6-6M8 16l-1 1a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-1 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
           <span class="recent-url">{{ safeDecode(item) }}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
