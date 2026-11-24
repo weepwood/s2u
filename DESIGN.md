@@ -135,3 +135,8 @@ Gist Token 仅置于 sessionStorage，不出现在日志、界面 DOM 的持久�
 ## UI Foundation 第一批基础组件
 
 `src/components/ui` 提供 BaseDialog、BaseButton、BaseInput、BaseSwitch、SegmentedTabs；云同步接入全部五种，二维码和快捷键帮助复用 BaseDialog。保留原生 input、button、dialog，确认取消时受控开关恢复真实状态；不改变存储或同步协议。主页面仍使用原有可访问 tablist，后续逐步迁移，避免一次性破坏快捷键和预加载。
+
+
+### 快捷启动面板
+
+命令面板复用 BaseDialog、BaseButton、SegmentedTabs；保持原版玻璃主题，固定外壳高度（不超过视口），结果区独立滚动，搜索无匹配/协议确认不移动外壳。多关键词可跨应用名称、地址、标签匹配，优先名称匹配，来源筛选使用全部/常用链接/历史记录；原有未知协议确认和键盘行为保留。默认最多 12 条结果，不引入搜索依赖，不发送查询。
