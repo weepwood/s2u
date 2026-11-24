@@ -180,7 +180,8 @@
       </div>
     </section>
 
-    <SettingsPanel v-if="showSettings" :cloud="cloud" :workspace-preview="workspacePreview" @close="closeSyncSettings"
+    <SettingsPanel v-if="showSettings" :cloud="cloud" :workspace-preview="workspacePreview" :workspace="workspace.id" :profiles="workspaceProfiles" @close="closeSyncSettings"
+      @switch-workspace="switchWorkspace" @create-workspace="addWorkspace"
       @export-workspace="exportWorkspace" @preview-workspace="previewWorkspace" @restore-workspace="restoreWorkspace"
       @cancel-workspace="clearWorkspacePreview" @export-before-restore="exportBeforeRestore" @export-before-conflict="exportBeforeConflict"
       @connect="connectGist" @sync="syncGist" @disconnect="disconnectGist"
@@ -207,6 +208,7 @@ import { makeWorkspaceBackup, parseWorkspaceBackup, planWorkspaceRestore, runWor
 import { useHistory, HISTORY_STORAGE_KEY } from '../composables/useHistory.js'
 import { useCommonLinks, COMMON_LINKS_STORAGE_KEY } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
+import { openWorkspace, listWorkspaces, createWorkspace, activateWorkspace } from '../domain/storage/workspaceScope.js'
 import { COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
 import { useClipboard } from '../composables/useClipboard.js'
 import {
@@ -241,7 +243,9 @@ function warmPanel(panel) {
 }
 
 const MAX_IMPORT_SIZE = 2 * 1024 * 1024
-const { darkMode, toggle: toggleDark } = useDarkMode()
+const workspace = openWorkspace()
+const workspaceProfiles = ref([])
+const { darkMode, toggle: toggleDark } = useDarkMode(workspace.storage)
 
 const {
   history,
@@ -257,7 +261,7 @@ const {
   snapshot: historySnapshot,
   exportJSON: exportHistory,
   filtered: filterHistory,
-} = useHistory()
+} = useHistory(workspace.storage)
 
 const {
   links: commonLinks,
@@ -274,11 +278,11 @@ const {
   validateSync: validateCommonSync,
   syncSnapshot: commonSyncSnapshot,
   applySync: applyCommonSync,
-} = useCommonLinks()
+} = useCommonLinks(workspace.storage)
 const commonPanel = ref(null)
 const { copyText, copyToClipboard, cleanup: cleanupClipboard } = useClipboard()
 
-const cloud = useCloudSync()
+const cloud = useCloudSync(workspace)
 const {
   cloudToken, cloudGistId, syncStatus, syncError, lastSyncTime, preferences, pending,
   loadConfig, connect, disconnect, pushToGist, pullFromGist, scheduleAutoSync,
@@ -347,7 +351,28 @@ function handleTabNavigation(event) {
 }
 const showSettings = ref(false)
 let syncTrigger = null
-function openSyncSettings() { syncTrigger = document.activeElement; showSettings.value = true }
+function openSyncSettings() {
+  syncTrigger = document.activeElement
+  try { workspaceProfiles.value = listWorkspaces() } catch (error) { showToast(error.message || '无法读取工作区列表', 'error') }
+  showSettings.value = true
+}
+function switchWorkspace(id) {
+  if (id === workspace.id || syncPromise || ['connecting','syncing'].includes(syncStatus.value)) return
+  try {
+    if (!confirm('切换工作区？当前数据保留，仅重新加载当前标签页；切换后需重新输入 Token。')) return
+    if (!activateWorkspace(id)) return
+    cleanupSync()
+    window.location.reload()
+  } catch (error) { showToast(error.message, 'error', 4000) }
+}
+function addWorkspace(login) {
+  if (syncPromise || ['connecting','syncing'].includes(syncStatus.value)) return
+  try {
+    const id = createWorkspace(login)
+    workspaceProfiles.value = listWorkspaces()
+    switchWorkspace(id)
+  } catch (error) { showToast(error.message, 'error', 4000) }
+}
 function closeSyncSettings() { showSettings.value = false; clearWorkspacePreview(); nextTick(() => syncTrigger?.isConnected && syncTrigger.focus()) }
 const showCloseMsg = ref(false)
 const redirectPolicy = ref(null)
@@ -724,14 +749,14 @@ function exportWorkspace() {
 }
 function exportBeforeConflict() {
   try {
-    const raw = localStorage.getItem('s2u_workspace_before_conflict_v1')
+    const raw = workspace.storage.getItem('s2u_workspace_before_conflict_v1')
     if (!raw) { showToast('暂无冲突处理前快照', 'info'); return }
     downloadWorkspace(JSON.parse(raw), 's2u-before-conflict.json')
   } catch (error) { showToast(error.message, 'error') }
 }
 function exportBeforeRestore() {
   try {
-    const raw = localStorage.getItem(RECOVERY_KEY)
+    const raw = workspace.storage.getItem(RECOVERY_KEY)
     if (!raw) { showToast('暂无恢复前快照', 'info'); return }
     downloadWorkspace(JSON.parse(raw), 's2u-before-restore.json')
   } catch (error) { showToast(error.message, 'error') }
@@ -761,11 +786,11 @@ function restoreWorkspace({ theme = false } = {}) {
     cloud.setPreferences({auto:false})
     applyingRemote = true
     try {
-      runWorkspaceRestore(localStorage, [HISTORY_STORAGE_KEY, COMMON_LINKS_STORAGE_KEY, DARK_MODE_STORAGE_KEY], before, () => {
+      runWorkspaceRestore(workspace.storage, [HISTORY_STORAGE_KEY, COMMON_LINKS_STORAGE_KEY, DARK_MODE_STORAGE_KEY], before, () => {
         mergeHistory(plan.history)
         if (plan.commonLinks) applyCommonSync(plan.commonLinks, true)
         if (theme && plan.settings) {
-          localStorage.setItem(DARK_MODE_STORAGE_KEY, JSON.stringify(plan.settings.darkMode))
+          workspace.storage.setItem(DARK_MODE_STORAGE_KEY, JSON.stringify(plan.settings.darkMode))
           darkMode.value = plan.settings.darkMode
         }
       }, () => { loadHistory(); loadCommonLinks(); darkMode.value = before.settings.darkMode })
@@ -819,7 +844,7 @@ function syncGist({ silent = false, resolve = [] } = {}) {
       cloud.assertConflictsResolved(resolve)
       // 只在所有冲突均有有效选择且当前连接仍有效时才应用本地修改。
       if (Array.isArray(resolve) && resolve.length) {
-        localStorage.setItem('s2u_workspace_before_conflict_v1', JSON.stringify(currentWorkspace()))
+        workspace.storage.setItem('s2u_workspace_before_conflict_v1', JSON.stringify(currentWorkspace()))
       }
       applyingRemote = true
       try {
@@ -874,7 +899,7 @@ async function restoreGistRecovery({ index, version }) {
     if (summary.invalid || (Array.isArray(snapshot?.tombstones) && summary.tombstones !== snapshot.tombstones.length)) throw new Error('备份包含无效记录或删除标记')
     if (!confirm('备份包含 ' + summary.valid + ' 条记录及 ' + summary.tombstones + ' 个删除标记。将合并到本机历史，是否继续？')) return
     if (!cloud.isCurrent(ctx) || ['connecting','syncing'].includes(syncStatus.value)) throw new Error('连接已变化，请重新选择备份')
-    localStorage.setItem('s2u_history_before_recovery', JSON.stringify(historySnapshot()))
+    workspace.storage.setItem('s2u_history_before_recovery', JSON.stringify(historySnapshot()))
     mergeHistory(snapshot)
     cloud.markPending()
     showToast('已合并恢复至本机，确认后可手动同步', 'success')
@@ -1006,12 +1031,13 @@ onMounted(() => {
   if (commonStorageError.value) showToast(commonStorageError.value, 'error', 4000)
 
   try {
-    localStorage.removeItem('url_list')
+    workspace.storage.removeItem('url_list')
   } catch {
     // 忽略无法清理的旧缓存。
   }
 
   const hasSavedConfig = loadConfig()
+  if (workspace.unavailable) showToast('无法读取工作区，请检查浏览器存储权限', 'error', 5000)
   window.addEventListener('hashchange', readShareHash)
   window.addEventListener('online', onSyncFocus)
   window.addEventListener('focus', onSyncFocus)

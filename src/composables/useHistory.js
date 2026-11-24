@@ -12,7 +12,7 @@ const MAX_SCHEME_LENGTH = 4096
 const MAX_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000
 const TOMBSTONE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
 
-export function useHistory() {
+export function useHistory(storage = globalThis.localStorage) {
   const history = ref([])
   const tombstones = ref([])
   const searchQuery = ref('')
@@ -20,7 +20,7 @@ export function useHistory() {
 
   function load() {
     try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
+      const stored = JSON.parse(storage.getItem(STORAGE_KEY))
       const normalized = normalizePayload(stored)
       history.value = normalized.records
       tombstones.value = normalized.tombstones
@@ -35,7 +35,7 @@ export function useHistory() {
 
   function save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot()))
+      storage.setItem(STORAGE_KEY, JSON.stringify(snapshot()))
       storageError.value = ''
       return true
     } catch {

@@ -9,6 +9,8 @@
       <p v-if="error || cloud.syncError.value" class="cloud-error" role="alert">{{ error || cloud.syncError.value }}</p>
       <Transition name="sync-panel">
     <section v-if="tab === 'connection'" key="connection" class="cloud-body">
+      <WorkspaceSelector :workspace="workspace" :profiles="profiles" :busy="busy || finding"
+        @switch="$emit('switch-workspace',$event)" @create="$emit('create-workspace',$event)" />
       <template v-if="!editing && cloud.cloudToken.value">
         <div class="cloud-account"><strong>{{ cloud.account.value || 'GitHub' }}</strong><span class="cloud-status" :data-status="cloud.syncStatus.value" role="status">{{ status }}</span></div>
         <dl class="cloud-details"><dt>Gist</dt><dd>{{ cloud.cloudGistId.value }}</dd><dt>最近同步</dt><dd>{{ cloud.lastSyncTime.value ? date(cloud.lastSyncTime.value) : '尚未验证' }}</dd></dl>
@@ -125,8 +127,9 @@ import BaseInput from './ui/BaseInput.vue'
 import BaseSwitch from './ui/BaseSwitch.vue'
 import SegmentedTabs from './ui/SegmentedTabs.vue'
 import SyncConflictReview from './cloud-sync/SyncConflictReview.vue'
-const props = defineProps({ cloud: { type: Object, required: true }, workspacePreview: {type:Object, default:null} })
-const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test','export-workspace','preview-workspace','restore-workspace','cancel-workspace','export-before-restore','export-before-conflict'])
+import WorkspaceSelector from './cloud-sync/WorkspaceSelector.vue'
+const props = defineProps({ cloud: { type: Object, required: true }, workspacePreview: {type:Object, default:null}, workspace: {type:String,default:'legacy'}, profiles: {type:Array,default:()=>[]} })
+const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test','export-workspace','preview-workspace','restore-workspace','cancel-workspace','export-before-restore','export-before-conflict','switch-workspace','create-workspace'])
 const cloud = props.cloud
 const dialog = ref(null), tab = ref('connection'), token = ref(''), gist = ref(cloud.cloudGistId.value), mode = ref(gist.value ? 'manual' : 'existing')
 const scrollArea = ref(null), direction = ref('forward')

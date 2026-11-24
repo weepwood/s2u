@@ -1256,3 +1256,38 @@ test('Gist 收藏冲突预览逐条确认，保留两端无冲突修改',async({
   await expect(review).toHaveCount(0)
   expect(await page.evaluate(()=>!!localStorage.getItem('s2u_workspace_before_conflict_v1'))).toBe(true)
 })
+
+
+test('账号工作区切换保留旧数据，且新工作区不继承旧连接',async({page})=>{
+  await page.addInitScript(()=>{
+    if(!localStorage.getItem('s2u_account_test_seed')){
+      localStorage.setItem('s2u_account_test_seed','1')
+      localStorage.setItem('scheme_history',JSON.stringify({format:'s2u-history',version:2,records:[{scheme:'https://legacy.example/',count:1,recently:1000,updatedAt:1000}],tombstones:[]}))
+      localStorage.setItem('cloud_gist_id','abcde12345')
+      localStorage.setItem('s2u_gist_owner','legacy-user')
+    }
+  })
+  await page.goto('/')
+  const open=async()=>{
+    await page.getByRole('button',{name:'打开云同步设置'}).click()
+    const dialog=page.getByRole('dialog',{name:'云端同步'})
+    await dialog.getByText('切换或新建工作区',{exact:true}).click()
+    return dialog
+  }
+  let dialog=await open()
+  await dialog.getByLabel('新账号工作区').fill('alice')
+  page.once('dialog',prompt=>prompt.accept())
+  await Promise.all([page.waitForEvent('load'),dialog.getByRole('button',{name:'新建并切换'}).click()])
+  await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('s2u_active_workspace_v1'))).toBe('account:alice')
+  await page.getByRole('tab',{name:/历史记录/}).click()
+  await expect(page.getByText('https://legacy.example/',{exact:true})).toHaveCount(0)
+  dialog=await open()
+  await expect(dialog.getByText('@alice',{exact:true}).first()).toBeVisible()
+  await expect(dialog.getByLabel('GitHub Token')).toHaveValue('')
+  await dialog.getByLabel('已保存工作区').selectOption('legacy')
+  page.once('dialog',prompt=>prompt.accept())
+  await Promise.all([page.waitForEvent('load'),dialog.getByRole('button',{name:'切换工作区',exact:true}).click()])
+  await page.getByRole('tab',{name:/历史记录/}).click()
+  await expect(page.getByText('https://legacy.example/',{exact:true}).first()).toBeVisible()
+  expect(await page.evaluate(()=>localStorage.getItem('cloud_gist_id'))).toBe('abcde12345')
+})

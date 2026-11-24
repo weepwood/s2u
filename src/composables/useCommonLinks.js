@@ -76,7 +76,7 @@ function normalizeItem(input) {
   return withTags(withIcon({ id: input.id, name, target: normalized.target }, icon), tags)
 }
 
-export function useCommonLinks() {
+export function useCommonLinks(storage = globalThis.localStorage) {
   const links = ref(defaultItems())
   const storageError = ref('')
   let needsRecovery = false
@@ -85,7 +85,7 @@ export function useCommonLinks() {
   function load() {
     let raw = null
     try {
-      raw = localStorage.getItem(STORAGE_KEY)
+      raw = storage.getItem(STORAGE_KEY)
       if (raw === null) {
         needsRecovery = false
         damagedRaw = null
@@ -132,9 +132,9 @@ export function useCommonLinks() {
       if (needsRecovery) {
         if (damagedRaw === null) throw new Error('原始数据无法备份')
         const backupKey = CORRUPT_BACKUP_PREFIX + Date.now()
-        localStorage.setItem(backupKey, damagedRaw)
+        storage.setItem(backupKey, damagedRaw)
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: VERSION, items }))
+      storage.setItem(STORAGE_KEY, JSON.stringify({ version: VERSION, items }))
       links.value = items
       needsRecovery = false
       damagedRaw = null
@@ -279,7 +279,7 @@ export function useCommonLinks() {
     })
     if (JSON.stringify(merged) === JSON.stringify(links.value)) return true
     // 先保存本机收藏，无法备份时不覆盖。
-    localStorage.setItem('s2u_common_links_before_sync', exportJSON())
+    storage.setItem('s2u_common_links_before_sync', exportJSON())
     if (!persist(merged)) throw new Error(storageError.value)
     return true
   }
