@@ -30,44 +30,6 @@ defineEmits(['toggle'])
 </script>
 
 <style scoped>
-.theme-toggle {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
-  background: var(--page-bg-soft);
-  color: var(--card-text-soft);
-  cursor: pointer;
-  backdrop-filter: blur(16px);
-  transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, background 0.18s ease;
-}
-
-.theme-toggle:hover {
-  border-color: var(--hairline-strong);
-  color: var(--card-text);
-  transform: translateY(-1px);
-}
-
-.icon-wrap {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--surface-soft);
-  transition: background 0.18s ease, color 0.18s ease;
-}
-
-.icon-wrap.dark {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.icon-wrap svg {
-  width: 17px;
-  height: 17px;
-}
+.icon-wrap { display:grid; place-items:center; transition:color .18s ease; }
+.icon-wrap.dark { color:var(--accent); }
 </style>

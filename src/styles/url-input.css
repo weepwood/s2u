@@ -39,29 +39,23 @@
 }
 
 .copy-btn {
-  min-width: 0;
-  height: var(--control-height);
-  padding: 0 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border: 0;
-  border-radius: var(--radius-control);
   background: var(--accent);
   color: var(--on-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 750;
   cursor: pointer;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 28%, transparent);
   transition: transform 0.16s ease, background 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
 }
 
 .copy-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   background: var(--accent-hover);
-  box-shadow: 0 14px 28px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .copy-btn:active:not(:disabled) {

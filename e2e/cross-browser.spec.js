@@ -113,5 +113,5 @@ test('预热后五轮反向切换采样及最终落位',async({page},testInfo)=>
     reports.push({reducedMotion,...report})
   }
   await writeFile(testInfo.outputPath('motion-report.json'),JSON.stringify(reports,null,2))
-  console.log('S2U_MOTION_REPORT '+JSON.stringify(reports.map(({samples,...rest})=>rest)))
+  console.log('S2U_MOTION_REPORT '+JSON.stringify(reports.map(report=>({reducedMotion:report.reducedMotion,frames:report.frames,p95:report.p95,max:report.max,longTaskSupported:report.longTaskSupported,longTaskCount:report.longTaskCount,longTaskTotalMs:report.longTaskTotalMs,finalX:report.finalX,targetX:report.targetX}))))
 })

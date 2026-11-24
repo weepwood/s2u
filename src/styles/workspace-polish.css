@@ -19,7 +19,7 @@
 }
 .app-shell .starter-actions { display:flex; align-items:center; flex-wrap:wrap; gap:7px; min-width:0; }
 .app-shell .starter-label { font-size:11px; color:var(--card-text-muted); margin-right:2px; }
-.app-shell .template-trigger { border-color:var(--hairline-strong); color:var(--accent); background:var(--surface-elevated); }
+.app-shell .starter-chip.template-trigger { border-color:var(--hairline-strong); color:var(--accent); background:var(--surface-elevated); }
 .app-shell .starter-chip {
   display: inline-flex; align-items: center; justify-content: center;
   gap: 6px; min-height: 30px; padding: 3px 10px;
@@ -77,6 +77,8 @@
 
 @media (max-width: 640px) {
   .app-shell .recent-list { grid-template-columns: 1fr; }
+  .app-shell .starter-label { display:none; }
+  .app-shell .starter-actions { flex:1 1 auto; }
 }
 @media (max-width: 420px) {
   .app-shell .starter-links { gap: 7px; }
