@@ -16,8 +16,7 @@
 }
 .app-shell .segmented-tabs.tabs-ready::before {
   opacity: 1;
-  transition: transform var(--motion-panel-duration) var(--motion-standard),
-    width var(--motion-panel-duration) var(--motion-standard), background 180ms ease;
+  transition: background 180ms ease;
 }
 .app-shell .segmented-tabs button:active { transform: scale(.98); }
 .app-shell .segmented-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
