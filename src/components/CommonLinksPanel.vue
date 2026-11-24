@@ -7,12 +7,12 @@
       <button class="add-button action-btn action-btn--secondary" type="button" @click="beginAdd">＋ 添加常用链接</button>
     </header>
 
-    <dialog
+    <BaseDialog
       ref="editorDialog"
+      :auto-open="false"
       class="editor-dialog"
       aria-labelledby="common-editor-title"
       @close="onDialogClose"
-      @click="onDialogBackdropClick"
     >
       <form class="editor" @submit.prevent="submit">
         <header class="dialog-heading">
@@ -28,15 +28,15 @@
         <div class="editor-fields">
           <label>
             应用名称
-            <input v-model="name" maxlength="36" placeholder="例如：我的 Obsidian 笔记库" required />
+            <BaseInput v-model="name" maxlength="36" placeholder="例如：我的 Obsidian 笔记库" required />
           </label>
           <label>
             目标链接或 URL Scheme
-            <input v-model="target" placeholder="obsidian:// 或 https://example.com" required spellcheck="false" />
+            <BaseInput v-model="target" placeholder="obsidian:// 或 https://example.com" required spellcheck="false" />
           </label>
           <label>
             分类标签（最多 5 个，用逗号分隔）
-            <input v-model="tagsText" maxlength="120" placeholder="开发, 笔记, 效率" aria-label="分类标签" />
+            <BaseInput v-model="tagsText" maxlength="120" placeholder="开发, 笔记, 效率" aria-label="分类标签" />
           </label>
         </div>
         <div class="icon-editor">
@@ -59,14 +59,15 @@
         </div>
         <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
         <div class="editor-actions">
-          <button type="button" @click="cancelEdit">取消</button>
-          <button class="primary" type="submit" :disabled="iconBusy">保存链接</button>
+          <BaseButton @click="cancelEdit">取消</BaseButton>
+          <BaseButton class="primary" variant="primary" type="submit" :loading="iconBusy">保存链接</BaseButton>
         </div>
       </form>
-    </dialog>
+    </BaseDialog>
 
-    <dialog
+    <BaseDialog
       ref="openWarningDialog"
+      :auto-open="false"
       class="editor-dialog open-warning-dialog"
       aria-labelledby="unknown-scheme-title"
       @close="pendingTarget = ''"
@@ -76,23 +77,15 @@
         <p>此地址会尝试唤起设备上的应用。请仅打开来自可信来源的自定义协议；浏览器无法保证应用已成功启动。</p>
         <code class="open-warning-target">{{ pendingTarget }}</code>
         <div class="editor-actions">
-          <button type="button" @click="openWarningDialog?.close()">取消</button>
-          <button type="button" @click="copyPendingRaw">复制原始链接</button>
-          <button class="primary" type="button" @click="confirmOpen">继续打开</button>
+          <BaseButton @click="openWarningDialog?.close()">取消</BaseButton>
+          <BaseButton @click="copyPendingRaw">复制原始链接</BaseButton>
+          <BaseButton class="primary" variant="primary" @click="confirmOpen">继续打开</BaseButton>
         </div>
       </section>
-    </dialog>
+    </BaseDialog>
 
     <div class="common-toolbar panel-toolbar">
-      <div class="common-search control-field">
-        <span class="control-field__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        </span>
-        <input v-model="search" class="control-field__input" type="search" placeholder="搜索应用名称或 URL" aria-label="搜索常用链接" />
-        <button v-if="search" type="button" class="control-field__clear" aria-label="清除常用链接搜索" @click="search = ''">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </button>
-      </div>
+      <SearchField v-model="search" class="common-search" input-type="search" label="搜索常用链接" placeholder="搜索应用名称或 URL" clear-label="清除常用链接搜索" />
       <div class="common-tools panel-toolbar-actions">
         <button class="action-btn" type="button" @click="$emit('export')">导出 JSON</button>
         <button class="action-btn" type="button" @click="triggerImport">导入 JSON</button>
@@ -118,10 +111,10 @@
       <summary>管理标签</summary>
       <div class="common-tag-fields">
         <label for="manage-tag">选择标签</label>
-        <select id="manage-tag" v-model="managedTag" @change="beginTagEdit">
+        <BaseSelect id="manage-tag" v-model="managedTag" @change="beginTagEdit">
           <option value="">请选择</option>
           <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}（{{ tagCount(tag) }}）</option>
-        </select>
+        </BaseSelect>
         <template v-if="managedTag">
           <label for="rename-tag">标签名称</label>
           <BaseInput id="rename-tag" v-model="newTag" maxlength="18" placeholder="输入新名称"/>
@@ -191,6 +184,9 @@
 import { ref, computed, watch } from 'vue'
 import BaseButton from './ui/BaseButton.vue'
 import BaseInput from './ui/BaseInput.vue'
+import BaseDialog from './ui/BaseDialog.vue'
+import SearchField from './ui/SearchField.vue'
+import BaseSelect from './ui/BaseSelect.vue'
 import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 
 const props = defineProps({
@@ -359,10 +355,6 @@ function onDialogClose() {
   icon.value = ''
   iconError.value = ''
   iconBusy.value = false
-}
-
-function onDialogBackdropClick(event) {
-  if (event.target === editorDialog.value) cancelEdit()
 }
 
 function submit() {
