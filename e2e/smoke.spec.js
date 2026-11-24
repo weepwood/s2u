@@ -1447,6 +1447,43 @@ test('两页统一搜索栏清除后回到输入焦点',async({page})=>{
 })
 
 
+test('最近复制展示真实目标，点击仍复制和打开完整分享链接', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const targets = ['weixin://', 'vscode://file/C:/My%20Project/main.js:12', 'https://example.com/path?q=100%25#section', 'customapp://open?x=%26%23', 'https://example.com/' + 'a'.repeat(300)]
+  await page.addInitScript(targets => {
+    const now = Date.now()
+    localStorage.setItem('scheme_history', JSON.stringify({format:'s2u-history',version:2,records:targets.map((scheme,i)=>({scheme,count:1,recently:now-i,updatedAt:now-i})),tombstones:[]}))
+    window.open = (url, target, features) => {
+      window.__recentOpen = {url,target,features}
+      return null
+    }
+  }, targets)
+  await page.setViewportSize({width:1280,height:900})
+  await page.goto('/')
+  const cards = page.locator('.recent-item')
+  await expect(cards).toHaveCount(targets.length)
+  await expect(cards.locator('.recent-url')).toHaveText(targets)
+  for (const [index,target] of targets.entries()) {
+    await expect(cards.nth(index)).toHaveAttribute('title',target)
+  }
+  const original = await page.evaluate(()=>localStorage.getItem('scheme_history'))
+  await cards.nth(2).click()
+  const opened = await page.evaluate(()=>window.__recentOpen)
+  expect(new URLSearchParams(new URL(opened.url).hash.slice(1)).get('target')).toBe(targets[2])
+  expect(new URL(opened.url).origin).toBe(new URL(page.url()).origin)
+  expect(opened.target).toBe('_blank')
+  expect(opened.features).toBe('noopener,noreferrer')
+  await expect.poll(()=>page.evaluate(()=>navigator.clipboard.readText())).toBe(opened.url)
+  expect(await page.evaluate(()=>localStorage.getItem('scheme_history'))).toBe(original)
+  await page.setViewportSize({width:320,height:740})
+  await expect(cards.last()).toBeVisible()
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  const lastText=cards.last().locator('.recent-url')
+  expect(await lastText.evaluate(node=>node.scrollWidth>node.clientWidth)).toBe(true)
+  await expect(lastText).toHaveCSS('text-overflow','ellipsis')
+})
+
+
 test('历史、收藏和快捷启动统一空状态，保留原有操作',async({page})=>{
   await page.setViewportSize({width:320,height:740})
   await page.emulateMedia({reducedMotion:'reduce'})
