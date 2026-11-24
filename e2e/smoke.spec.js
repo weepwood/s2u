@@ -1341,3 +1341,39 @@ test('统一标签管理合并大小写重复分类并保留收藏',async({page}
   await expect(page.locator('.common-card')).toHaveCount(2)
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_common_links_v1')).items.map(i=>i.tags||[]))).toEqual([['笔记'],[]])
 })
+
+
+test('历史协议筛选、频率排序和转收藏不改变历史数据',async({page})=>{
+  await page.addInitScript(()=>{
+    const now=Date.now()
+    localStorage.setItem('scheme_history',JSON.stringify({format:'s2u-history',version:2,records:[
+      {scheme:'https://example.com/notes',count:2,recently:now,updatedAt:now},
+      {scheme:'obsidian://open?vault=Notes',count:8,recently:now-1000,updatedAt:now-1000},
+      {scheme:'https://example.com/work',count:3,recently:now-86400000,updatedAt:now-86400000}
+    ],tombstones:[]}))
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  await page.getByRole('tab',{name:/历史记录/}).click()
+  const cards=page.locator('.history-item')
+  await expect(cards).toHaveCount(3)
+  await expect(page.locator('.history-day-heading').first()).toHaveText('今天')
+  await page.getByLabel('历史排序').selectOption('count')
+  await expect(cards.first()).toContainText('obsidian://')
+  await page.getByLabel('按协议筛选').selectOption('https:')
+  await expect(cards).toHaveCount(2)
+  await page.getByRole('textbox',{name:'搜索历史记录'}).fill('example notes')
+  await expect(cards).toHaveCount(1)
+  const before=await page.evaluate(()=>localStorage.getItem('scheme_history'))
+  await page.getByRole('button',{name:'收藏 https://example.com/notes',exact:true}).click()
+  const dialog=page.getByRole('dialog',{name:'添加到常用链接'})
+  await expect(dialog.getByLabel('应用名称')).toHaveValue('example.com')
+  await dialog.getByLabel('应用名称').fill('笔记网页')
+  await dialog.getByRole('button',{name:'保存收藏'}).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'已收藏 https://example.com/notes',exact:true})).toBeDisabled()
+  expect(await page.evaluate(()=>localStorage.getItem('scheme_history'))).toBe(before)
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  await expect(page.locator('.common-card').filter({hasText:'笔记网页'})).toBeVisible()
+})
