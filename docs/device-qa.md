@@ -51,3 +51,12 @@ CI 与 Netlify Deploy Preview 通过不是上述真实设备验收的替代品�
 | UI | 深色模式、系统减少动画、焦点返回到帮助按钮、高对比度和屏幕阅读器提示 | 未执行 |
 
 正式合并顺序建议：先 #52 标签，再 #51 命令面板，再 #50 二维码，最后 #53 UI。快捷键帮助中新增 Ctrl/Cmd+K 提示，依赖 #51 已合并；不可单独将 #53 先合并到 master。
+
+
+## GitHub Pages 与分享跳转验收
+
+- 在 Settings → Pages 将 Source 设为 GitHub Actions，确认 master 部署成功后直接访问 /s2u/。
+- 测试新格式与旧格式 Hash 链接、刷新、目标中包含查询参数和片段、复制原始 Scheme。
+- Windows/macOS Chromium、iOS Safari、Android Chrome：已知应用自动尝试与手动重试；未知协议先确认；应用未安装或浏览器拒绝时页面保留，不自动关闭。
+- 检查 GitHub Pages 与 Netlify 的 favicon、应用图标、返回首页及分享地址；确认 Netlify 安全响应头保持不变。
+- 上述真实设备与正式站点验证在部署完成后执行，不以模拟 E2E 结果代替。

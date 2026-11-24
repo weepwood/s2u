@@ -23,7 +23,24 @@ function resolvePublicPath(mode) {
 export default defineConfig(({ mode }) => ({
   // Vite 资源地址与公开分享链接使用同一个路径前缀。
   base: resolvePublicPath(mode),
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    {
+      // GitHub Pages 不读取 Netlify _headers；构建时提供浏览器可执行的 CSP。
+      name: 's2u-static-security-policy',
+      apply: 'build',
+      transformIndexHtml() {
+        return [{
+          tag: 'meta',
+          attrs: {
+            'http-equiv': 'Content-Security-Policy',
+            content: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://api.github.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'",
+          },
+          injectTo: 'head-prepend',
+        }]
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': '/src',

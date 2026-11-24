@@ -1,189 +1,142 @@
 <template>
-  <section class="redirect-panel" aria-labelledby="redirect-title" aria-live="polite">
-    <div class="countdown-wrap" :style="{ '--offset': 144.5 * (1 - countDown / 5) }" aria-hidden="true">
-      <svg viewBox="0 0 54 54">
-        <circle class="track" cx="27" cy="27" r="23" />
-        <circle class="progress" cx="27" cy="27" r="23" />
-      </svg>
-      <strong>{{ countDown }}</strong>
+  <section class="redirect-panel" aria-labelledby="redirect-title">
+    <div class="app-icon" aria-hidden="true">
+      <img v-if="app.icon" :src="app.icon" alt="" />
+      <span v-else>{{ app.monogram }}</span>
     </div>
-
     <div class="redirect-copy">
-      <span class="section-kicker">Redirect in progress</span>
-      <h2 id="redirect-title">目标应用正在打开</h2>
-      <p>页面会在倒计时结束后尝试自动关闭。浏览器若阻止跳转，可重新打开首页继续创建链接。</p>
+      <span class="section-kicker">LINK LAUNCHER</span>
+      <h2 id="redirect-title">{{ heading }}</h2>
+      <p role="status">{{ description }}</p>
     </div>
-
+    <div class="target-preview">
+      <span class="section-kicker">目标地址</span>
+      <code>{{ policy.target }}</code>
+    </div>
+    <button type="button" class="primary-action" @click="$emit('open')">
+      {{ policy.needsConfirmation && !attempted ? '确认并打开' : attempted ? '手动重新打开' : '打开目标' }}
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
     <div class="redirect-actions">
-      <a class="primary-action" :href="origin">
-        返回创建页
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-      <button type="button" class="secondary-action" @click="$emit('cancel')">留在当前页</button>
+      <button type="button" class="secondary-action" @click="$emit('copy')">复制原始链接</button>
+      <button type="button" class="secondary-action" @click="$emit('cancel')">返回创建页</button>
     </div>
-
-    <a class="origin-link" :href="origin">
-      {{ origin }}
-    </a>
+    <p class="hint">应用是否成功打开由浏览器和操作系统决定。请确认已安装目标应用，并检查浏览器的协议提示。</p>
   </section>
 </template>
 
 <script setup>
-defineProps({
-  countDown: { type: Number, required: true },
-  origin: { type: String, required: true },
-})
+import { computed } from 'vue'
 
-defineEmits(['cancel'])
+const props = defineProps({
+  policy: { type: Object, required: true },
+  attempted: { type: Boolean, required: true },
+})
+defineEmits(['open', 'copy', 'cancel'])
+
+const base = import.meta.env.BASE_URL
+const apps = {
+  'obsidian:': { name: 'Obsidian', icon: base + 'icons/common-obsidian.png' },
+  'vscode:': { name: 'Visual Studio Code', monogram: 'VS' },
+  'weixin:': { name: '微信', icon: base + 'icons/common-weixin.png' },
+  'orpheus:': { name: '网易云音乐', icon: base + 'icons/common-orpheus.png' },
+  'http:': { name: '网页', monogram: '↗' },
+  'https:': { name: '网页', monogram: '↗' },
+}
+const app = computed(() => apps[props.policy.protocol] || {
+  name: props.policy.protocol.slice(0, -1),
+  monogram: props.policy.protocol.slice(0, 2).toUpperCase(),
+})
+const heading = computed(() => props.policy.needsConfirmation && !props.attempted
+  ? '确认打开外部应用'
+  : '打开 ' + app.value.name)
+const description = computed(() => props.policy.needsConfirmation && !props.attempted
+  ? '此链接使用未知应用协议。请确认来源与目标可信，再主动打开。'
+  : props.attempted
+    ? '已尝试打开目标。如果没有响应，请手动重新打开或复制原始链接。'
+    : '请点击按钮打开目标。')
 </script>
 
 <style scoped>
 .redirect-panel {
-  padding: 12px 8px 4px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 8px 12px;
   display: grid;
   justify-items: center;
   text-align: center;
+  gap: 16px;
+  min-width: 0;
 }
-
-.countdown-wrap {
-  width: 82px;
-  height: 82px;
-  margin-bottom: 20px;
-  position: relative;
+.app-icon {
+  width: 68px;
+  height: 68px;
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: var(--surface-elevated);
   display: grid;
   place-items: center;
-}
-
-.countdown-wrap svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.countdown-wrap circle {
-  fill: none;
-  stroke-width: 4;
-}
-
-.track {
-  stroke: var(--hairline);
-}
-
-.progress {
-  stroke: var(--accent);
-  stroke-linecap: round;
-  stroke-dasharray: 144.5;
-  stroke-dashoffset: var(--offset);
-  transition: stroke-dashoffset 0.8s linear;
-}
-
-.countdown-wrap strong {
-  color: var(--card-text);
-  font-family: var(--font-mono);
+  color: var(--accent);
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
 }
-
+.app-icon img { width: 44px; height: 44px; object-fit: contain; }
 .section-kicker {
   display: block;
-  margin-bottom: 6px;
-  color: var(--card-text-muted);
   font-size: 10px;
   font-weight: 750;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.redirect-copy h2 {
-  margin: 0;
-  color: var(--card-text);
-  font-size: 23px;
-  letter-spacing: -0.03em;
-}
-
-.redirect-copy p {
-  max-width: 450px;
-  margin: 10px auto 0;
+  letter-spacing: 0.12em;
   color: var(--card-text-muted);
+}
+.redirect-copy h2 { margin: 5px 0 0; color: var(--card-text); font-size: 23px; letter-spacing: -0.03em; }
+.redirect-copy p, .hint { margin: 8px 0 0; color: var(--card-text-muted); font-size: 12px; line-height: 1.7; }
+.target-preview {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  text-align: left;
+}
+.target-preview code {
+  display: block;
+  margin-top: 5px;
+  color: var(--card-text);
+  font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.7;
+  overflow-wrap: anywhere;
+  max-height: 120px;
+  overflow-y: auto;
+  user-select: text;
 }
-
-.redirect-actions {
-  margin-top: 22px;
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-
-.primary-action,
-.secondary-action {
-  min-height: 40px;
-  padding: 0 14px;
+.primary-action, .secondary-action {
+  min-height: 42px;
   border-radius: 11px;
+  padding: 0 14px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  text-decoration: none;
 }
-
 .primary-action {
   display: inline-flex;
+  width: 100%;
+  justify-content: center;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border: 0;
+  color: #fff;
   background: var(--accent);
-  color: #ffffff;
 }
-
-.primary-action:hover {
-  background: var(--accent-hover);
-}
-
-.primary-action svg {
-  width: 15px;
-  height: 15px;
-}
-
-.secondary-action {
-  border: 1px solid var(--hairline);
-  background: var(--surface-elevated);
-  color: var(--card-text-soft);
-}
-
-.secondary-action:hover {
-  border-color: var(--hairline-strong);
-  color: var(--card-text);
-}
-
-.origin-link {
-  max-width: 100%;
-  margin-top: 17px;
-  overflow: hidden;
-  border: 0;
-  background: transparent;
-  color: var(--card-text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.origin-link:hover {
-  color: var(--accent);
-}
-
-@media (max-width: 480px) {
-  .redirect-actions {
-    width: 100%;
-    display: grid;
-  }
-}
+.primary-action:hover { background: var(--accent-hover); }
+.primary-action svg { width: 16px; height: 16px; }
+.redirect-actions { display: flex; width: 100%; gap: 8px; flex-wrap: wrap; }
+.secondary-action { flex: 1; border: 1px solid var(--hairline); color: var(--card-text-soft); background: var(--surface-elevated); }
+.secondary-action:hover { border-color: var(--hairline-strong); }
+.hint { margin: 0; }
 </style>

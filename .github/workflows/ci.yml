@@ -71,7 +71,7 @@ jobs:
         run: npm run build
 
       - name: Browser regression
-        run: npx playwright test e2e/smoke.spec.js
+        run: npx playwright test e2e/smoke.spec.js e2e/redirect.spec.js
 
       - name: Build app with /s2u/ public base
         run: npm run build
@@ -79,7 +79,7 @@ jobs:
           VITE_PUBLIC_BASE_URL: http://127.0.0.1:4173/s2u/
 
       - name: Browser regression for /s2u/ deployment
-        run: npx playwright test e2e/subpath.spec.js
+        run: npx playwright test e2e/subpath.spec.js e2e/redirect.spec.js
         env:
           S2U_SUBPATH_TEST: '1'
 
