@@ -21,7 +21,7 @@
           <path d="M12 10.5v6M12 7.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
       </span>
-      {{ message }}
+      <span class="toast-message">{{ message }}</span>
     </div>
   </Transition>
 </template>
@@ -64,32 +64,36 @@ onBeforeUnmount(() => {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: max(24px, env(safe-area-inset-bottom));
   z-index: 1000;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 24px);
   min-height: 44px;
-  padding: 0 15px 0 11px;
+  padding: 9px 15px 9px 11px;
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 13px;
-  background: rgba(18, 24, 36, 0.94);
-  color: #f4f7fb;
+  border: 1px solid var(--toast-border);
+  border-radius: var(--radius-control);
+  background: var(--toast-surface);
+  color: var(--toast-text);
   font-size: 12px;
   font-weight: 650;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--shadow-popover);
   pointer-events: none;
   transform: translateX(-50%);
   backdrop-filter: blur(18px);
 }
 
 .toast-icon {
+  flex: 0 0 25px;
   width: 25px;
   height: 25px;
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--toast-icon-surface);
 }
 
 .toast-icon svg {
@@ -98,23 +102,28 @@ onBeforeUnmount(() => {
 }
 
 .toast.success .toast-icon {
-  background: rgba(69, 199, 132, 0.18);
-  color: #78d9a8;
+  background: var(--toast-success-surface);
+  color: var(--toast-success);
 }
 
 .toast.error .toast-icon {
-  background: rgba(255, 116, 125, 0.18);
-  color: #ff8d95;
+  background: var(--toast-danger-surface);
+  color: var(--toast-danger);
 }
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transition: opacity var(--motion-enter-duration) ease, transform var(--motion-enter-duration) var(--motion-standard);
 }
 
 .toast-enter-from,
 .toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(10px) scale(0.98);
+}
+.toast-message { min-width:0; overflow-wrap:anywhere; line-height:1.5; }
+@media(prefers-reduced-motion:reduce) {
+  .toast-enter-active,.toast-leave-active { transition:none; }
+  .toast-enter-from,.toast-leave-to { transform:translateX(-50%); }
 }
 </style>

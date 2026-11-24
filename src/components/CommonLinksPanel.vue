@@ -167,11 +167,13 @@
         </div>
       </article>
     </TransitionGroup>
-    <div v-else class="empty-common">
-      <strong>{{ items.length ? '没有匹配的链接' : '还没有常用链接' }}</strong>
-      <button v-if="items.length" class="action-btn" type="button" @click="search = ''; selectedTag = ''">清除筛选</button>
-      <button v-else class="action-btn" type="button" @click="beginAdd">添加第一个链接</button>
-    </div>
+    <EmptyState v-else class="empty-common" :kind="items.length ? 'search' : 'bookmark'"
+      :title="items.length ? '没有匹配的链接' : '还没有常用链接'">
+      <template #actions>
+        <BaseButton v-if="items.length" @click="search = ''; selectedTag = ''">清除筛选</BaseButton>
+        <BaseButton v-else @click="beginAdd">添加第一个链接</BaseButton>
+      </template>
+    </EmptyState>
 
     <footer class="common-footer">
       <p>默认仅本机保存，可在云端同步中开启收藏同步。应用需安装，未响应时可复制原始链接。</p>
@@ -183,6 +185,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import BaseButton from './ui/BaseButton.vue'
+import EmptyState from './ui/EmptyState.vue'
 import BaseInput from './ui/BaseInput.vue'
 import BaseDialog from './ui/BaseDialog.vue'
 import SearchField from './ui/SearchField.vue'
@@ -519,8 +522,6 @@ button { font: inherit; cursor: pointer; }
 .editor-fields input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .editor-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .form-error { margin: 0; font-size: 12px; color: #df4c50; }
-.empty-common { text-align: center; background: var(--surface-soft); padding: 38px 16px; border-radius: 16px; }
-.empty-common .action-btn { margin: 12px auto 0; display: flex; width: fit-content; }
 .common-footer { border-top: 1px solid var(--hairline); padding-top: 14px; display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .common-footer p { margin: 0; flex: 1; }
 .common-footer button { flex-shrink: 0; border: 0; background: transparent; color: var(--card-text-muted); font-size: 12px; cursor: pointer; }
