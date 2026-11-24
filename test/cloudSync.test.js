@@ -190,3 +190,30 @@ test('断开后的修改仍保留待同步标记',()=>{
   assert.equal(sync.pending.value,true)
   assert.equal(storage.get('s2u_gist_pending_'+ID),'1')
 })
+
+
+test('冲突选择只适用于当前已预览文件及未变化的快照',async()=>{
+  const sync=setup(), name='s2u-common-links.json'
+  const snap=label=>({format:'s2u-common-links',version:1,items:[{id:'a',name:label,target:'https://example.com/'}]})
+  let remote=snap('remote'),patches=0
+  const local=snap('local')
+  sync.preferences.value.common=true
+  storage.set('s2u_gist_baseline_'+ID+':'+name,JSON.stringify(snap('base')))
+  globalThis.fetch=async(_url,opts)=>{
+    if(opts.method==='PATCH')patches++
+    const g=gist(history(0));g.files[name]={content:JSON.stringify(remote)};return reply(g)
+  }
+  await sync.pullFromGist();sync.beginConflictCheck()
+  assert.equal(sync.prepareOptional(name,local,x=>x),null)
+  const decision={id:sync.conflicts.value[0].id,mode:'records',records:[['a','local']]}
+  remote=snap('new remote')
+  sync.beginConflictCheck();await sync.pullFromGist()
+  assert.equal(sync.prepareOptional(name,local,x=>x,[decision]),null)
+  assert.notEqual(sync.conflicts.value[0].id,decision.id)
+  assert.match(sync.conflicts.value[0].message,/预览已变化/)
+  const current={...decision,id:sync.conflicts.value[0].id}
+  sync.beginConflictCheck();await sync.pullFromGist()
+  assert.deepEqual(sync.prepareOptional(name,local,x=>x,[current]),local)
+  assert.equal(patches,0)
+  sync.cleanup();assert.equal(sync.conflicts.value.length,0)
+})

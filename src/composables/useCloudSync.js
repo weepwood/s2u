@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { createGistClient, parseGistId, readFile, encodeFile, HISTORY_FILE, COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
-import { samePayload, mergeWorkspace } from '../domain/sync/syncEngine.js'
+import { samePayload, mergeWorkspace, describeWorkspaceConflict, resolveWorkspaceConflict } from '../domain/sync/syncEngine.js'
 import { listBackups, saveBackup } from '../domain/sync/backupManager.js'
 
 const LEGACY_CONFIG_KEY = 'cloud_config'
@@ -18,6 +18,16 @@ export function useCloudSync() {
   const syncStatus = ref(''), syncError = ref(''), lastSyncTime = ref(null)
   const preferences = ref({ ...defaults }), pending = ref(false)
   const candidates = ref([]), backups = ref([]), revisions = ref([])
+  const conflicts = ref([])
+  let reviewedConflicts = new Map(), currentConflicts = new Map(), conflictSequence = 0
+  function beginConflictCheck() {
+    reviewedConflicts = currentConflicts
+    currentConflicts = new Map()
+    conflicts.value = []
+  }
+  function clearConflicts() {
+    reviewedConflicts = new Map(); currentConflicts = new Map(); conflicts.value = []
+  }
   const client = createGistClient()
   let generation = 0, syncTimer = null, pushPromise = null, pendingPayload = null
   let lastObservedContent = null, lastObservedFiles = {}, retryCount = 0
@@ -180,7 +190,7 @@ export function useCloudSync() {
       return remote
     } catch (error) { if (isCurrent(ctx)) report(error); return null }
   }
-  function prepareOptional(name, local, validate, resolve = '') {
+  function prepareOptional(name, local, validate, resolve = []) {
     if (!Object.hasOwn(lastObservedFiles, name)) return null
     const raw = lastObservedFiles[name]
     const remote = raw === null ? null : validate(JSON.parse(raw))
@@ -190,9 +200,20 @@ export function useCloudSync() {
     try { return validate(mergeWorkspace(local, remote, base)) }
     catch (error) {
       if (error.name !== 'WorkspaceConflictError') throw error
-      if (resolve === 'local') return local
-      if (resolve === 'remote' && remote !== null) return remote
-      throw error
+      const previous = reviewedConflicts.get(name)
+      const unchanged = previous && samePayload(previous.local,local) && samePayload(previous.remote,remote) && samePayload(previous.base,base)
+      const decision = Array.isArray(resolve) && unchanged ? resolve.find(item => item?.id === previous.id) : null
+      let message = error.message
+      if (decision) {
+        try { return validate(resolveWorkspaceConflict(local,remote,base,decision)) }
+        catch (failure) { message = failure.message }
+      } else if (Array.isArray(resolve) && resolve.length) {
+        message = '冲突预览已变化，请重新核对本机与云端版本。'
+      }
+      const id = unchanged ? previous.id : ++conflictSequence
+      currentConflicts.set(name,{id,local,remote,base})
+      conflicts.value = [...conflicts.value,{id,name,message,...describeWorkspaceConflict(local,remote,base)}]
+      return null
     }
   }
   function pushToGist(data, extras = {}) {
@@ -308,13 +329,14 @@ export function useCloudSync() {
   }
   function cleanup() {
     generation++
+    clearConflicts()
     verifiedIdentity = null
     lastObservedContent = null; lastObservedFiles = {}
     if (syncTimer) clearTimeout(syncTimer)
     syncTimer = null; pendingPayload = null; pushPromise = null; retryTask = null; retryCount = 0
     client.cancel()
   }
-  return { cloudToken, cloudGistId, account, syncStatus, syncError, lastSyncTime, preferences, pending, candidates, backups, revisions,
+  return { cloudToken, cloudGistId, account, syncStatus, syncError, lastSyncTime, preferences, pending, candidates, backups, revisions, conflicts, beginConflictCheck, clearConflicts,
     loadConfig, setPreferences, markPending, saveConfig, connect, discover, disconnect, pushToGist, pullFromGist, prepareOptional,
     testConnection, getLatestRecovery, getBackupBundle, refreshBackups, loadRevisions, readRevision, scheduleAutoSync, resumePending, cleanup, context, isCurrent }
 }
