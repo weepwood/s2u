@@ -8,32 +8,7 @@
     </div>
 
     <div class="panel-toolbar">
-      <div class="search-wrap control-field">
-        <span class="search-icon control-field__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/>
-            <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          </svg>
-        </span>
-        <input
-          :value="searchQuery"
-          class="search-input control-field__input"
-          placeholder="搜索 URL、域名或 Scheme"
-          aria-label="搜索历史记录"
-          @input="$emit('update:searchQuery', $event.target.value)"
-        />
-        <button
-          v-if="searchQuery"
-          type="button"
-          class="search-clear control-field__clear"
-          aria-label="清除搜索"
-          @click="$emit('update:searchQuery', '')"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
+      <SearchField class="search-wrap" :model-value="searchQuery" label="搜索历史记录" placeholder="搜索 URL、域名或 Scheme" clear-label="清除搜索" @update:model-value="emit('update:searchQuery',$event)" />
       <div class="panel-toolbar-actions" aria-label="历史记录导入导出">
       <button class="action-btn" type="button" @click="$emit('export')">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -53,14 +28,14 @@
 
     <div v-if="history.length" class="history-filters">
       <div class="history-filter-fields">
-        <select v-model="protocol" aria-label="按协议筛选">
+        <BaseSelect v-model="protocol" aria-label="按协议筛选" compact>
           <option value="">全部协议</option>
           <option v-for="value in protocols" :key="value" :value="value">{{ value.slice(0,-1) }}</option>
-        </select>
-        <select v-model="order" aria-label="历史排序">
+        </BaseSelect>
+        <BaseSelect v-model="order" aria-label="历史排序" compact>
           <option value="recent">最近使用</option>
           <option value="count">使用频率</option>
-        </select>
+        </BaseSelect>
       </div>
       <span aria-live="polite">{{ visibleHistory.length }} / {{ history.length }} 条</span>
     </div>
@@ -151,6 +126,8 @@ import { historyProtocol, selectHistoryView, groupHistoryByDay, historyBookmarkN
 import BaseDialog from './ui/BaseDialog.vue'
 import BaseButton from './ui/BaseButton.vue'
 import BaseInput from './ui/BaseInput.vue'
+import SearchField from './ui/SearchField.vue'
+import BaseSelect from './ui/BaseSelect.vue'
 
 const props=defineProps({
   history: { type: Array, default: () => [] },
