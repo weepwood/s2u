@@ -2,7 +2,6 @@
   <section class="common-panel" aria-labelledby="common-title">
     <header class="common-heading">
       <div>
-        <span class="eyebrow">Your shortcuts</span>
         <h2 id="common-title">常用链接</h2>
         <p>收藏常用应用和网页地址，快速生成分享链接。</p>
       </div>
@@ -19,7 +18,6 @@
       <form class="editor" @submit.prevent="submit">
         <header class="dialog-heading">
           <div>
-            <span class="eyebrow">Edit shortcut</span>
             <h3 id="common-editor-title">{{ editingId ? '编辑常用链接' : '添加常用链接' }}</h3>
           </div>
           <button class="dialog-close" type="button" aria-label="关闭弹窗" @click="cancelEdit">

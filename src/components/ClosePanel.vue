@@ -5,7 +5,6 @@
       <span v-else>{{ app.monogram }}</span>
     </div>
     <div class="redirect-copy">
-      <span class="section-kicker">LINK LAUNCHER</span>
       <h2 id="redirect-title">{{ heading }}</h2>
       <p role="status">{{ description }}</p>
     </div>

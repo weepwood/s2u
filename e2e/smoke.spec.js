@@ -923,3 +923,26 @@ test('顶部导航与工作区页签在桌面及移动端左右对齐', async ({
     expect(bounds.widthDelta).toBeLessThanOrEqual(1)
   }
 })
+
+
+test('精简工作台采用平面背景、下划线导航和单列最近链接，保持功能可达', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/')
+  await expect(page.locator('.ambient')).toHaveCount(0)
+  await expect(page.locator('.url-input-panel .section-kicker')).toHaveCount(0)
+  const shell = page.locator('.app-shell')
+  await expect(shell).toHaveCSS('background-image', 'none')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  await expect(nav).toHaveClass(/tabs-ready/)
+  expect(await nav.evaluate((node) => getComputedStyle(node, '::before').height)).toBe('2px')
+  await page.getByRole('button', { name: '填入网页示例' }).click()
+  await expect(page.getByRole('button', { name: '生成分享二维码' })).toBeVisible()
+  await page.getByRole('button', { name: '复制链接' }).click()
+  await expect(page.locator('.recent-item')).toHaveCount(1)
+  await expect(page.locator('.recent-index')).toHaveCount(0)
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(shell).toHaveClass(/dark/)
+  await expect(shell).toHaveCSS('background-image', 'none')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
+})

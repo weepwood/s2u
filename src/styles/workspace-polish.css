@@ -1,270 +1,296 @@
-/*
- * s2u Workspace Polish
- * 单次界面改进的覆盖层：保留现有 Vue 交互、滑动页签、数据逻辑与 CSP。
- * 所有视觉属性依赖 .app-shell 的语义变量，兼容系统减少动态效果。
+/* S2U 产品工作台：同一条水平基线、内容优先、仅为实际状态使用强调色。
+ * 这是已有 workspace-polish 层的替换，不再叠加新的全局样式文件。
+ * 保留组件结构、键盘、滑动页签及长链接保护。
  */
 .app-shell.app-shell {
-  --page-bg: #f3f6fc;
-  --card-text: #1b2943;
-  --card-text-soft: #495974;
-  --card-text-muted: #63738c;
-  --accent: #4e68df;
-  --accent-hover: #3d56c8;
-  --accent-soft: rgba(78, 104, 223, 0.11);
-  --hairline: rgba(43, 62, 100, 0.13);
-  --hairline-strong: rgba(43, 62, 100, 0.24);
-  background:
-    radial-gradient(ellipse at 16% 9%, rgba(127, 151, 255, 0.18), transparent 35%),
-    radial-gradient(ellipse at 84% 80%, rgba(98, 186, 211, 0.1), transparent 32%),
-    linear-gradient(155deg, #f8faff, var(--page-bg) 62%, #edf2fa);
+  --workspace-max-width: 880px;
+  --page-bg: #fafbfc;
+  --page-bg-soft: #f3f4f6;
+  --card-bg: #ffffff;
+  --card-bg-solid: #ffffff;
+  --surface-soft: #f4f5f6;
+  --surface-elevated: #ffffff;
+  --surface-hover: #edf0f3;
+  --card-text: #20252b;
+  --card-text-soft: #434b55;
+  --card-text-muted: #606a76;
+  --accent: #245bb1;
+  --accent-hover: #1d4b94;
+  --accent-soft: #e9f0fb;
+  --on-accent: #ffffff;
+  --hairline: #dce1e6;
+  --hairline-strong: #bfc7d1;
+  --success: #227747;
+  --danger: #b73742;
+  --shadow-sm: none;
+  --shadow-lg: none;
+  background: var(--page-bg);
+  padding: 0 clamp(16px, 4vw, 48px) 48px;
   -webkit-font-smoothing: antialiased;
 }
-
 .app-shell.app-shell.dark {
-  --page-bg: #0e1420;
-  --card-bg-solid: #151d2c;
-  --surface-soft: #1b2536;
-  --surface-elevated: #202c3d;
-  --surface-hover: #29374a;
-  --card-text: #edf3ff;
-  --card-text-soft: #c0cbe0;
-  --card-text-muted: #a3b0c5;
-  --accent: #90a4ff;
-  --accent-hover: #b0bcff;
-  --accent-soft: rgba(144, 164, 255, 0.16);
-  --hairline: rgba(185, 199, 230, 0.17);
-  --hairline-strong: rgba(185, 199, 230, 0.3);
-  background:
-    radial-gradient(ellipse at 16% 9%, rgba(83, 108, 207, 0.19), transparent 35%),
-    radial-gradient(ellipse at 84% 80%, rgba(48, 124, 155, 0.11), transparent 36%),
-    linear-gradient(155deg, #111b2a, var(--page-bg) 70%, #0c121b);
+  --page-bg: #181a1e;
+  --page-bg-soft: #202328;
+  --card-bg: #202328;
+  --card-bg-solid: #202328;
+  --surface-soft: #272b31;
+  --surface-elevated: #24282e;
+  --surface-hover: #30353d;
+  --card-text: #edf0f4;
+  --card-text-soft: #c7ced7;
+  --card-text-muted: #a3adba;
+  --accent: #9abcf8;
+  --accent-hover: #b2ccfa;
+  --accent-soft: #29384f;
+  --on-accent: #182332;
+  --hairline: #353b44;
+  --hairline-strong: #505a68;
+  --success: #8ed4a7;
+  --danger: #f19da6;
+  background: var(--page-bg);
 }
 
-.app-shell .app-header .brand { opacity: 1; }
+/* Header: quiet utility controls; brand, tabs and content share a left edge. */
+.app-shell .app-header {
+  width: min(var(--workspace-max-width), 100%);
+  min-height: 68px;
+  border-bottom: 1px solid var(--hairline);
+  animation: none;
+  box-sizing: border-box;
+}
+.app-shell .app-header .brand { opacity: 1; gap: 10px; transform: none; }
 .app-shell .app-header .brand-mark {
-  width: 40px; height: 40px; border-radius: 13px;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
   background: var(--card-bg-solid);
-  border: 1px solid var(--hairline);
-  box-shadow: 0 5px 14px rgba(41, 56, 95, 0.08);
-}
-.app-shell .app-header .brand-mark svg { width: 20px; height: 20px; }
-.app-shell .app-header .brand-copy strong { color: var(--card-text); font-size: 13px; letter-spacing: -0.02em; }
-.app-shell .app-header .brand-copy small { color: var(--card-text-muted); font-size: 9px; letter-spacing: 0.1em; }
-.app-shell .header-actions .github-link,
-.app-shell .header-actions .theme-toggle,
-.app-shell .header-actions .shortcut-help-trigger {
-  width: 40px; min-width: 40px; height: 40px; min-height: 40px;
-  border-radius: 12px; background: var(--card-bg-solid);
-  border: 1px solid var(--hairline);
-}
-.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger):hover {
-  border-color: var(--hairline-strong);
-  background: var(--surface-hover);
-}
-
-.app-shell .workspace {
-  margin-top: clamp(28px, 5vh, 60px);
-}
-.app-shell .header-actions .launch-trigger {
-  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  flex: 0 0 auto; height: 40px; min-height: 40px; padding: 0 10px;
-  border: 1px solid var(--hairline-strong); border-radius: 12px;
-  background: var(--card-bg-solid); color: var(--card-text-soft);
-  box-shadow: 0 5px 15px rgba(36, 55, 98, 0.05);
-  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
-}
-.app-shell .header-actions .launch-trigger svg { width: 16px; height: 16px; color: var(--accent); }
-.app-shell .header-actions .launch-trigger kbd {
-  padding: 4px 6px; border-radius: 6px; background: var(--surface-soft);
-  color: var(--card-text-muted); font-size: 10px; font-family: inherit; font-weight: 700;
-  white-space: nowrap;
-}
-.app-shell .header-actions .launch-trigger:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateY(-1px); }
-.app-shell .header-actions .launch-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-.app-shell .workspace-head { margin: 0 0 14px; text-align: left; }
-.app-shell .mode-tabs {
-  width: 100%; box-sizing: border-box; margin: 0;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 5px; border-radius: 15px;
-  background: var(--surface-soft); border: 1px solid var(--hairline);
+  color: var(--card-text);
   box-shadow: none;
 }
-.app-shell .mode-tabs button { justify-content: center; min-width: 0; min-height: 42px; font-size: 12px; }
-.app-shell .mode-tabs .tab-count { font-size: 10px; }
-.app-shell .mode-tabs::before { top: 5px; bottom: 5px; border-radius: 11px; }
+.app-shell .app-header .brand-mark svg { width: 18px; height: 18px; }
+.app-shell .app-header .brand-copy strong {
+  color: var(--card-text); font-size: 15px; font-weight: 700; letter-spacing: -.025em;
+}
+.app-shell .header-actions { gap: 5px; }
+.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger) {
+  width: 34px; min-width: 34px; height: 34px; min-height: 34px;
+  border-radius: 7px; border: 1px solid transparent;
+  background: transparent; box-shadow: none; backdrop-filter: none;
+  transform: none;
+}
+.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger):hover {
+  border-color: var(--hairline); background: var(--surface-hover);
+}
+.app-shell .header-actions .launch-trigger {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 34px; min-height: 34px; padding: 0 10px;
+  border: 1px solid var(--hairline); border-radius: 7px;
+  background: var(--card-bg-solid); color: var(--card-text-soft);
+  font: inherit; font-size: 12px; font-weight: 550; cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.app-shell .header-actions .launch-trigger svg { width: 15px; height: 15px; }
+.app-shell .header-actions .launch-trigger kbd {
+  padding: 2px 5px; border: 1px solid var(--hairline); border-radius: 4px;
+  color: var(--card-text-muted); font-size: 10px; font-family: inherit; white-space: nowrap;
+}
+.app-shell .header-actions .launch-trigger:hover { background: var(--surface-hover); border-color: var(--hairline-strong); }
+.app-shell :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app-shell .content-card {
-  border-color: var(--hairline);
-  border-radius: 23px;
-  background: var(--card-bg-solid);
-  box-shadow: 0 22px 70px rgba(35, 53, 88, 0.085), 0 1px 4px rgba(35, 53, 88, 0.045);
+/* Tabs use a single sliding underline, not a second floating card. */
+.app-shell .workspace { width: min(var(--workspace-max-width), 100%); margin-top: 36px; }
+.app-shell .workspace-head { margin: 0; text-align: left; animation: none; }
+.app-shell .mode-tabs {
+  width: 100%; box-sizing: border-box; margin: 0;
+  display: flex; justify-content: flex-start; gap: 18px;
+  padding: 0; border: 0; border-bottom: 1px solid var(--hairline);
+  border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none;
 }
-.app-shell.dark .content-card {
-  background: var(--card-bg-solid);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
+.app-shell .mode-tabs button {
+  justify-content: center; min-width: 0; min-height: 43px;
+  padding: 0 8px; font-size: 13px; font-weight: 550; border-radius: 5px;
+  transform: none;
 }
-.app-shell .content-card::before {
-  inset: 0 16% auto;
-  background: linear-gradient(90deg, transparent, var(--accent-soft), transparent);
+.app-shell .mode-tabs button.active { color: var(--card-text); font-weight: 700; }
+.app-shell .mode-tabs button:hover svg { transform: none; }
+.app-shell .mode-tabs .tab-count {
+  min-width: 0; height: auto; padding: 0 2px;
+  border-radius: 0; background: transparent; color: var(--card-text-muted); font-size: 11px;
 }
+.app-shell .mode-tabs::before {
+  top: auto; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
+  background: var(--accent); box-shadow: none; transition-duration: 180ms;
+}
+.app-shell.dark .mode-tabs::before { box-shadow: none; }
 
-.app-shell .url-input-panel { gap: 25px; }
+/* One flat workspace, not a card containing more cards. */
+.app-shell .content-card, .app-shell.dark .content-card {
+  --panel-pad-block: 28px;
+  --panel-pad-inline: 0px;
+  min-height: 220px;
+  border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; backdrop-filter: none; animation: none;
+}
+.app-shell .content-card::before { content: none; }
+.app-shell .content-card .panel-enter-active { transition: opacity 150ms ease, transform 180ms ease !important; }
+.app-shell .content-card .panel-leave-active { transition: opacity 100ms ease !important; }
+.app-shell .content-card .panel-enter-from { transform: translateY(3px); }
+.app-shell .content-card .panel-leave-to { transform: none; }
+.app-shell .panel-enter-active :is(.history-item, .recent-item) { animation: none; }
+.app-shell :is(.history-item, .recent-item, .common-card):hover { transform: none; }
+
+/* Creation: the input itself is the visual centre. */
+.app-shell .url-input-panel { gap: 26px; }
 .app-shell .url-input-panel .section-heading h2,
 .app-shell .history-panel .section-heading h2,
-.app-shell .common-panel .common-heading h2 { letter-spacing: -0.04em; font-weight: 750; }
-.app-shell .url-input-panel .section-heading h2 { font-size: 23px; }
+.app-shell .common-panel .common-heading h2 { font-size: 23px; letter-spacing: -.035em; font-weight: 680; }
 .app-shell .url-input-panel .privacy-badge {
-  background: color-mix(in srgb, var(--success) 9%, var(--card-bg-solid));
-  border-color: color-mix(in srgb, var(--success) 22%, var(--hairline));
-  color: var(--card-text-soft);
-  min-height: 33px;
+  background: transparent; border: 0; border-radius: 0; padding: 0;
+  color: var(--card-text-muted); min-height: 28px; font-weight: 500; font-size: 12px;
 }
 .app-shell .url-input-panel .field-group { gap: 10px; }
-.app-shell .url-input-panel .field-group > label {
-  font-size: 12px; font-weight: 720; color: var(--card-text-soft);
-}
+.app-shell .url-input-panel .field-group > label { font-size: 13px; font-weight: 600; }
 .app-shell .url-input-panel .input-wrap {
-  height: 55px; border-radius: 13px;
-  border-color: var(--hairline-strong);
-  box-shadow: inset 0 1px 2px rgba(26, 40, 77, 0.025);
+  height: 50px; border-radius: 8px; border-color: var(--hairline-strong); box-shadow: none;
 }
-.app-shell .url-input-panel .input-wrap:hover:not(:focus-within) { border-color: var(--accent); }
-.app-shell .url-input-panel .text-input {
-  font-size: 13px; font-variant-ligatures: none;
-}
+.app-shell .url-input-panel .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.app-shell .url-input-panel .input-wrap.error { border-color: var(--danger); }
+.app-shell .url-input-panel .text-input { font-size: 14px; font-variant-ligatures: none; }
+.app-shell .url-input-panel .input-clear { border-radius: 6px; }
 .app-shell .url-input-panel .copy-btn {
-  height: 55px; min-width: 142px; border-radius: 13px;
-  box-shadow: 0 8px 22px rgba(78, 104, 223, 0.2);
+  height: 50px; min-width: 130px; border-radius: 8px; box-shadow: none; color: var(--on-accent); font-weight: 650;
 }
-.app-shell .url-input-panel .copy-btn:hover:not(:disabled) { box-shadow: 0 10px 26px rgba(78, 104, 223, 0.24); }
-.app-shell .url-input-panel .field-message { margin: 0; min-height: 16px; }
-
-.app-shell .starter-links {
-  display: flex; align-items: flex-start; flex-wrap: wrap;
-  gap: 10px 13px; margin-top: 2px;
-}
-.app-shell .starter-label {
-  display: inline-flex; align-items: center; min-height: 30px;
-  color: var(--card-text-muted); font-size: 11px; white-space: nowrap;
-}
-.app-shell .starter-actions { display: flex; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.app-shell .url-input-panel .copy-btn:hover:not(:disabled) { box-shadow: none; transform: none; }
+.app-shell.dark .url-input-panel .copy-btn:is(.copied,.failed) { color: #182332; }
+.app-shell .url-input-panel .field-message { margin: 0; min-height: 18px; font-size: 12px; }
+.app-shell .starter-links { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px; }
+.app-shell .starter-label { color: var(--card-text-muted); font-size: 12px; white-space: nowrap; }
+.app-shell .starter-actions { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .app-shell .starter-chip {
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: 6px; min-height: 30px; padding: 3px 10px;
-  border-radius: 9px; border: 1px solid var(--hairline);
-  background: var(--surface-soft); color: var(--card-text-soft);
-  font: inherit; font-size: 11px; font-weight: 650; cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 3px 8px;
+  border-radius: 5px; border: 1px solid transparent; background: transparent;
+  color: var(--card-text-soft); font: inherit; font-size: 12px; cursor: pointer;
 }
-.app-shell .starter-symbol { font-size: 12px; font-weight: 800; color: var(--accent); }
-.app-shell .starter-chip:hover,
-.app-shell .starter-chip.selected {
-  background: var(--accent-soft); border-color: var(--accent); color: var(--card-text);
+.app-shell .starter-symbol { font-size: 13px; color: var(--card-text-muted); }
+.app-shell .starter-chip:hover, .app-shell .starter-chip.selected {
+  background: var(--accent-soft); color: var(--card-text);
 }
-.app-shell .starter-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app-shell .starter-chip.selected { border-color: var(--accent); }
 
+/* Output and lists: separators communicate grouping, not decoration. */
 .app-shell .preview-card {
-  padding: 16px; border: 1px solid color-mix(in srgb, var(--accent) 23%, var(--hairline));
-  border-radius: 15px;
-  background: linear-gradient(110deg, var(--accent-soft), transparent 56%), var(--surface-soft);
+  padding: 16px; border: 1px solid var(--hairline);
+  border-radius: 8px; background: var(--card-bg-solid);
 }
+.app-shell .preview-label { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 650; color: var(--card-text); }
+.app-shell .preview-state { font-size: 11px; color: var(--success); }
 .app-shell .preview-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .app-shell .preview-actions .preview-open {
-  display: inline-flex; min-height: 34px; padding: 4px 10px;
-  border: 1px solid var(--hairline); border-radius: 9px;
-  background: var(--card-bg-solid); color: var(--card-text-soft);
-  font-size: 11px; text-decoration: none;
+  display: inline-flex; min-height: 32px; padding: 3px 9px;
+  border: 1px solid var(--hairline); border-radius: 6px;
+  background: transparent; color: var(--card-text-soft); font-size: 12px;
 }
-.app-shell .preview-actions .preview-open:hover {
-  border-color: var(--accent); color: var(--accent); background: var(--surface-elevated);
-}
+.app-shell .preview-actions .preview-open:hover { background: var(--surface-hover); color: var(--card-text); }
 .app-shell .preview-card .preview-url {
-  display: -webkit-box; max-width: 100%; padding: 12px 13px;
-  border: 1px solid var(--hairline); border-radius: 10px;
-  background: var(--card-bg-solid); color: var(--card-text);
-  font-size: 12px; line-height: 1.7;
-  -webkit-line-clamp: 2; overflow-wrap: anywhere;
+  display: -webkit-box; max-width: 100%; padding: 11px 12px;
+  border: 1px solid var(--hairline); border-radius: 6px;
+  background: var(--surface-soft); color: var(--card-text);
+  font-size: 12px; line-height: 1.65; -webkit-line-clamp: 2; overflow-wrap: anywhere;
 }
-.app-shell .recent-section { gap: 12px; padding-top: 2px; }
-.app-shell .recent-head { align-items: flex-end; }
-.app-shell .recent-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.app-shell .recent-item { min-height: 54px; border: 1px solid var(--hairline); border-radius: 11px; background: var(--surface-soft); }
-.app-shell .recent-item:hover { background: var(--surface-hover); border-color: var(--hairline-strong); transform: translateY(-1px); }
-.app-shell .recent-index {
-  display: inline-grid; place-items: center; flex: none;
-  width: 23px; height: 23px; border-radius: 7px;
-  color: var(--card-text-muted); background: var(--card-bg-solid);
+.app-shell .recent-section { gap: 10px; padding-top: 4px; }
+.app-shell .recent-head { align-items: center; }
+.app-shell .recent-head h3 { font-size: 15px; font-weight: 650; }
+.app-shell .recent-list, .app-shell .history-panel .history-list {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0;
+  border-top: 1px solid var(--hairline);
 }
+.app-shell .recent-item, .app-shell .history-panel .history-item {
+  min-height: 46px; border: 0; border-bottom: 1px solid var(--hairline);
+  border-radius: 0; background: transparent; box-shadow: none;
+}
+.app-shell .recent-item:hover, .app-shell .history-panel .history-item:hover { background: var(--surface-hover); transform: none; }
+.app-shell .recent-item .recent-link-icon { width: 16px; height: 16px; color: var(--card-text-muted); flex-shrink: 0; }
 .app-shell .recent-url { color: var(--card-text-soft); }
+.app-shell .history-panel .total-badge {
+  border: 0; background: transparent; color: var(--card-text-muted); padding: 0;
+}
+.app-shell .history-panel .search-wrap { border-radius: 8px; box-shadow: none; }
+.app-shell .history-panel .scheme-icon { background: transparent; border-radius: 6px; }
+.app-shell .history-panel .empty-state { background: transparent; border-radius: 0; box-shadow: none; }
 
-/* 统一收藏卡片与历史行的质感，避免改变内部操作按钮和数据结构。 */
+/* App icons are meaningful; keep them. Only management operations are secondary. */
 .app-shell .common-panel .common-card {
-  border: 1px solid var(--hairline); border-radius: 16px;
-  background: var(--surface-elevated);
-  box-shadow: 0 3px 10px rgba(33, 47, 80, 0.035);
+  border: 1px solid var(--hairline); border-radius: 9px;
+  background: var(--card-bg-solid); box-shadow: none; padding: 14px; gap: 10px;
 }
-.app-shell .common-panel .common-card:hover {
-  border-color: var(--hairline-strong);
-  box-shadow: 0 11px 25px rgba(33, 47, 80, 0.08);
+.app-shell .common-panel .common-card:hover { border-color: var(--hairline-strong); box-shadow: none; transform: none; }
+.app-shell .common-panel .app-icon { border-radius: 8px; }
+.app-shell .common-panel .fallback-icon { background: var(--surface-hover); color: var(--card-text); }
+.app-shell .common-panel :is(.add-button, .common-tools button, .common-search input, .card-buttons button, .editor-actions button) { border-radius: 6px; }
+.app-shell .common-panel .card-buttons .primary {
+  background: var(--surface-soft) !important; color: var(--card-text) !important; border-color: var(--hairline) !important;
 }
-.app-shell .common-panel .common-tags button { min-height: 31px; }
+.app-shell .common-panel .card-buttons .primary:hover { background: var(--surface-hover) !important; border-color: var(--hairline-strong) !important; }
+.app-shell .common-panel .add-button {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+}
+.app-shell .common-panel .common-tags button { min-height: 30px; border-radius: 6px; }
+.app-shell .common-panel .common-tags button[aria-pressed="true"],
+.app-shell .common-panel .editor-actions .primary { color: var(--on-accent) !important; }
 .app-shell .common-panel .common-toolbar input:focus-visible,
 .app-shell .history-panel .search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.app-shell .history-panel .history-item { border-radius: 12px; }
-.app-shell .history-panel .history-item:hover { background: var(--surface-hover); }
-.app-shell .common-panel .add-button:focus-visible,
 .app-shell .common-panel .card-actions button:focus-visible,
 .app-shell .history-panel button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+.app-shell .redirect-panel { padding: 20px 8px; gap: 16px; }
+.app-shell .redirect-panel .app-icon { border-radius: 10px; }
+.app-shell .redirect-panel :is(.target-preview, .primary-action, .secondary-action) { border-radius: 7px; }
+.app-shell .redirect-panel .section-kicker { letter-spacing: 0; font-size: 12px; }
+.app-shell .redirect-panel .primary-action { color: var(--on-accent); }
+.app-shell .redirect-panel .target-preview { background: var(--surface-soft); }
+
 .app-shell dialog.qr-share-dialog,
 .app-shell dialog.command-dialog,
-.app-shell dialog.shortcut-dialog {
-  border-color: var(--hairline-strong);
-  background: var(--card-bg-solid);
-  box-shadow: 0 28px 85px rgba(13, 26, 54, 0.28);
+.app-shell dialog.shortcut-dialog,
+.app-shell dialog.editor-dialog {
+  border-radius: 12px; border-color: var(--hairline-strong); background: var(--card-bg-solid);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .20);
 }
+.app-shell dialog::backdrop { backdrop-filter: none; }
 .app-shell dialog.command-dialog .command-item:hover,
 .app-shell dialog.command-dialog .command-item.selected { background: var(--accent-soft); }
+.app-shell .command-primary, .app-shell .settings-panel .primary-action { color: var(--on-accent); }
 .app-shell dialog :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (max-width: 760px) {
   .app-shell .header-actions .launch-trigger kbd { display: none; }
 }
 @media (max-width: 640px) {
-  .app-shell .workspace { margin-top: 28px; }
-  .app-shell .header-actions .launch-trigger {
-    width: 40px; min-width: 40px; height: 40px; padding: 0;
-  }
+  .app-shell.app-shell { padding: 0 16px 32px; }
+  .app-shell .app-header { min-height: 58px; }
+  .app-shell .workspace { margin-top: 24px; }
+  .app-shell .content-card { --panel-pad-block: 22px; }
+  .app-shell .header-actions .launch-trigger { width: 34px; min-width: 34px; padding: 0; }
   .app-shell .header-actions .launch-trigger span { display: none; }
-  .app-shell .header-actions .launch-trigger svg { width: 18px; height: 18px; }
-  .app-shell .content-card { border-radius: 19px; }
   .app-shell .mode-tabs { gap: 0; }
-  .app-shell .mode-tabs button { min-height: 41px; }
-  .app-shell .recent-list { grid-template-columns: 1fr; }
+  .app-shell .mode-tabs button { flex: 1; min-height: 43px; padding: 0 4px; font-size: 12px; white-space: nowrap; }
   .app-shell .preview-card .preview-url { -webkit-line-clamp: 3; }
 }
 @media (max-width: 420px) {
-  .app-shell .header-actions { gap: 4px; }
-  .app-shell .header-actions .launch-trigger,
-  .app-shell .header-actions .github-link,
-  .app-shell .header-actions .shortcut-help-trigger,
-  .app-shell .header-actions .theme-toggle {
-    width: 34px; min-width: 34px; height: 34px; min-height: 34px;
-  }
-  .app-shell .app-header .brand-mark { width: 34px; height: 34px; }
-  .app-shell .app-header .brand { gap: 7px; }
-  .app-shell .app-header .brand-copy strong { font-size: 11px; }
-  .app-shell .mode-tabs button { padding-inline: 3px; font-size: 11px; }
-  .app-shell .content-card { --panel-pad-inline: 15px; }
-  .app-shell .url-input-panel .section-heading h2 { font-size: 21px; }
+  .app-shell.app-shell { padding-inline: 12px; }
+  .app-shell .header-actions { gap: 3px; }
+  .app-shell .app-header .brand { gap: 6px; }
+  .app-shell .app-header .brand-copy strong { font-size: 13px; }
+  .app-shell .app-header .brand-mark { width: 28px; height: 28px; }
+  .app-shell .mode-tabs button { padding-inline: 2px; font-size: 11px; }
+  .app-shell .url-input-panel .section-heading h2 { font-size: 20px; }
   .app-shell .preview-actions { width: 100%; justify-content: flex-start; }
-  .app-shell .starter-links { gap: 7px; }
-  .app-shell .starter-label { width: 100%; min-height: auto; }
+  .app-shell .starter-links { gap: 6px; }
+  .app-shell .starter-label { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-shell .header-actions .launch-trigger,
-  .app-shell .starter-chip,
-  .app-shell .recent-item { transition: none !important; transform: none !important; }
+  .app-shell *, .app-shell *::before, .app-shell *::after {
+    transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important; scroll-behavior: auto !important;
+  }
 }

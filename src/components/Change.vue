@@ -1,8 +1,5 @@
 <template>
   <main class="app-shell" :class="{ dark: darkMode }" :data-switch-direction="switchDirection" tabindex="-1" @keydown="handleKeydown">
-    <div class="ambient ambient-one" aria-hidden="true"></div>
-    <div class="ambient ambient-two" aria-hidden="true"></div>
-
     <header class="app-header">
       <a class="brand" :href="`${origin}/`" aria-label="Scheme to URL 首页">
         <span class="brand-mark" aria-hidden="true">
@@ -12,7 +9,6 @@
         </span>
         <span class="brand-copy">
           <strong>Scheme to URL</strong>
-          <small>Link bridge</small>
         </span>
       </a>
 

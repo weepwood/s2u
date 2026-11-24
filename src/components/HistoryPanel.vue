@@ -2,7 +2,6 @@
   <section class="history-panel" aria-labelledby="history-list-title">
     <div class="section-heading">
       <div>
-        <span class="section-kicker">Link archive</span>
         <h2 id="history-list-title">历史记录</h2>
       </div>
       <span class="total-badge">{{ history.length }} 条记录</span>
