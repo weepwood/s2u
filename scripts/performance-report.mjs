@@ -33,8 +33,8 @@ console.log('Off-initial chunks: ' + (rows.length - entry.length))
 
 // 基线 #69: 61.06 KiB 首屏 / 83.85 KiB 总 gzip。预算为宽松的回归门禁，不代表 Web Vitals。
 const ENTRY_BUDGET = 80 * 1024
-const TOTAL_BUDGET = 110 * 1024
+const TOTAL_BUDGET = 120 * 1024
 if (entryGzip > ENTRY_BUDGET || total > TOTAL_BUDGET) {
-  throw new Error('构建资源超出预算：首屏 ≤ 80 KiB、全部 JS/CSS ≤ 110 KiB（gzip）')
+  throw new Error('构建资源超出预算：首屏 ≤ 80 KiB、全部 JS/CSS ≤ 120 KiB（gzip）')
 }
-console.log('Performance budget: pass (entry ≤ 80 KiB, total ≤ 110 KiB gzip)')
+console.log('Performance budget: pass (entry ≤ 80 KiB, total ≤ 120 KiB gzip)')

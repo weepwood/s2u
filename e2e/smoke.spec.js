@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 async function chooseOption(page,trigger,value) {
   await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded','true')
-  const list=page.getByRole('listbox')
+  const list=page.getByRole('listbox',{name:'可选项',exact:true})
   await list.locator('[role=option][data-value="'+value+'"]').click()
   await expect(trigger).toHaveAttribute('aria-expanded','false')
 }
