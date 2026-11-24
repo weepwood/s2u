@@ -50,9 +50,9 @@
     linear-gradient(155deg, #f8faff, var(--page-bg) 62%, #edf2fa);
   --radius-control: 12px;
   --control-height: 54px;
+  --toolbar-actions-width: 210px;
   --control-icon-size: 18px;
   --control-icon-slot: 44px;
-  --toolbar-actions-width: 156px;
   --panel-gap: 20px;
   --radius-card: 23px;
   --radius-navigation: 15px;

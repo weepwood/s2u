@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+async function chooseOption(page,trigger,value) {
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded','true')
+  const list=page.getByRole('listbox',{name:'可选项',exact:true})
+  await list.locator('[role=option][data-value="'+value+'"]').click()
+  await expect(trigger).toHaveAttribute('aria-expanded','false')
+}
+
 // 管理工具在鼠标进入卡片后显现；不强制点击隐藏控件。
 async function clickCardTool(button) {
   await button.locator('xpath=ancestor::article').hover()
@@ -187,7 +195,7 @@ test('模拟 Gist 同步不接触真实 Token/API', async ({ page }) => {
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
-  await page.locator('#gist-mode').selectOption('new')
+  await chooseOption(page,page.locator('#gist-mode'),'new')
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: '连接 Gist' }).click()
   await expect(page.getByRole('button', { name: '立即同步' })).toBeVisible()
@@ -402,7 +410,7 @@ test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', asyn
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
-  await page.locator('#gist-mode').selectOption('new')
+  await chooseOption(page,page.locator('#gist-mode'),'new')
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: '连接 Gist' }).click()
   // 首次访问时历史工作区需按需下载，云端同步错误提示允许完整异步流程结束。
@@ -439,7 +447,7 @@ test('连接后远端被另一设备修改时不会覆盖 Gist', async ({ page }
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
-  await page.locator('#gist-mode').selectOption('new')
+  await chooseOption(page,page.locator('#gist-mode'),'new')
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: '连接 Gist' }).click()
   await expect(page.getByRole('alert')).toContainText('已被其它设备修改')
@@ -447,17 +455,16 @@ test('连接后远端被另一设备修改时不会覆盖 Gist', async ({ page }
 })
 
 
-test('常用链接可以搜索、持久化排序及安全追加导入 JSON', async ({ page }) => {
+test('常用链接可以搜索、保留顺序及安全追加导入 JSON', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
   await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('obsidian')
   await expect(page.locator('.common-card')).toHaveCount(1)
   await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('')
-  await clickCardTool(page.getByRole('button', { name: '下移 Obsidian' }))
-  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Obsidian')
   await page.reload()
   await page.getByRole('tab', { name: /常用链接/ }).click()
-  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Obsidian')
 
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: '导出 JSON' }).click()
@@ -560,36 +567,31 @@ test('上传 SVG 文件时拒绝并保留原应用图标', async ({ page }) => {
 })
 
 
-test('搜索筛选的卡片仍可一键置顶，刷新后首位保持且不会更改其它顺序', async ({ page }) => {
+test('收藏筛选保留数据顺序，管理工具不再显示调序入口',async({page})=>{
   await page.goto('/')
-  await page.getByRole('tab', { name: /常用链接/ }).click()
-  await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('weixin')
-  // 这里名称为「微信」，使用 URL Scheme 搜索验证筛选后仍可操作。
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  await page.getByRole('searchbox',{name:'搜索常用链接'}).fill('weixin')
   await expect(page.locator('.common-card')).toHaveCount(1)
-  await clickCardTool(page.getByRole('button', { name: '置顶 微信' }))
-  await expect(page.getByRole('button', { name: '置顶 微信' })).not.toBeVisible()
-  await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('')
-  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('微信')
-  await expect(page.locator('.common-card').nth(1).locator('.card-meta strong')).toHaveText('Obsidian')
-  await page.reload()
-  await page.getByRole('tab', { name: /常用链接/ }).click()
-  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('微信')
+  await expect(page.locator('.common-card .card-actions button')).toHaveCount(3)
+  await expect(page.locator('.common-drag-handle,.first-item-indicator')).toHaveCount(0)
+  await page.getByRole('button',{name:'清除常用链接搜索'}).click()
+  await expect(page.locator('.common-card').first()).toContainText('Obsidian')
 })
 
-test('320px 窄屏下置顶按钮可见，卡片不会横向溢出', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 700 })
+test('320px 窄屏列表复制按钮不换行，导入导出不挤压',async({page})=>{
+  await page.setViewportSize({width:320,height:700})
   await page.goto('/')
-  await page.getByRole('tab', { name: /常用链接/ }).click()
-  const button = page.getByRole('button', { name: '置顶 Visual Studio Code' })
-  await expect(button).toBeVisible()
-  const box = await button.boundingBox()
-  expect(box).not.toBeNull()
-  expect(box.x).toBeGreaterThanOrEqual(0)
-  expect(box.x + box.width).toBeLessThanOrEqual(321)
-  await button.click()
-  await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  await page.getByRole('button',{name:'列表视图'}).click()
+  const button=page.getByRole('button',{name:'复制 Obsidian 分享链接'})
+  await expect(button).toHaveCSS('white-space','nowrap')
+  expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  for(const name of ['导入 JSON','导出 JSON']){
+    const control=page.getByRole('button',{name,exact:true})
+    expect(parseFloat(await control.evaluate(el=>getComputedStyle(el).paddingLeft))).toBeGreaterThanOrEqual(12)
+  }
 })
-
 
 test('三个标签的滑块连续移动，快速切换后面板和方向一致', async ({ page }) => {
   await page.goto('/')
@@ -1030,9 +1032,9 @@ test('触屏设备常用链接卡片管理操作始终可用', async ({ browser 
       matchMedia('(hover: none)').matches || matchMedia('(pointer: coarse)').matches)
     expect(pointer).toBe(true)
     await expect(card.locator('.card-actions')).toHaveCSS('opacity', '1')
-    await expect(card.getByRole('button', { name: '置顶 Visual Studio Code' })).toBeVisible()
-    await clickCardTool(card.getByRole('button', { name: '置顶 Visual Studio Code' }))
-    await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
+    await card.getByRole('button', { name: '编辑 Visual Studio Code' }).tap()
+    await expect(page.getByRole('dialog',{name:'编辑常用链接'})).toBeVisible()
+    await page.getByRole('button',{name:'关闭弹窗'}).tap()
   } finally {
     await context.close()
   }
@@ -1396,7 +1398,7 @@ test('Gist 收藏冲突预览逐条确认，保留两端无冲突修改',async({
   const review=dialog.getByRole('region',{name:'同步冲突处理'})
   await expect(review).toBeVisible()
   expect(patches).toBe(0)
-  await review.getByLabel('处理方式').selectOption('records')
+  await chooseOption(page,review.getByLabel('处理方式'),'records')
   const confirm=review.getByRole('button',{name:'确认处理冲突'})
   await expect(confirm).toBeDisabled()
   await review.getByRole('radio',{name:'保留本机',exact:true}).check()
@@ -1437,7 +1439,7 @@ test('账号工作区切换保留旧数据，且新工作区不继承旧连接',
   dialog=await open()
   await expect(dialog.getByText('@alice',{exact:true}).first()).toBeVisible()
   await expect(dialog.getByLabel('GitHub Token')).toHaveValue('')
-  await dialog.getByLabel('已保存工作区').selectOption('legacy')
+  await chooseOption(page,dialog.getByLabel('已保存工作区'),'legacy')
   page.once('dialog',prompt=>prompt.accept())
   await Promise.all([page.waitForEvent('load'),dialog.getByRole('button',{name:'切换工作区',exact:true}).click()])
   await page.getByRole('tab',{name:/历史记录/}).click()
@@ -1446,33 +1448,24 @@ test('账号工作区切换保留旧数据，且新工作区不继承旧连接',
 })
 
 
-test('收藏拖拽排序、切换列表视图及筛选时禁止拖动',async({page})=>{
-  await page.setViewportSize({width:1280,height:900})
-  await page.emulateMedia({reducedMotion:'reduce'})
+test('旧收藏排序兼容、列表切换及搜索',async({page})=>{
+  await page.addInitScript(()=>{
+    if(!localStorage.getItem('s2u_common_links_v1'))localStorage.setItem('s2u_common_links_v1',JSON.stringify({version:1,items:[
+      {id:'vscode',name:'Visual Studio Code',target:'vscode://'},
+      {id:'obsidian',name:'Obsidian',target:'obsidian://'}
+    ]}))
+  })
   await page.goto('/')
   await page.getByRole('tab',{name:/常用链接/}).click()
   const cards=page.locator('.common-card')
-  const handle=cards.filter({has:page.getByRole('button',{name:'打开 Obsidian',exact:true})}).locator('.common-drag-handle')
-  const target=cards.filter({has:page.getByRole('button',{name:'打开 微信',exact:true})})
-  await handle.locator('xpath=ancestor::article').hover()
-  await handle.hover()
-  const sourceRect=await handle.boundingBox(), rect=await target.boundingBox()
-  const x=rect.x+rect.width/2, y=rect.y+rect.height*.75
-  await page.mouse.move(sourceRect.x+sourceRect.width/2,sourceRect.y+sourceRect.height/2)
-  await page.mouse.down()
-  await page.mouse.move(sourceRect.x+sourceRect.width/2+8,sourceRect.y+sourceRect.height/2,{steps:4})
-  await page.mouse.move(x,y,{steps:12})
-  await page.mouse.move(x+1,y)
-  await page.mouse.up()
-  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_common_links_v1')||'{}').items?.map(i=>i.id))).toEqual(['vscode','weixin','obsidian','orpheus'])
+  await expect(cards.first()).toContainText('Visual Studio Code')
   await page.getByRole('button',{name:'列表视图',exact:true}).click()
   await expect(page.locator('.common-grid')).toHaveClass(/common-list-view/)
   await page.getByRole('searchbox',{name:'搜索常用链接'}).fill('visual vscode')
   await expect(cards).toHaveCount(1)
-  await expect(page.locator('.common-drag-handle')).toHaveCount(0)
   await page.getByRole('button',{name:'清除常用链接搜索'}).click()
   await page.getByRole('button',{name:'网格视图',exact:true}).click()
-  await expect(cards).toHaveCount(4)
+  await expect(cards).toHaveCount(2)
   await page.reload()
   await page.getByRole('tab',{name:/常用链接/}).click()
   await expect(cards.first()).toContainText('Visual Studio Code')
@@ -1489,13 +1482,13 @@ test('统一标签管理合并大小写重复分类并保留收藏',async({page}
   await page.getByRole('button',{name:'Work',exact:true}).click()
   await expect(page.locator('.common-card')).toHaveCount(2)
   await page.getByText('管理标签',{exact:true}).click()
-  await page.getByLabel('选择标签').selectOption('Work')
+  await chooseOption(page,page.getByLabel('选择标签'),'Work')
   await page.getByLabel('标签名称').fill('项目')
   page.once('dialog',prompt=>prompt.accept())
   await page.getByRole('button',{name:'重命名标签'}).click()
   await expect(page.getByRole('button',{name:'Work',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'项目',exact:true})).toHaveAttribute('aria-pressed','true')
-  await page.getByLabel('选择标签').selectOption('项目')
+  await chooseOption(page,page.getByLabel('选择标签'),'项目')
   page.once('dialog',prompt=>prompt.accept())
   await page.getByRole('button',{name:'移除标签'}).click()
   await expect(page.getByRole('button',{name:'项目',exact:true})).toHaveCount(0)
@@ -1520,9 +1513,9 @@ test('历史协议筛选、频率排序和转收藏不改变历史数据',async(
   const cards=page.locator('.history-item')
   await expect(cards).toHaveCount(3)
   await expect(page.locator('.history-day-heading').first()).toHaveText('今天')
-  await page.getByLabel('历史排序').selectOption('count')
+  await chooseOption(page,page.getByLabel('历史排序'),'count')
   await expect(cards.first()).toContainText('obsidian://')
-  await page.getByLabel('按协议筛选').selectOption('https:')
+  await chooseOption(page,page.getByLabel('按协议筛选'),'https:')
   await expect(cards).toHaveCount(2)
   await page.getByRole('textbox',{name:'搜索历史记录'}).fill('example notes')
   await expect(cards).toHaveCount(1)

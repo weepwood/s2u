@@ -22,7 +22,7 @@ async function capture(page,testInfo,width,theme) {
     })).toBe(true)
     if(id==='history'&&theme==='dark'){
       const select=page.getByRole('combobox',{name:'按协议筛选'})
-      await expect(select).toHaveCSS('appearance','none')
+      await expect(select).toHaveJSProperty('tagName','BUTTON')
       await expect(select).toHaveCSS('background-color','rgb(32, 44, 61)')
       await expect(select).toHaveCSS('color','rgb(237, 243, 255)')
     }
@@ -37,6 +37,33 @@ async function capture(page,testInfo,width,theme) {
     expect(bounds.cardAligned).toBeLessThanOrEqual(1.5)
     expect(bounds.cardRight).toBeLessThanOrEqual(width+1)
     await page.screenshot({path:testInfo.outputPath('ui-'+width+'-'+theme+'-'+id+'.png'),animations:'disabled'})
+    await expect(page.locator('select')).toHaveCount(0)
+    if(id==='history'){
+      const select=page.getByRole('combobox',{name:'历史排序'})
+      await select.click()
+      await expect(page.getByRole('listbox')).toBeVisible()
+      const menu=await page.getByRole('listbox').boundingBox()
+      const viewport=page.viewportSize()
+      expect(menu.x).toBeGreaterThanOrEqual(0)
+      expect(menu.y).toBeGreaterThanOrEqual(0)
+      expect(menu.x+menu.width).toBeLessThanOrEqual(viewport.width+1)
+      expect(menu.y+menu.height).toBeLessThanOrEqual(viewport.height+1)
+      await page.screenshot({path:testInfo.outputPath('ui-'+width+'-'+theme+'-select.png'),animations:'disabled'})
+      await page.getByRole('option',{name:'使用频率',exact:true}).click()
+      await expect(select).toContainText('使用频率')
+      await select.click()
+      await page.keyboard.press('Home')
+      await page.keyboard.press('Enter')
+      await expect(select).toContainText('最近使用')
+    }
+    if(id==='common'){
+      await page.getByRole('button',{name:'列表视图'}).click()
+      const copy=page.getByRole('button',{name:'复制 Obsidian 分享链接'})
+      await expect(copy).toHaveCSS('white-space','nowrap')
+      expect(await copy.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+      await page.screenshot({path:testInfo.outputPath('ui-'+width+'-'+theme+'-common-list.png'),animations:'disabled'})
+      await page.getByRole('button',{name:'网格视图'}).click()
+    }
   }
 }
 test('三页浅深主题真实截图及弹窗焦点',async({page},testInfo)=>{
@@ -52,8 +79,18 @@ test('三页浅深主题真实截图及弹窗焦点',async({page},testInfo)=>{
   await trigger.click()
   const dialog=page.getByRole('dialog',{name:'云端同步'})
   await expect(dialog).toBeVisible()
-  await expect(dialog.locator('#gist-mode')).toHaveCSS('appearance','none')
+  await expect(dialog.locator('#gist-mode')).toHaveJSProperty('tagName','BUTTON')
   await expect(dialog.locator('#gist-mode')).toHaveCSS('background-color','rgb(32, 44, 61)')
+  await dialog.locator('#gist-mode').click()
+  await expect(dialog.getByRole('listbox')).toBeVisible()
+  await expect(dialog.getByRole('option',{name:'创建新的 Gist'})).toBeVisible()
+  await page.screenshot({path:testInfo.outputPath('ui-1280-dark-select.png'),animations:'disabled'})
+  await dialog.getByRole('option',{name:'输入 Gist ID / 地址'}).click()
+  await expect(dialog.locator('#gist-mode')).toContainText('输入 Gist ID / 地址')
+  await dialog.locator('#gist-mode').click()
+  await page.keyboard.press('Escape')
+  await expect(dialog.getByRole('listbox')).toHaveCount(0)
+  await expect(dialog).toBeVisible()
   await page.screenshot({path:testInfo.outputPath('ui-1280-dark-dialog.png'),animations:'disabled'})
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)

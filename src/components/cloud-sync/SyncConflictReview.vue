@@ -31,12 +31,7 @@
       </template>
       <p v-else>本机：{{ item.localTheme ? '深色' : '浅色' }} · 云端：{{ item.remoteTheme ? '深色' : '浅色' }}</p>
       <label :for="'conflict-mode-'+item.id">处理方式</label>
-      <select :id="'conflict-mode-'+item.id" v-model="modes[item.id]">
-        <option value="">请选择</option>
-        <option v-if="item.canChooseRecords" value="records">逐条选择冲突记录</option>
-        <option value="local">整份保留本机</option>
-        <option value="remote">整份保留云端</option>
-      </select>
+      <BaseSelect :id="'conflict-mode-'+item.id" v-model="modes[item.id]" :options="[{value:'',label:'请选择'},...(item.canChooseRecords?[{value:'records',label:'逐条选择冲突记录'}]:[]),{value:'local',label:'整份保留本机'},{value:'remote',label:'整份保留云端'}]" />
       <p v-if="modes[item.id] === 'records'">为每条冲突记录选择版本；无冲突修改自动保留。排序仍有歧义时会停止。</p>
     </fieldset>
     <BaseButton variant="primary" :disabled="busy || !complete" @click="$emit('resolve', decisions)">确认处理冲突</BaseButton>
@@ -45,6 +40,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import BaseButton from '../ui/BaseButton.vue'
+import BaseSelect from '../ui/BaseSelect.vue'
 const props=defineProps({conflicts:{type:Array,required:true},busy:Boolean})
 defineEmits(['resolve','export'])
 const modes=ref({}), records=ref([])

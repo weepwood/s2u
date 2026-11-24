@@ -2,12 +2,7 @@ import { encodeShareLink, normalizeTarget } from '../../domain/linkCodec.js'
 import { writeClipboardText } from '../useClipboard.js'
 
 export function useBookmarkActions({ commonStore, commonPanel, origin, addHistory, autoSync, notifyStorageError, showToast }) {
-  const { storageError:commonStorageError, save:persistCommonLink, remove:deleteCommonLink, restoreDefaults:restoreCommonLinks, move:moveCommonLinkStore, reorder:reorderCommonLinkStore, renameTag:renameCommonTagStore, pin:pinCommonLinkStore, exportJSON:exportCommonJSON, inspectImport:inspectCommonImport, importJSON:importCommonJSON } = commonStore
-
-  function reorderCommonLink(id, targetId, position) {
-    if (reorderCommonLinkStore(id,targetId,position)) showToast('链接顺序已保存','success')
-    else if (commonStorageError.value) showToast(commonStorageError.value,'error',4000)
-  }
+  const { storageError:commonStorageError, save:persistCommonLink, remove:deleteCommonLink, restoreDefaults:restoreCommonLinks, renameTag:renameCommonTagStore, exportJSON:exportCommonJSON, inspectImport:inspectCommonImport, importJSON:importCommonJSON } = commonStore
 
   function renameCommonTag(previous,next) {
     try {
@@ -18,22 +13,6 @@ export function useBookmarkActions({ commonStore, commonPanel, origin, addHistor
         commonPanel.value?.showTagError(commonStorageError.value)
       }
     } catch (error) { commonPanel.value?.showTagError(error.message || '标签无效') }
-  }
-
-  function pinCommonLink(id) {
-    if (pinCommonLinkStore(id)) {
-      showToast('常用链接已置顶', 'success')
-    } else if (commonStorageError.value) {
-      showToast(commonStorageError.value, 'error', 4000)
-    }
-  }
-
-  function moveCommonLink(id, offset) {
-    if (moveCommonLinkStore(id, offset)) {
-      showToast('链接顺序已保存', 'success')
-    } else if (commonStorageError.value) {
-      showToast(commonStorageError.value, 'error', 4000)
-    }
   }
 
   function exportCommonLinks() {
@@ -156,5 +135,5 @@ export function useBookmarkActions({ commonStore, commonPanel, origin, addHistor
     }
   }
 
-  return { reorderCommonLink, renameCommonTag, pinCommonLink, moveCommonLink, exportCommonLinks, importCommonLinks, copyCommonRaw, openCommonLink, saveHistoryBookmark, saveCommonLink, removeCommonLink, resetCommonLinks, copyCommonLink }
+  return { renameCommonTag, exportCommonLinks, importCommonLinks, copyCommonRaw, openCommonLink, saveHistoryBookmark, saveCommonLink, removeCommonLink, resetCommonLinks, copyCommonLink }
 }

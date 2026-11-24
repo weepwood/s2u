@@ -54,10 +54,10 @@
         </details>
         <p class="cloud-note">Secret Gist 知道地址的人仍可能读取，请勿同步敏感链接。</p>
         <label for="gist-mode">连接方式</label>
-        <select id="gist-mode" v-model="mode" :disabled="finding || busy"><option value="existing">查找已有 Gist</option><option value="manual">输入 Gist ID / 地址</option><option value="new">创建新的 Gist</option></select>
+        <BaseSelect id="gist-mode" v-model="mode" :disabled="finding || busy" :options="[{value:'existing',label:'查找已有 Gist'},{value:'manual',label:'输入 Gist ID / 地址'},{value:'new',label:'创建新的 Gist'}]" />
         <template v-if="mode === 'existing'">
           <button type="button" :disabled="!token.trim() || finding || busy" @click="discover">{{ finding ? '正在查找…' : '查找已有 Gist' }}</button>
-          <select v-if="cloud.candidates.value.length" v-model="gist" aria-label="选择已有 Gist"><option value="">请选择同步文件</option><option v-for="item in cloud.candidates.value" :key="item.id" :value="item.id">{{ item.description }} · {{ item.id.slice(0,8) }}</option></select>
+          <BaseSelect v-if="cloud.candidates.value.length" v-model="gist" aria-label="选择已有 Gist" :options="[{value:'',label:'请选择同步文件'},...cloud.candidates.value.map(item=>({value:item.id,label:item.description+' · '+item.id.slice(0,8)}))]" />
           <p v-if="searched && !cloud.candidates.value.length" class="cloud-note">未找到匹配文件，可手动指定或创建新的 Gist。</p>
         </template>
         <BaseInput v-if="mode === 'manual'" v-model="gist" aria-label="Gist ID 或地址" placeholder="Gist ID 或完整地址" autocomplete="off"/>
@@ -69,7 +69,7 @@
     </section>
     <section v-else-if="tab === 'preferences'" key="preferences" class="cloud-body">
       <BaseSwitch :model-value="cloud.preferences.value.auto"  @update:model-value="pref('auto', $event)">自动同步</BaseSwitch>
-      <label class="cloud-option"><span>同步延迟</span><select :value="cloud.preferences.value.delay" @change="pref('delay', Number($event.target.value))"><option :value="3000">3 秒</option><option :value="5000">5 秒</option><option :value="10000">10 秒</option></select></label>
+      <div class="cloud-option"><label for="sync-delay">同步延迟</label><BaseSelect id="sync-delay" compact :model-value="cloud.preferences.value.delay" :options="[{value:3000,label:'3 秒'},{value:5000,label:'5 秒'},{value:10000,label:'10 秒'}]" @update:model-value="pref('delay',$event)" /></div>
       <div class="cloud-divider"></div>
       <strong>同步内容</strong>
       <BaseSwitch :model-value="true" disabled>历史记录</BaseSwitch>
@@ -125,6 +125,7 @@ import BaseDialog from './ui/BaseDialog.vue'
 import BaseButton from './ui/BaseButton.vue'
 import BaseInput from './ui/BaseInput.vue'
 import BaseSwitch from './ui/BaseSwitch.vue'
+import BaseSelect from './ui/BaseSelect.vue'
 import SegmentedTabs from './ui/SegmentedTabs.vue'
 import SyncConflictReview from './cloud-sync/SyncConflictReview.vue'
 import WorkspaceSelector from './cloud-sync/WorkspaceSelector.vue'
@@ -177,7 +178,7 @@ async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { 
 .cloud-dialog[open] { display:grid; grid-template-rows:auto auto minmax(0,1fr); gap:16px; }
 .cloud-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; }
 .cloud-head h2 { margin:0; font-size:21px; letter-spacing:-.025em; }.cloud-head span { font-size:12px; color:var(--card-text-muted); }
-.cloud-dialog :is(button,input,select) { font:inherit; color:inherit; }
+.cloud-dialog :is(button,input) { font:inherit; color:inherit; }
 .cloud-dialog button,.cloud-actions a { min-height:var(--dialog-action-height); box-sizing:border-box; border:1px solid var(--hairline); border-radius:var(--radius-control); padding:7px 12px; background:var(--surface-elevated); font-size:13px; cursor:pointer; }
 .cloud-dialog button:hover:not(:disabled) { background:var(--surface-hover); }.cloud-dialog button:disabled { opacity:.5; cursor:not-allowed; }
 .cloud-dialog .cloud-close { width:34px; height:34px; min-height:34px; padding:0; font-size:23px; line-height:1; }
@@ -196,8 +197,8 @@ async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { 
 .sync-panel-leave-to { opacity:0; transform:translateX(var(--sync-leave-x)); }
 .cloud-body { display:grid; gap:13px; font-size:13px; min-width:0; }.cloud-label,.cloud-account,.cloud-option,.cloud-backup { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .cloud-label a,.cloud-actions a { color:var(--accent); text-decoration:none; }
-.cloud-body input:not([type=checkbox]),.cloud-body select { box-sizing:border-box; width:100%; min-width:0; min-height:var(--dialog-field-height); background:var(--surface-elevated); border:1px solid var(--hairline); border-radius:12px; padding:0 12px; font-size:14px; }
-.cloud-option select { width:auto; min-height:36px; }.cloud-option input { accent-color:var(--accent); width:18px; height:18px; }
+.cloud-body input:not([type=checkbox]) { box-sizing:border-box; width:100%; min-width:0; min-height:var(--dialog-field-height); background:var(--surface-elevated); border:1px solid var(--hairline); border-radius:12px; padding:0 12px; font-size:14px; }
+.cloud-option input { accent-color:var(--accent); width:18px; height:18px; }
 .cloud-note,.cloud-error { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; color:var(--card-text-muted); }.cloud-error { color:var(--danger); margin-bottom:12px; }
 .cloud-status { color:var(--card-text-muted); font-size:12px; }.cloud-status[data-status=connected] { color:var(--success); }
 .cloud-details { display:grid; grid-template-columns:auto minmax(0,1fr); gap:9px 14px; margin:0; padding:14px; background:var(--surface-soft); border-radius:12px; }.cloud-details dt { color:var(--card-text-muted); }.cloud-details dd { margin:0; overflow-wrap:anywhere; text-align:right; }
@@ -214,7 +215,7 @@ async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { 
 .token-guide-permission { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; background:var(--surface-elevated); border:1px solid var(--hairline); border-radius:8px; padding:8px 10px; }
 .token-guide-permission strong { color:var(--accent); }
 .token-guide-divider { height:1px; background:var(--hairline); margin-block:2px; }
-.cloud-dialog :is(button,input,select,a,summary):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.cloud-dialog :is(button,input,a,summary):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 @media(max-width:420px) { .cloud-dialog { padding:16px; } .cloud-actions button { font-size:12px; } }
 .workspace-file { display:none; }
 .workspace-restore-preview { display:grid; gap:10px; min-width:0; overflow-wrap:anywhere; }

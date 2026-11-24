@@ -111,10 +111,7 @@
       <summary>管理标签</summary>
       <div class="common-tag-fields">
         <label for="manage-tag">选择标签</label>
-        <BaseSelect id="manage-tag" v-model="managedTag" @change="beginTagEdit">
-          <option value="">请选择</option>
-          <option v-for="tag in availableTags" :key="tag" :value="tag">{{ tag }}（{{ tagCount(tag) }}）</option>
-        </BaseSelect>
+        <BaseSelect id="manage-tag" v-model="managedTag" :options="[{value:'',label:'请选择'},...availableTags.map(tag=>({value:tag,label:tag+'（'+tagCount(tag)+'）'}))]" @change="beginTagEdit" />
         <template v-if="managedTag">
           <label for="rename-tag">标签名称</label>
           <BaseInput id="rename-tag" v-model="newTag" maxlength="18" placeholder="输入新名称"/>
@@ -127,31 +124,20 @@
       </div>
     </details>
     <TransitionGroup v-if="visibleItems.length" tag="div" name="workspace-list" class="common-grid" :class="{'common-list-view':view === 'list'}">
-      <article v-for="item in visibleItems" :key="item.id" class="common-card"
-        :class="{'common-dragging':dragId === item.id,'common-drop-before':dropId === item.id && dropPosition === 'before','common-drop-after':dropId === item.id && dropPosition === 'after'}"
-        @dragover="dragOver($event,item.id)" @drop="dropItem($event,item.id)" @dragleave="leaveDrop($event,item.id)">
+      <article v-for="item in visibleItems" :key="item.id" class="common-card">
         <div class="card-main">
           <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item) }">
             <img v-if="getIcon(item)" :src="getIcon(item)" :alt="item.name + ' 图标'" width="48" height="48" />
             <span v-else aria-hidden="true">{{ iconInitials(item.name) }}</span>
           </span>
           <div class="card-meta">
-            <div class="card-title-row">
-              <strong :title="item.name">{{ item.name }}</strong>
-              <span v-if="items[0]?.id === item.id" class="first-item-indicator" aria-label="当前排在首位">首位</span>
-            </div>
+            <strong :title="item.name">{{ item.name }}</strong>
             <span :title="item.target">{{ item.target }}</span>
             <div v-if="item.tags?.length" class="card-tags"><span v-for="tag in item.tags" :key="tag">{{ tag }}</span></div>
           </div>
         </div>
         <div class="card-actions" role="group" :aria-label="'管理 ' + item.name">
-          <span v-if="canDrag" class="common-drag-handle" draggable="true" title="拖动调整顺序（也可使用上下移按钮）" aria-hidden="true" @dragstart="startDrag($event,item.id)" @dragend="resetDrag">
-            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-          </span>
-          <button v-if="items[0]?.id !== item.id" type="button" class="pin-button" :aria-label="'置顶 ' + item.name" title="移至首位" @click="$emit('pin', item.id)">置顶</button>
-          <button type="button" :disabled="items[0]?.id === item.id" :aria-label="'上移 ' + item.name" title="上移" @click="$emit('move', item.id, -1)">↑</button>
-            <button type="button" :disabled="items[items.length - 1]?.id === item.id" :aria-label="'下移 ' + item.name" title="下移" @click="$emit('move', item.id, 1)">↓</button>
-            <button type="button" :aria-label="'复制 ' + item.name + ' 原始链接'" title="复制原始链接" @click="$emit('copy-raw', item.target)">
+          <button type="button" :aria-label="'复制 ' + item.name + ' 原始链接'" title="复制原始链接" @click="$emit('copy-raw', item.target)">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.7"/></svg>
             </button>
             <button type="button" :aria-label="'编辑 ' + item.name" title="编辑" @click="beginEdit(item)">
@@ -195,7 +181,7 @@ import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
 const props = defineProps({
   items: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'move', 'reorder', 'rename-tag', 'pin', 'import', 'export'])
+const emit = defineEmits(['save', 'remove', 'reset', 'open', 'copy', 'copy-raw', 'rename-tag', 'import', 'export'])
 const openWarningDialog = ref(null)
 const pendingTarget = ref('')
 
@@ -257,36 +243,6 @@ function finishTagEdit(next) {
   if(tagKey(selectedTag.value)===tagKey(managedTag.value))selectedTag.value=next
   managedTag.value=availableTags.value.find(tag=>tagKey(tag)===tagKey(next)) || ''
   beginTagEdit()
-}
-const canDrag=computed(()=>!search.value.trim()&&!selectedTag.value&&props.items.length>1)
-const dragId=ref(''),dropId=ref(''),dropPosition=ref('before')
-function resetDrag(){dragId.value='';dropId.value='';dropPosition.value='before'}
-watch(canDrag,value=>{if(!value)resetDrag()})
-// 外部拖放不被接受，dataTransfer 不写入 URL 或收藏内容。
-function startDrag(event,id){
-  if(!canDrag.value||!event.dataTransfer){event.preventDefault();return}
-  dragId.value=id
-  event.dataTransfer.effectAllowed='move'
-  event.dataTransfer.setData('text/plain','s2u-bookmark-reorder')
-}
-function dragOver(event,id){
-  if(!canDrag.value||!dragId.value||id===dragId.value)return
-  event.preventDefault()
-  if(event.dataTransfer)event.dataTransfer.dropEffect='move'
-  const rect=event.currentTarget.getBoundingClientRect()
-  dropId.value=id
-  dropPosition.value=event.clientY < rect.top+rect.height/2?'before':'after'
-}
-function leaveDrop(event,id){
-  if(dropId.value===id&&!event.currentTarget.contains(event.relatedTarget))dropId.value=''
-}
-function dropItem(event,id){
-  if(!canDrag.value||!dragId.value||id===dragId.value)return
-  event.preventDefault()
-  const rect=event.currentTarget.getBoundingClientRect()
-  const position=event.clientY < rect.top+rect.height/2?'before':'after'
-  emit('reorder',dragId.value,id,position)
-  resetDrag()
 }
 const importInput = ref(null)
 
@@ -468,17 +424,10 @@ button { font: inherit; cursor: pointer; }
 .card-actions button:disabled { opacity: .3; cursor: not-allowed; }
 .card-actions svg { width: 16px; height: 16px; }
  .card-meta { display: grid; gap: 5px; min-width: 0; flex: 1; }
-.card-title-row { display: flex; align-items: center; min-width: 0; gap: 5px; }
-.card-title-row strong { flex: 1; min-width: 0; }
-.pin-button, .first-item-indicator { flex-shrink: 0; border: 0; padding: 3px 5px; border-radius: 6px; font-size: 10px; font-weight: 650; line-height: 1.3; }
-.pin-button { color: var(--card-text-muted); background: var(--surface-elevated); }
-.card-actions .pin-button { width: auto; min-width: 38px; padding: 0 6px; }
-.pin-button:hover, .pin-button:focus-visible { color: var(--card-text); outline-color: var(--accent); }
-.first-item-indicator { color: var(--card-text-muted); opacity: .65; }
 .card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta > span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }
-.card-buttons button { flex: 1; padding: 0 8px; }
+.card-buttons button { flex: 1; padding: 0 12px; white-space:nowrap; }
 .primary { background: var(--accent) !important; color: var(--on-accent) !important; border-color: var(--accent) !important; }
 .primary:hover { filter: brightness(.94); }
 .editor-dialog {
@@ -546,7 +495,7 @@ button { font: inherit; cursor: pointer; }
     transform: translateY(-4px);
     transition: opacity .16s ease, transform .16s ease;
   }
-  .common-card:is(:hover, :focus-within, .common-dragging) .card-actions {
+  .common-card:is(:hover, :focus-within) .card-actions {
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
@@ -578,24 +527,14 @@ button { font: inherit; cursor: pointer; }
 .common-list-view { grid-template-columns:minmax(0,1fr); }
 .common-list-view .common-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 12px; }
 .common-list-view .card-buttons { grid-column:2; margin-top:0; }
-.common-list-view .card-main { grid-row:span 2; }
-.common-drag-handle { width:22px; height:30px; display:grid; place-items:center; flex:none; cursor:grab; color:var(--card-text-muted); }
-.common-drag-handle:active { cursor:grabbing; }
-.common-drag-handle svg { pointer-events:none; }
-.common-dragging { opacity:.55; }
-.common-drop-before { box-shadow:inset 0 3px var(--accent); }
-.common-drop-after { box-shadow:inset 0 -3px var(--accent); }
+.common-list-view .card-buttons button { flex:none; }
+.common-list-view .card-main { grid-column:1; grid-row:1 / span 2; }
 .common-tag-manager { padding:9px 12px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-soft); }
 .common-tag-manager summary { font-size:12px; color:var(--card-text-muted); cursor:pointer; }
 .common-tag-fields { display:grid; gap:9px; margin-top:10px; font-size:12px; }
-.common-tag-fields select { box-sizing:border-box; min-height:40px; width:100%; border:1px solid var(--hairline); border-radius:var(--radius-control); color:var(--card-text); background:var(--surface-elevated); padding:0 10px; font:inherit; }
 .common-tag-actions { display:flex; flex-wrap:wrap; gap:8px; }
-@media(max-width:600px) {
-  .common-list-view .common-card { display:flex; align-items:stretch; }
-  .common-drag-handle { display:none; }
-}
-@media(pointer:coarse) { .common-drag-handle { display:none; } }
-@media(prefers-reduced-motion:reduce) { .common-dragging,.common-drop-before,.common-drop-after { transition:none; } }
+@media(max-width:620px) { .common-list-view .common-card { display:flex; align-items:stretch; } .common-list-view .card-buttons button { flex:1; } }
+@media(min-width:621px) { .common-list-view .common-card .card-actions { position:static; grid-column:2; grid-row:1; opacity:1; transform:none; pointer-events:auto; padding:0; border:0; box-shadow:none; background:transparent; } .common-list-view .card-buttons { grid-row:2; } }
 </style>
 
 <style scoped>
