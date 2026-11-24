@@ -1012,3 +1012,122 @@ test('云端同步页签共用滑动胶囊且外壳不随内容改变',async({pa
     await expect(dialog).toHaveCount(0)
   }
 })
+
+
+test('原版玻璃主题保持渐变、半透明主卡片及胶囊选中态', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
+  await page.goto('/')
+  const shell = page.locator('.app-shell')
+  const card = page.locator('.content-card')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  await expect(nav).toHaveClass(/tabs-ready/)
+  await expect(shell).toHaveCSS('background-image', /radial-gradient/)
+  await expect(card).toHaveCSS('border-radius', '23px')
+  await expect(card).toHaveCSS('backdrop-filter', /blur\(20px\)/)
+  await expect(card).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.89)')
+  await expect(page.locator('.ambient-one')).toHaveCSS('animation-name', 'none')
+  const indicator = await nav.evaluate(node => {
+    const css = getComputedStyle(node, '::before')
+    return { radius: css.borderRadius, height: parseFloat(css.height) }
+  })
+  expect(indicator.radius).toBe('11px')
+  expect(indicator.height).toBeGreaterThan(30)
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(shell).toHaveClass(/dark/)
+  await expect(shell).toHaveCSS('background-image', /radial-gradient/)
+  await expect(card).toHaveCSS('background-color', 'rgba(21, 29, 44, 0.9)')
+  await page.getByRole('button', { name: '填入网页示例' }).click()
+  await expect(page.locator('.copy-btn')).toHaveCSS('color', 'rgb(23, 34, 60)')
+  await page.setViewportSize({ width: 320, height: 740 })
+  await expect(card).toHaveCSS('backdrop-filter', /blur\(14px\)/)
+  await expect(card).toHaveCSS('border-radius', '19px')
+})
+
+test('同页跳转确认返回后重新绑定胶囊指示器', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  const nav = page.getByRole('tablist', { name: '页面模式' })
+  await expect(nav).toHaveClass(/tabs-ready/)
+  await page.evaluate(() => { location.hash = 'target=' + encodeURIComponent('testunknown://open') })
+  await expect(page.getByRole('heading', { name: '确认打开外部应用' })).toBeVisible()
+  await expect(nav).toHaveCount(0)
+  await page.getByRole('button', { name: '返回创建页' }).click()
+  await expect(nav).toHaveClass(/tabs-ready/)
+  await nav.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
+  await expect.poll(() => nav.evaluate(node => {
+    const selected = node.querySelector('[aria-selected="true"]')
+    const x = new DOMMatrixReadOnly(getComputedStyle(node, '::before').transform).m41
+    return Math.abs(x - selected.offsetLeft)
+  })).toBeLessThan(1.5)
+})
+
+
+test('分享结果使用轻量内嵌链接行，浅深主题与 320px 窄屏保持完整操作', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' })
+  await page.goto('/')
+  const input = page.getByLabel('网址或 URL Scheme')
+  await input.fill('https://example.com/?q=' + 'a'.repeat(600))
+  const card = page.locator('.preview-card')
+  const link = card.locator('.preview-url')
+  await expect(card).toBeVisible()
+  await expect(card.getByText('可以分享')).toBeVisible()
+  await expect(link.locator('.preview-link-icon')).toBeVisible()
+  await expect(link).toHaveCSS('border-top-width', '0px')
+  await expect(link.locator('.preview-url-text')).toHaveCSS('-webkit-line-clamp', '2')
+  await expect(card.getByRole('button', { name: '打开测试' })).toBeVisible()
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await expect(page.locator('.app-shell')).toHaveClass(/dark/)
+  await page.setViewportSize({ width: 320, height: 740 })
+  await expect(link.locator('.preview-url-text')).toHaveCSS('-webkit-line-clamp', '3')
+  for (const item of [card, link, card.getByRole('button', { name: '打开测试' }), card.getByRole('button', { name: '生成分享二维码' })]) {
+    const rect = await item.boundingBox()
+    expect(rect.x).toBeGreaterThanOrEqual(0)
+    expect(rect.x + rect.width).toBeLessThanOrEqual(321)
+  }
+  await card.getByRole('button', { name: '生成分享二维码' }).click()
+  await expect(page.getByRole('dialog', { name: '分享二维码' })).toBeVisible()
+})
+
+
+test('三个页面共享输入尺寸和工具栏基线，窄屏仍可操作', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
+  await page.setViewportSize({ width: 1280, height: 840 })
+  await page.goto('/')
+  const measures = async () => {
+    const values = []
+    for (const name of ['创建链接', '历史记录', '常用链接']) {
+      await page.getByRole('tab', { name: new RegExp(name) }).click()
+      const field = page.locator('.content-card > :not([aria-hidden="true"]) .control-field')
+      await expect(field).toBeVisible()
+      await expect(field).toHaveCSS('height', '54px')
+      await expect(field).toHaveCSS('border-radius', '12px')
+      await expect(field.locator('.control-field__icon svg')).toHaveCSS('width', '18px')
+      await expect(page.locator('.content-card .panel-enter-active, .content-card .panel-leave-active')).toHaveCount(0)
+      const box = await field.evaluate(node => {
+        const rect = node.getBoundingClientRect(), card = node.closest('.content-card').getBoundingClientRect()
+        return { x:rect.x-card.x, y:rect.y-card.y, width:rect.width }
+      })
+      values.push(box)
+    }
+    for (const value of values.slice(1)) {
+      expect(Math.abs(value.x - values[0].x)).toBeLessThan(2)
+      expect(Math.abs(value.y - values[0].y)).toBeLessThan(2)
+      expect(Math.abs(value.width - values[0].width)).toBeLessThan(2)
+    }
+  }
+  await measures()
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await measures()
+  const commonSearch = page.getByRole('searchbox', { name: '搜索常用链接' })
+  await commonSearch.fill('missing-app')
+  await expect(page.getByText('没有匹配的链接')).toBeVisible()
+  await page.getByRole('button', { name: '清除筛选' }).click()
+  await expect(commonSearch).toHaveValue('')
+  await page.setViewportSize({ width: 320, height: 740 })
+  await measures()
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByRole('button', { name: '导入', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '导出', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '云端同步' })).toBeVisible()
+})
