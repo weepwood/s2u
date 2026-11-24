@@ -81,6 +81,9 @@
             <span class="starter-symbol" aria-hidden="true">{{ example.symbol }}</span>
             {{ example.name }}
           </button>
+          <button type="button" class="starter-chip" @click="templateOpen = true" aria-haspopup="dialog">
+            <span class="starter-symbol" aria-hidden="true">＋</span>链接模板
+          </button>
         </div>
       </div>
       <p v-if="urlError" id="url-error" class="field-message error-message" role="alert">
@@ -91,6 +94,8 @@
         {{ urlError }}
       </p>
     </div>
+
+    <LinkTemplateDialog v-if="templateOpen" @close="templateOpen = false" @apply="applyTemplate" />
 
     <div v-if="urlValue && !urlError && shareUrl" class="preview-card">
       <div class="preview-head">
@@ -157,7 +162,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, defineAsyncComponent } from 'vue'
+
+const LinkTemplateDialog=defineAsyncComponent(()=>import('./LinkTemplateDialog.vue'))
+const templateOpen=ref(false)
 
 const props = defineProps({
   url: { type: String, default: '' },
@@ -207,6 +215,11 @@ function fillExample(target) {
   emit('update:url', target)
   emitError('')
   nextTick(() => urlInput.value?.focus())
+}
+
+function applyTemplate(target) {
+  templateOpen.value=false
+  fillExample(target)
 }
 
 function clearInput() {
