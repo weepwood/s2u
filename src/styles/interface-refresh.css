@@ -70,3 +70,12 @@
   .app-shell .content-card .panel-enter-from,
   .app-shell .content-card .panel-leave-to { transform:none !important; }
 }
+
+/* 列表只做 FLIP 位置变化和轻量淡入，不延迟实际业务操作。 */
+.app-shell .workspace-list-move { transition:transform var(--motion-panel-duration) var(--motion-standard) !important; }
+.app-shell .workspace-list-enter-active { transition:opacity var(--motion-fast) ease,transform var(--motion-panel-duration) var(--motion-standard) !important; }
+.app-shell .workspace-list-enter-from { opacity:0; transform:translateY(5px); }
+@media(prefers-reduced-motion:reduce) {
+  .app-shell .workspace-list-move,.app-shell .workspace-list-enter-active { transition:none !important; }
+  .app-shell .workspace-list-enter-from { opacity:1; transform:none; }
+}

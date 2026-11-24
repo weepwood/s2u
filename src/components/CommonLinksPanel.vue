@@ -103,7 +103,7 @@
       <button type="button" :aria-pressed="selectedTag === ''" @click="selectedTag = ''">全部</button>
       <button v-for="tag in availableTags" :key="tag" type="button" :aria-pressed="selectedTag === tag" @click="selectedTag = tag">{{ tag }}</button>
     </div>
-    <div v-if="visibleItems.length" class="common-grid">
+    <TransitionGroup v-if="visibleItems.length" tag="div" name="workspace-list" class="common-grid">
       <article v-for="item in visibleItems" :key="item.id" class="common-card">
         <div class="card-main">
           <span class="app-icon" :class="{ 'fallback-icon': !getIcon(item) }">
@@ -138,7 +138,7 @@
           <button class="primary" type="button" @click="$emit('copy', item)" :aria-label="'复制 ' + item.name + ' 分享链接'">复制分享链接</button>
         </div>
       </article>
-    </div>
+    </TransitionGroup>
     <div v-else class="empty-common">
       <strong>{{ items.length ? '没有匹配的链接' : '还没有常用链接' }}</strong>
       <button v-if="items.length" class="action-btn" type="button" @click="search = ''; selectedTag = ''">清除筛选</button>
