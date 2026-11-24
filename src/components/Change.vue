@@ -775,17 +775,20 @@ async function testGistConnection() {
 }
 
 async function restoreGistRecovery({ index, version }) {
+  const ctx = cloud.context()
+  if (['connecting','syncing'].includes(syncStatus.value)) return
   try {
     const snapshot = version ? await cloud.readRevision(version) : getLatestRecovery(index)
-    if (!snapshot) return
+    if (!cloud.isCurrent(ctx) || !snapshot) return
     const summary = inspectImport(snapshot)
-    if (summary.invalid) throw new Error('备份包含无效记录')
+    if (summary.invalid || (Array.isArray(snapshot?.tombstones) && summary.tombstones !== snapshot.tombstones.length)) throw new Error('备份包含无效记录或删除标记')
     if (!confirm('备份包含 ' + summary.valid + ' 条记录及 ' + summary.tombstones + ' 个删除标记。将合并到本机历史，是否继续？')) return
+    if (!cloud.isCurrent(ctx) || ['connecting','syncing'].includes(syncStatus.value)) throw new Error('连接已变化，请重新选择备份')
     localStorage.setItem('s2u_history_before_recovery', JSON.stringify(historySnapshot()))
     mergeHistory(snapshot)
     cloud.markPending()
     showToast('已合并恢复至本机，确认后可手动同步', 'success')
-  } catch (error) { syncError.value = error.message; syncStatus.value = 'error' }
+  } catch (error) { if (cloud.isCurrent(ctx)) { syncError.value = error.message; syncStatus.value = 'error' } }
 }
 
 function exportGistBundle(index) {

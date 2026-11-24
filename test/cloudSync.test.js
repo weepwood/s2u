@@ -9,6 +9,16 @@ const makeStorage = store => ({ getItem: key => store.get(key) ?? null, setItem:
 globalThis.localStorage = makeStorage(storage)
 globalThis.sessionStorage = makeStorage(session)
 const originalFetch = globalThis.fetch
+// 单测模拟认证身份；每个测试仍可覆盖 /user 来验证错误账号。
+let fakeFetch = originalFetch
+Object.defineProperty(globalThis, 'fetch', {
+  configurable: true,
+  get: () => async (url, opts) => {
+    if (String(url).endsWith('/user') && opts?.headers?.Authorization === 'Bearer test-token') return reply({ login:'test-user' })
+    return fakeFetch(url, opts)
+  },
+  set: next => { fakeFetch = next },
+})
 const ID = 'abcde12345', FILE = 'scheme-history.json'
 const history = revision => ({ format:'s2u-history', version:2, records: revision ? [{ scheme:'https://example.com/'+revision, count:1, recently:1000, updatedAt:1000 }] : [], tombstones:[] })
 const reply = value => ({ ok:true, status:200, json:async()=>value })
@@ -146,4 +156,37 @@ test('认证错误引导最小 Gist 权限，不回显 Token 或服务端消息'
       return true
     })
   }
+})
+
+
+test('已保存的会话绑定在其他标签页切换 Gist 时停止同步', async()=>{
+  const sync=setup()
+  session.set('cloud_token_session','test-token')
+  session.set('s2u_gist_session_binding_v1',JSON.stringify({id:ID,account:'test-user'}))
+  storage.set('cloud_gist_id','abcde12346');storage.set('s2u_gist_owner','test-user')
+  let requests=0;globalThis.fetch=async()=>{requests++;return reply(gist(history(0)))}
+  assert.equal(await sync.pullFromGist(),null)
+  assert.match(sync.syncError.value,/另一标签页/)
+  assert.equal(requests,0)
+})
+test('不允许把已绑定的本机工作区直接连接另一个账号',async()=>{
+  const sync=useCloudSync()
+  storage.set('s2u_gist_owner','test-user')
+  let writes=0
+  globalThis.fetch=async(url,opts)=>{if(opts.method!=='GET')writes++;return reply({login:'another-user'})}
+  await assert.rejects(sync.connect(history(1),{token:'other-token',create:true}),/工作区已绑定其他/)
+  assert.equal(writes,0)
+})
+test('推送期间出现本地新修改时保留待同步标记',async()=>{
+  const sync=setup();let data=history(0)
+  globalThis.fetch=async(_url,opts)=>{if(opts.method==='PATCH'){data=JSON.parse(JSON.parse(opts.body).files[FILE].content);sync.markPending()}return reply(gist(data))}
+  await sync.pullFromGist()
+  assert.equal(await sync.pushToGist(history(1)),true)
+  assert.equal(sync.pending.value,true)
+  assert.equal(storage.get('s2u_gist_pending_'+ID),'1')
+})
+test('断开后的修改仍保留待同步标记',()=>{
+  const sync=setup();sync.disconnect();sync.scheduleAutoSync(()=>true)
+  assert.equal(sync.pending.value,true)
+  assert.equal(storage.get('s2u_gist_pending_'+ID),'1')
 })

@@ -216,3 +216,7 @@ CI 通过 `node scripts/performance-report.mjs` 展示构建后入口 JavaScript
 只读「测试连接」仅验证身份、归属和历史结构，不承诺 Token 有写权限。每次拉取失败会清除已观察远端内容；未成功拉取禁止推送。网络恢复时仅自动重试暂时性网络/5xx 错误，不重试权限与冲突错误。
 
 Token 创建入口使用 GitHub 官方支持的预填参数（`gists=write`），仍由用户确认权限并生成。权限授予的是账户的 Gist，而非单独某个 Gist；不要扩大到仓库或其他账户权限。401/403/404 提供权限或凭据排查提示，读取通过并不证明写入权限。参考：[GitHub Token 官方说明](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) 与 [Gist API](https://docs.github.com/en/rest/gists/gists)。
+
+### Gist 会话安全
+
+新会话将账号和 Gist ID 与当前标签页 Token 绑定；另一标签页切换连接时停止同步并要求重连。老会话首次读取验证实际 GitHub 账号。已绑定本机工作区禁止直接改用另一 GitHub 账号，需先导出数据并使用独立浏览器配置；暂不自动迁移本地历史或收藏到账号分区。同步期间新修改保留待同步标记，断开后仍记录修改；历史备份恢复验证删除标记及当前连接。Gist 原子 CAS 与完整工作区恢复仍未实现。
