@@ -99,6 +99,19 @@ jobs:
         if: needs.scope.outputs.scope == 'full'
         run: npx playwright test e2e/smoke.spec.js e2e/redirect.spec.js
 
+      - name: Render performance and large history
+        if: needs.scope.outputs.scope == 'full'
+        run: npx playwright test e2e/performance.spec.js
+
+      - name: Upload render performance evidence
+        if: always() && needs.scope.outputs.scope == 'full'
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-performance
+          path: test-results/performance-*/render-performance.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Build app with /s2u/ public base
         if: needs.scope.outputs.scope == 'full'
         run: npm run build

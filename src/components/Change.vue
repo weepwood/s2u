@@ -126,7 +126,6 @@
             key="history"
             :history="history"
             :search-query="searchQuery"
-            :filtered-history="filteredHistory"
             :common-links="commonLinks"
             :save-bookmark="saveHistoryBookmark"
             :show-settings="showSettings"
@@ -273,7 +272,7 @@ function warmPanel(panel) {
 const workspace = openWorkspace()
 const { darkMode, toggle:toggleDark } = useDarkMode(workspace.storage)
 const historyStore = useHistory(workspace.storage)
-const { history, searchQuery, storageError, load:loadHistory, add:addHistory, exportJSON:exportHistory, filtered:filterHistory } = historyStore
+const { history, searchQuery, storageError, load:loadHistory, add:addHistory, exportJSON:exportHistory } = historyStore
 const commonStore = useCommonLinks(workspace.storage)
 const { links:commonLinks, storageError:commonStorageError, load:loadCommonLinks } = commonStore
 const cloud = useCloudSync(workspace)
@@ -310,8 +309,6 @@ const recentLinks = computed(() =>
     }
   }),
 )
-
-const filteredHistory = computed(() => filterHistory())
 
 function showToast(message, type = 'info', duration = 2500) {
   toastKey++
