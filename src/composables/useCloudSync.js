@@ -6,6 +6,7 @@ import { listBackups, saveBackup } from '../domain/sync/backupManager.js'
 const LEGACY_CONFIG_KEY = 'cloud_config'
 const GIST_ID_KEY = 'cloud_gist_id'
 const TOKEN_SESSION_KEY = 'cloud_token_session'
+const BINDING_SESSION_KEY = 's2u_gist_session_binding_v1'
 const PREF_KEY = 's2u_gist_preferences_v1'
 const PENDING_PREFIX = 's2u_gist_pending_'
 const BASE_PREFIX = 's2u_gist_baseline_'
@@ -21,6 +22,8 @@ export function useCloudSync() {
   let generation = 0, syncTimer = null, pushPromise = null, pendingPayload = null
   let lastObservedContent = null, lastObservedFiles = {}, retryCount = 0
   let retryTask = null
+  let pendingRevision = 0
+  let verifiedIdentity = null
   const connectionKey = () => cloudGistId.value
   const context = () => ({ generation, token: cloudToken.value, id: cloudGistId.value, account: account.value })
   const isCurrent = ctx => ctx.generation === generation && ctx.token === cloudToken.value && ctx.id === cloudGistId.value
@@ -37,6 +40,14 @@ export function useCloudSync() {
       cloudToken.value = sessionStorage.getItem(TOKEN_SESSION_KEY) || ''
       cloudGistId.value = localStorage.getItem(GIST_ID_KEY) || ''
       account.value = localStorage.getItem(OWNER_KEY) || ''
+      const binding = JSON.parse(sessionStorage.getItem(BINDING_SESSION_KEY) || 'null')
+      if (cloudToken.value && binding && (binding.id !== cloudGistId.value || binding.account !== account.value)) {
+        cloudToken.value = ''
+        sessionStorage.removeItem(TOKEN_SESSION_KEY)
+        sessionStorage.removeItem(BINDING_SESSION_KEY)
+        syncError.value = '另一标签页已更换 Gist 连接，请重新连接'
+        syncStatus.value = 'error'
+      }
       const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}')
       preferences.value = { auto: p.auto !== false, delay: [3000,5000,10000].includes(p.delay) ? p.delay : 3000, common: p.common === true, icons: p.icons === true, theme: p.theme === true }
       pending.value = localStorage.getItem(PENDING_PREFIX + connectionKey()) === '1'
@@ -54,6 +65,7 @@ export function useCloudSync() {
     if (!p.auto && syncTimer) { clearTimeout(syncTimer); syncTimer = null }
   }
   function markPending(value = true) {
+    if (value) pendingRevision++
     pending.value = value
     if (connectionKey()) {
       try { if (value) localStorage.setItem(PENDING_PREFIX + connectionKey(), '1')
@@ -64,6 +76,15 @@ export function useCloudSync() {
     sessionStorage.setItem(TOKEN_SESSION_KEY, cloudToken.value)
     localStorage.setItem(GIST_ID_KEY, cloudGistId.value)
     localStorage.setItem(OWNER_KEY, account.value)
+    sessionStorage.setItem(BINDING_SESSION_KEY, JSON.stringify({ id: cloudGistId.value, account: account.value }))
+  }
+  function assertBinding(ctx) {
+    // 旧版本未写绑定时仍可连接；新版本绑定后禁止跟随其他标签页的连接变化。
+    const binding = JSON.parse(sessionStorage.getItem(BINDING_SESSION_KEY) || 'null')
+    if (binding && (binding.id !== ctx.id || binding.account !== account.value ||
+      localStorage.getItem(GIST_ID_KEY) !== ctx.id || localStorage.getItem(OWNER_KEY) !== binding.account)) {
+      throw new Error('另一标签页已更换 Gist 连接，请重新连接')
+    }
   }
   async function discover(token) {
     candidates.value = []
@@ -89,6 +110,13 @@ export function useCloudSync() {
     syncStatus.value = 'connecting'; syncError.value = ''
     try {
       const user = await client.request('/user', { token })
+      if (generation !== attempt) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' })
+      if (typeof user?.login !== 'string' || !user.login) throw new Error('GitHub 响应格式错误')
+      const previousOwner = localStorage.getItem(OWNER_KEY)
+      // 当前业务数据仍属于一个本机工作区，禁止无迁移地把它上传给另一账号。
+      if (previousOwner && previousOwner.toLowerCase() !== user.login.toLowerCase()) {
+        throw new Error('本机工作区已绑定其他 GitHub 账号。请先导出数据，并使用独立浏览器配置连接其他账号')
+      }
       let gist
       if (create) {
         gist = await client.request('/gists', { token, method: 'POST', body: { description: 'Scheme to URL - History Sync', public: false, files: { [HISTORY_FILE]: { content: encodeFile(historyData) } } } })
@@ -103,7 +131,7 @@ export function useCloudSync() {
       if (typeof id !== 'string' || !id || typeof user.login !== 'string') throw new Error('GitHub 响应格式错误')
       cloudToken.value = token; cloudGistId.value = id; account.value = user.login
       lastObservedContent = null; lastObservedFiles = {}; lastSyncTime.value = null
-      saveConfig(); markPending()
+      saveConfig(); verifiedIdentity = { token, id, account: user.login }; markPending()
       syncStatus.value = 'ready'; return id
     } catch (error) { if (generation === attempt) report(error); throw error }
   }
@@ -111,21 +139,26 @@ export function useCloudSync() {
     cleanup()
     cloudToken.value = ''; syncStatus.value = ''; syncError.value = ''; lastSyncTime.value = null
     lastObservedContent = null; lastObservedFiles = {}; candidates.value = []; revisions.value = []
-    try { sessionStorage.removeItem(TOKEN_SESSION_KEY); localStorage.removeItem(LEGACY_CONFIG_KEY) } catch { /* ignore */ }
+    try { sessionStorage.removeItem(TOKEN_SESSION_KEY); sessionStorage.removeItem(BINDING_SESSION_KEY); localStorage.removeItem(LEGACY_CONFIG_KEY) } catch { /* ignore */ }
     // 保留最近 Gist ID、账户与备份，方便重连，不保留 Token。
   }
   async function fetchGist(ctx, suffix = '') {
+    assertCurrent(ctx)
+    assertBinding(ctx)
     const gist = await client.request('/gists/' + encodeURIComponent(ctx.id) + suffix, { token: ctx.token })
     assertCurrent(ctx)
     // 已认证的连接须持续验证归属及可见性；旧版已保存的会话将在首次读取时校验。
     if (gist?.public !== false || !gist.owner?.login) throw new Error('无法验证 Secret Gist 归属')
     if (ctx.account && gist.owner.login !== ctx.account) throw new Error('Gist 不属于当前连接账户')
-    if (!ctx.account) {
+    if (!verifiedIdentity || verifiedIdentity.token !== ctx.token || verifiedIdentity.id !== ctx.id) {
       const user = await client.request('/user', { token: ctx.token })
       assertCurrent(ctx)
+      assertBinding(ctx)
       if (user.login !== gist.owner.login) throw new Error('Gist 不属于当前 GitHub 账号')
       account.value = user.login
-      localStorage.setItem(OWNER_KEY, user.login)
+      verifiedIdentity = { token: ctx.token, id: ctx.id, account: user.login }
+      // 仅迁移实际已保存的会话，不创建额外凭据。
+      if (sessionStorage.getItem(TOKEN_SESSION_KEY) === ctx.token) saveConfig()
     }
     return gist
   }
@@ -164,8 +197,8 @@ export function useCloudSync() {
   }
   function pushToGist(data, extras = {}) {
     if (!cloudToken.value || !cloudGistId.value) return Promise.resolve(false)
-    pendingPayload = { data: JSON.parse(JSON.stringify(data)), extras: JSON.parse(JSON.stringify(extras)), ctx: context() }
     markPending()
+    pendingPayload = { data: JSON.parse(JSON.stringify(data)), extras: JSON.parse(JSON.stringify(extras)), ctx: context(), revision: pendingRevision }
     if (!pushPromise) {
       const task = drainPushQueue()
       const wrapped = task.finally(() => { if (pushPromise === wrapped) pushPromise = null })
@@ -176,7 +209,7 @@ export function useCloudSync() {
   async function drainPushQueue() {
     let pushed = false
     while (pendingPayload) {
-      const { data, extras, ctx } = pendingPayload
+      const { data, extras, ctx, revision } = pendingPayload
       pendingPayload = null
       try {
         assertCurrent(ctx)
@@ -196,6 +229,7 @@ export function useCloudSync() {
         if (Object.keys(files).length) {
           saveBackup(ctx.id, freshContent, before)
           assertCurrent(ctx)
+          assertBinding(ctx)
           await client.request('/gists/' + encodeURIComponent(ctx.id), { token: ctx.token, method: 'PATCH', body: { files } })
           const verified = await fetchGist(ctx)
           for (const [name, file] of Object.entries(files)) {
@@ -211,7 +245,7 @@ export function useCloudSync() {
         assertCurrent(ctx)
         for (const [name, value] of Object.entries(extras)) localStorage.setItem(BASE_PREFIX + ctx.id + ':' + name, encodeFile(value))
         pushed = true
-        if (!pendingPayload) markPending(false)
+        if (!pendingPayload && revision === pendingRevision) markPending(false)
         syncStatus.value = 'connected'; syncError.value = ''; lastSyncTime.value = Date.now(); retryCount = 0
       } catch (error) {
         if (!isCurrent(ctx)) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' })
@@ -252,17 +286,20 @@ export function useCloudSync() {
     return JSON.parse(readFile(await fetchGist(context(), '/' + version), HISTORY_FILE))
   }
   function scheduleAutoSync(task, delay = preferences.value.delay) {
-    if (!cloudToken.value || !cloudGistId.value) return
+    if (!cloudGistId.value) return
     markPending()
+    if (!cloudToken.value) return
     retryTask = task
     if (!preferences.value.auto || typeof task !== 'function') return
     if (syncTimer) clearTimeout(syncTimer)
+    const ctx = context()
     syncTimer = setTimeout(async () => {
       syncTimer = null
+      if (!isCurrent(ctx) || !preferences.value.auto) return
       if (globalThis.navigator?.onLine === false) return
       try {
         const ok = await task()
-        if (!ok && pending.value && retryCount < 3 && /超时|请求失败（5\d\d）|fetch|network/i.test(syncError.value)) scheduleAutoSync(task, 5000 * 2 ** retryCount++)
+        if (isCurrent(ctx) && preferences.value.auto && !ok && pending.value && retryCount < 3 && /超时|请求失败（5\d\d）|fetch|network/i.test(syncError.value)) scheduleAutoSync(task, 5000 * 2 ** retryCount++)
       } catch { /* 同步错误由调用方展示 */ }
     }, delay)
   }
@@ -271,6 +308,8 @@ export function useCloudSync() {
   }
   function cleanup() {
     generation++
+    verifiedIdentity = null
+    lastObservedContent = null; lastObservedFiles = {}
     if (syncTimer) clearTimeout(syncTimer)
     syncTimer = null; pendingPayload = null; pushPromise = null; retryTask = null; retryCount = 0
     client.cancel()
