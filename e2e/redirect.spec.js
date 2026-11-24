@@ -5,15 +5,23 @@ const share = (target) => base + '#target=' + encodeURIComponent(target)
 
 test('普通网址自动跳转，完整传递查询与片段且不发送 Referer', async ({ page }) => {
   const target = 'https://example.com/s2u-test?q=100%25#chapter'
-  let referer
-  await page.route('https://example.com/s2u-test?**', async (route) => {
-    referer = route.request().headers().referer
-    await route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>目标网页</h1>' })
+  let requestHeaders
+  let requestUrl
+  await page.route((url) => url.origin === 'https://example.com' && url.pathname === '/s2u-test', async (route) => {
+    requestHeaders = await route.request().allHeaders()
+    requestUrl = route.request().url()
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      body: '<!doctype html><meta charset="utf-8"><h1>目标网页</h1>',
+    })
   })
   await page.goto(share(target), { waitUntil: 'commit' })
   await expect(page).toHaveURL(target)
   await expect(page.getByRole('heading', { name: '目标网页' })).toBeVisible()
-  expect(referer).toBeUndefined()
+  expect(requestUrl).toBe('https://example.com/s2u-test?q=100%25')
+  expect(requestHeaders).toBeDefined()
+  expect(requestHeaders.referer).toBeUndefined()
 })
 
 test('未知 Scheme 必须确认，刷新、复制、返回和同页 Hash 导航均可用', async ({ page, context }) => {
@@ -37,7 +45,7 @@ test('未知 Scheme 必须确认，刷新、复制、返回和同页 Hash 导航
 })
 
 test('已知应用自动尝试后保留可见的重试与复制入口及本地图标', async ({ page }) => {
-  await page.goto(share('obsidian://open?vault=Notes'))
+  await page.goto(share('obsidian://open?vault=Notes'), { waitUntil: 'commit' })
   await expect(page.getByRole('heading', { name: '打开 Obsidian' })).toBeVisible()
   await expect(page.getByRole('button', { name: '手动重新打开' })).toBeVisible()
   await expect(page.getByRole('button', { name: '复制原始链接' })).toBeVisible()

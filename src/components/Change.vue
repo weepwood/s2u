@@ -355,6 +355,7 @@ const showSettings = ref(false)
 const showCloseMsg = ref(false)
 const redirectPolicy = ref(null)
 const redirectAttempted = ref(false)
+let autoRedirectTimer = null
 const origin = getAppBaseUrl()
 
 const toast = ref({ message: '', type: 'info', duration: 2500, key: 0 })
@@ -392,6 +393,7 @@ function notifyStorageError() {
 }
 
 function changeUrl(inputUrl) {
+  cancelAutoRedirect()
   const policy = getTargetOpenPolicy(inputUrl)
   redirectPolicy.value = null
   redirectAttempted.value = false
@@ -412,10 +414,33 @@ function changeUrl(inputUrl) {
 
   redirectPolicy.value = policy
   showCloseMsg.value = true
-  attemptRedirect()
+  if (policy.protocol === 'http:' || policy.protocol === 'https:') {
+    attemptRedirect()
+  } else {
+    // 外部协议可能中断首屏 load；先让回退面板完成渲染，再自动尝试。
+    // 若页面资源迟迟未完成，短超时保证不会永久等待。
+    if (document.readyState === 'complete') {
+      scheduleAutoRedirect()
+    } else {
+      window.addEventListener('load', scheduleAutoRedirect, { once: true })
+      autoRedirectTimer = window.setTimeout(attemptRedirect, 1200)
+    }
+  }
+}
+
+function cancelAutoRedirect() {
+  window.removeEventListener('load', scheduleAutoRedirect)
+  if (autoRedirectTimer !== null) window.clearTimeout(autoRedirectTimer)
+  autoRedirectTimer = null
+}
+
+function scheduleAutoRedirect() {
+  cancelAutoRedirect()
+  autoRedirectTimer = window.setTimeout(attemptRedirect, 0)
 }
 
 function attemptRedirect() {
+  cancelAutoRedirect()
   const policy = redirectPolicy.value
   if (!policy?.ok) return
 
@@ -435,6 +460,7 @@ function attemptRedirect() {
 }
 
 function readShareHash() {
+  cancelAutoRedirect()
   const target = decodeShareTarget(window.location.hash)
   if (target) {
     changeUrl(target)
@@ -882,6 +908,7 @@ onBeforeUnmount(() => {
   if (initialSyncIdle !== null) window.cancelIdleCallback(initialSyncIdle)
   if (initialSyncFallback !== null) window.clearTimeout(initialSyncFallback)
   window.removeEventListener('hashchange', readShareHash)
+  cancelAutoRedirect()
   cleanupClipboard()
   cleanupSync()
 })
