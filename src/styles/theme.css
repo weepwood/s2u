@@ -96,8 +96,6 @@
   --success: #62c995;
   --on-status: #14241e;
   --toast-surface: rgba(32,44,61,.97);
-  --toast-text: var(--card-text);
-  --toast-border: var(--hairline-strong);
   --toast-icon-surface: var(--surface-hover);
   --toast-success-surface: rgba(98,201,149,.16);
   --toast-success: var(--success);

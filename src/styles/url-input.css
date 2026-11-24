@@ -9,9 +9,6 @@
   margin: 0;
   color: var(--card-text);
   letter-spacing: -0.025em;
-}
-
-.recent-head h3 {
   font-size: 16px;
 }
 
