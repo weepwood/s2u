@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           node -e 'const p=require("./package.json"),l=require("./package-lock.json");if(p.version!=="2.0.0"||l.version!==p.version||l.packages[""].version!==p.version)process.exit(1)'
-          for workflow in ci.yml pages.yml cross-browser.yml; do
+          for workflow in ci.yml pages.yml cross-browser.yml browser-compat.yml; do
             for attempt in $(seq 1 80); do
               run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$GITHUB_SHA&branch=master&event=push&per_page=10" --jq '.workflow_runs[0] // empty')
               if [ -n "$run" ]; then

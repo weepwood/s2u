@@ -1,6 +1,9 @@
 name: Weekly browser compatibility
 
 on:
+  push:
+    branches: [master]
+    paths: ['package.json']
   schedule:
     - cron: '23 2 * * 1'
   workflow_dispatch:

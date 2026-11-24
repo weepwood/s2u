@@ -37,8 +37,8 @@ test('线上实际构建、三页交互与链接历史回归',async({page,contex
   await expect(page.getByRole('alert')).toContainText('不支持 javascript')
   await page.screenshot({path:testInfo.outputPath('production-smoke.png'),animations:'disabled'})
   // 线上分享链接应将浏览器导航到目标；拦截合成目标，不向外部站点发送请求。
-  await context.route('https://example.com/release-v2?**',route=>route.fulfill({status:200,contentType:'text/plain',body:'release redirect verified'}))
-  await page.goto(copied,{waitUntil:'domcontentloaded'})
-  await expect.poll(()=>page.url()).toBe(target)
+  await context.route(url=>url.origin==='https://example.com'&&url.pathname==='/release-v2',route=>route.fulfill({status:200,contentType:'text/plain',body:'release redirect verified'}))
+  await page.goto(copied,{waitUntil:'commit'})
+  await expect(page).toHaveURL(target)
   await expect(page.locator('body')).toContainText('release redirect verified')
 })
