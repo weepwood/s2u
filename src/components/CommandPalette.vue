@@ -14,7 +14,7 @@
         <strong>确认打开未知应用协议？</strong>
         <p>协议 {{ pending.protocol }} 可能唤起外部程序，是否继续？</p>
         <div class="command-confirm-actions">
-          <button type="button" @click="pending = null">返回</button>
+          <button type="button" @click="returnToSearch">返回</button>
           <button type="button" @click="copyPending">复制原始地址</button>
           <button type="button" class="command-primary" @click="confirmOpen">确认打开</button>
         </div>
@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { getTargetOpenPolicy } from '../domain/linkCodec.js'
 
 const props = defineProps({
@@ -76,6 +76,19 @@ const matches = computed(() => {
 })
 
 watch(query, () => { selectedIndex.value = 0; pending.value = null })
+watch(matches, list => { if (selectedIndex.value >= list.length) selectedIndex.value = Math.max(0, list.length - 1) })
+function returnToSearch() { pending.value = null; nextTick(() => searchInput.value?.focus({ preventScroll:true })) }
+function revealSelection() {
+  nextTick(() => {
+    const container = dialog.value?.querySelector('.command-results')
+    const item = container?.querySelector('[aria-selected="true"]')
+    if (!container || !item) return
+    const row = item.getBoundingClientRect(), viewport = container.getBoundingClientRect()
+    // 仅滚动结果区，避免 scrollIntoView 移动弹窗或背景页面。
+    if (row.bottom > viewport.bottom) container.scrollTop += row.bottom - viewport.bottom
+    else if (row.top < viewport.top) container.scrollTop -= viewport.top - row.top
+  })
+}
 
 function onBackdrop(event) {
   if (event.target === dialog.value) dialog.value.close()
@@ -86,7 +99,10 @@ function onKeydown(event) {
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
     const count = matches.value.length
-    if (count) selectedIndex.value = (selectedIndex.value + (event.key === 'ArrowDown' ? 1 : -1) + count) % count
+    if (count) {
+      selectedIndex.value = (selectedIndex.value + (event.key === 'ArrowDown' ? 1 : -1) + count) % count
+      revealSelection()
+    }
   } else if (event.key === 'Enter') {
     event.preventDefault()
     const selected = matches.value[selectedIndex.value]
@@ -99,6 +115,7 @@ function activate(item) {
   if (!policy.ok) return
   if (policy.needsConfirmation) {
     pending.value = policy
+    nextTick(() => dialog.value?.querySelector('.command-confirm-actions button')?.focus({preventScroll:true}))
     return
   }
   dialog.value?.close()
