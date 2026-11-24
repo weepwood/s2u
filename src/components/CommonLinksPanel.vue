@@ -546,7 +546,7 @@ button { font: inherit; cursor: pointer; }
     transform: translateY(-4px);
     transition: opacity .16s ease, transform .16s ease;
   }
-  .common-card:is(:hover, :focus-within) .card-actions {
+  .common-card:is(:hover, :focus-within, .common-dragging) .card-actions {
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
@@ -581,6 +581,7 @@ button { font: inherit; cursor: pointer; }
 .common-list-view .card-main { grid-row:span 2; }
 .common-drag-handle { width:22px; height:30px; display:grid; place-items:center; flex:none; cursor:grab; color:var(--card-text-muted); }
 .common-drag-handle:active { cursor:grabbing; }
+.common-drag-handle svg { pointer-events:none; }
 .common-dragging { opacity:.55; }
 .common-drop-before { box-shadow:inset 0 3px var(--accent); }
 .common-drop-after { box-shadow:inset 0 -3px var(--accent); }
