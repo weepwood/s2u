@@ -278,7 +278,10 @@ const toUrl = computed(() => {
 const recentLinks = computed(() =>
   history.value.slice(0, 20).flatMap((item) => {
     try {
-      return [encodeShareLink(origin, item.scheme)]
+      const normalized = normalizeTarget(item.scheme)
+      if (!normalized.ok) return []
+      // 展示真实目标，分享地址仅用于原有复制及打开操作。
+      return [{ target: normalized.target, shareUrl: encodeShareLink(origin, normalized.target) }]
     } catch {
       return []
     }
