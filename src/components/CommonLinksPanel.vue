@@ -367,9 +367,7 @@ defineExpose({ cancelEdit, showError: (value) => { formError.value = value } })
 </script>
 
 <style scoped>
-.common-panel { display: grid; gap: 20px; min-width: 0; color: var(--card-text); }
-.common-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.common-heading h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+.common-panel { color: var(--card-text); }
 .common-footer p { font-size: 12px; line-height: 1.7; color: var(--card-text-muted); margin: 7px 0 0; }
 button { font: inherit; cursor: pointer; }
 .add-button, .editor-actions button, .card-buttons button { border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); min-height: 36px; padding: 0 12px; font-size: 12px; font-weight: 650; }

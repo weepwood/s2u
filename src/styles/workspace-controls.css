@@ -9,6 +9,8 @@
   letter-spacing: -.025em; font-weight: 680;
 }
 .app-shell .panel-meta { flex: none; font-size: 11px; }
+.app-shell .panel-head .action-btn { height: 36px; min-height: 36px; }
+.app-shell .panel-head > div { min-width: 0; }
 .app-shell .panel-toolbar {
   display: grid; grid-template-columns: minmax(0, 1fr) var(--toolbar-actions-width);
   align-items: center; gap: 10px; min-width: 0;

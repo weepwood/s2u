@@ -9,30 +9,30 @@
 
     <div class="panel-toolbar">
       <div class="search-wrap control-field">
-      <span class="search-icon control-field__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/>
-          <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <input
-        :value="searchQuery"
-        class="search-input control-field__input"
-        placeholder="搜索 URL、域名或 Scheme"
-        aria-label="搜索历史记录"
-        @input="$emit('update:searchQuery', $event.target.value)"
-      />
-      <button
-        v-if="searchQuery"
-        type="button"
-        class="search-clear control-field__clear"
-        aria-label="清除搜索"
-        @click="$emit('update:searchQuery', '')"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </button>
+        <span class="search-icon control-field__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/>
+            <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <input
+          :value="searchQuery"
+          class="search-input control-field__input"
+          placeholder="搜索 URL、域名或 Scheme"
+          aria-label="搜索历史记录"
+          @input="$emit('update:searchQuery', $event.target.value)"
+        />
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="search-clear control-field__clear"
+          aria-label="清除搜索"
+          @click="$emit('update:searchQuery', '')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
       <div class="panel-toolbar-actions" aria-label="历史记录导入导出">
       <button class="action-btn" type="button" @click="$emit('export')">
@@ -47,7 +47,7 @@
         </svg>
         导入
       </button>
-        <input ref="importInput" type="file" accept=".json,application/json" class="control-visually-hidden" aria-label="导入历史记录文件" @change="$emit('importFile', $event)" />
+        <input ref="importInput" type="file" accept=".json,application/json" class="control-visually-hidden" tabindex="-1" aria-label="导入历史记录文件" @change="$emit('importFile', $event)" />
       </div>
     </div>
 
@@ -152,11 +152,6 @@ function formatDate(timestamp) {
 </script>
 
 <style scoped>
-.history-panel {
-  display: grid;
-  gap: 20px;
-}
-
 .total-badge {
   min-height: 30px;
   padding: 0 10px;
@@ -350,10 +345,6 @@ function formatDate(timestamp) {
 }
 
 @media (max-width: 640px) {
-  .total-badge {
-    display: none;
-  }
-
   .history-item {
     grid-template-columns: minmax(0, 1fr) auto;
   }

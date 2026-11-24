@@ -1009,7 +1009,7 @@ test('三个页面共享输入尺寸和工具栏基线，窄屏仍可操作', as
     const values = []
     for (const name of ['创建链接', '历史记录', '常用链接']) {
       await page.getByRole('tab', { name: new RegExp(name) }).click()
-      const field = page.locator('.panel-stack:not([aria-hidden="true"]) .control-field')
+      const field = page.locator('.content-card > :not([aria-hidden="true"]) .control-field')
       await expect(field).toBeVisible()
       await expect(field).toHaveCSS('height', '54px')
       await expect(field).toHaveCSS('border-radius', '12px')

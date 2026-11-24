@@ -17,10 +17,6 @@
   display: flex; align-items: center; flex-wrap: wrap;
   gap: 8px 12px; margin-top: 2px;
 }
-.app-shell .starter-label {
-  display: inline-flex; align-items: center; min-height: 30px;
-  color: var(--card-text-muted); font-size: 11px; white-space: nowrap;
-}
 .app-shell .starter-actions { display: flex; flex-wrap: wrap; gap: 7px; min-width: 0; }
 .app-shell .starter-chip {
   display: inline-flex; align-items: center; justify-content: center;
@@ -83,5 +79,4 @@
 }
 @media (max-width: 420px) {
   .app-shell .starter-links { gap: 7px; }
-  .app-shell .starter-label { width: 100%; min-height: auto; }
 }
