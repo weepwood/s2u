@@ -1,12 +1,10 @@
 <template>
-  <section class="common-panel" aria-labelledby="common-title">
-    <header class="common-heading">
+  <section class="common-panel panel-stack" aria-labelledby="common-title">
+    <header class="common-heading panel-head">
       <div>
-        <span class="eyebrow">Your shortcuts</span>
         <h2 id="common-title">常用链接</h2>
-        <p>收藏常用应用和网页地址，快速生成分享链接。</p>
       </div>
-      <button class="add-button" type="button" @click="beginAdd">＋ 添加常用链接</button>
+      <button class="add-button action-btn action-btn--secondary" type="button" @click="beginAdd">＋ 添加常用链接</button>
     </header>
 
     <dialog
@@ -19,7 +17,6 @@
       <form class="editor" @submit.prevent="submit">
         <header class="dialog-heading">
           <div>
-            <span class="eyebrow">Edit shortcut</span>
             <h3 id="common-editor-title">{{ editingId ? '编辑常用链接' : '添加常用链接' }}</h3>
           </div>
           <button class="dialog-close" type="button" aria-label="关闭弹窗" @click="cancelEdit">
@@ -55,7 +52,7 @@
                 <input ref="iconInput" type="file" accept="image/png,image/jpeg,image/webp" aria-label="上传应用图标" @change="selectIcon" />
               </label>
               <button type="button" @click="clearCustomIcon" :disabled="!icon">恢复内置/默认图标</button>
-              <small>仅本地处理 PNG/JPEG/WebP（原图 ≤ 1 MB），压缩为 96px 图标后保存，不上传服务器。</small>
+              <small>PNG/JPEG/WebP · ≤ 1 MB · 本地处理</small>
             </div>
           </div>
           <p v-if="iconError" class="form-error" role="alert">{{ iconError }}</p>
@@ -86,14 +83,19 @@
       </section>
     </dialog>
 
-    <div class="common-toolbar">
-      <label class="common-search">
-        <span>搜索常用链接</span>
-        <input v-model="search" type="search" placeholder="搜索应用名称或 URL" aria-label="搜索常用链接" />
-      </label>
-      <div class="common-tools">
-        <button type="button" @click="$emit('export')">导出 JSON</button>
-        <button type="button" @click="triggerImport">导入 JSON</button>
+    <div class="common-toolbar panel-toolbar">
+      <div class="common-search control-field">
+        <span class="control-field__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </span>
+        <input v-model="search" class="control-field__input" type="search" placeholder="搜索应用名称或 URL" aria-label="搜索常用链接" />
+        <button v-if="search" type="button" class="control-field__clear" aria-label="清除常用链接搜索" @click="search = ''">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="common-tools panel-toolbar-actions">
+        <button class="action-btn" type="button" @click="$emit('export')">导出 JSON</button>
+        <button class="action-btn" type="button" @click="triggerImport">导入 JSON</button>
         <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden-import" aria-label="选择常用链接备份文件" @change="selectImport" />
       </div>
     </div>
@@ -139,11 +141,12 @@
     </div>
     <div v-else class="empty-common">
       <strong>{{ items.length ? '没有匹配的链接' : '还没有常用链接' }}</strong>
-      <p>{{ items.length ? '尝试更换搜索关键词。' : '可添加你经常使用的应用 Scheme 或网址。' }}</p>
+      <button v-if="items.length" class="action-btn" type="button" @click="search = ''; selectedTag = ''">清除筛选</button>
+      <button v-else class="action-btn" type="button" @click="beginAdd">添加第一个链接</button>
     </div>
 
     <footer class="common-footer">
-      <p>常用链接仅保存在当前浏览器，不会通过 Gist 同步。应用 Scheme 需设备安装并注册对应应用；浏览器不一定能获知是否启动成功，可使用“复制原始链接”作为回退。</p>
+      <p>默认仅本机保存，可在云端同步中开启收藏同步。应用需安装，未响应时可复制原始链接。</p>
       <button type="button" @click="resetItems">恢复默认应用</button>
     </footer>
   </section>
@@ -364,19 +367,11 @@ defineExpose({ cancelEdit, showError: (value) => { formError.value = value } })
 </script>
 
 <style scoped>
-.common-panel { display: grid; gap: 20px; min-width: 0; color: var(--card-text); }
-.common-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.eyebrow { display: block; margin-bottom: 6px; font-size: 10px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; color: var(--card-text-muted); }
-.common-heading h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
-.common-heading p, .common-footer p { font-size: 12px; line-height: 1.7; color: var(--card-text-muted); margin: 7px 0 0; }
+.common-panel { color: var(--card-text); }
+.common-footer p { font-size: 12px; line-height: 1.7; color: var(--card-text-muted); margin: 7px 0 0; }
 button { font: inherit; cursor: pointer; }
 .add-button, .editor-actions button, .card-buttons button { border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); min-height: 36px; padding: 0 12px; font-size: 12px; font-weight: 650; }
 .add-button:hover, .card-buttons button:hover { border-color: var(--accent); }
-.common-toolbar { display: flex; align-items: end; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
-.common-search { display: grid; gap: 6px; min-width: 170px; flex: 1; color: var(--card-text-muted); font-size: 11px; }
-.common-search input { width: 100%; min-width: 0; height: 38px; border: 1px solid var(--hairline); border-radius: 10px; padding: 0 10px; background: var(--surface-elevated); color: var(--card-text); }
-.common-tools { display: flex; flex-wrap: wrap; gap: 7px; }
-.common-tools button { min-height: 38px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-elevated); color: var(--card-text); font: inherit; font-size: 11px; font-weight: 650; }
 .visually-hidden-import { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .common-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .common-card { position: relative; padding: 17px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-soft); min-width: 0; display: flex; flex-direction: column; gap: 13px; transition: border-color .2s, transform .2s; }
@@ -399,10 +394,10 @@ button { font: inherit; cursor: pointer; }
 .pin-button:hover, .pin-button:focus-visible { color: var(--card-text); outline-color: var(--accent); }
 .first-item-indicator { color: var(--card-text-muted); opacity: .65; }
 .card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-meta span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta > span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }
 .card-buttons button { flex: 1; padding: 0 8px; }
-.primary { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.primary { background: var(--accent) !important; color: var(--on-accent) !important; border-color: var(--accent) !important; }
 .primary:hover { filter: brightness(.94); }
 .editor-dialog {
   width: min(460px, calc(100vw - 32px));
@@ -446,7 +441,7 @@ button { font: inherit; cursor: pointer; }
 .editor-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .form-error { margin: 0; font-size: 12px; color: #df4c50; }
 .empty-common { text-align: center; background: var(--surface-soft); padding: 38px 16px; border-radius: 16px; }
-.empty-common p { color: var(--card-text-muted); font-size: 13px; }
+.empty-common .action-btn { margin: 12px auto 0; display: flex; width: fit-content; }
 .common-footer { border-top: 1px solid var(--hairline); padding-top: 14px; display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .common-footer p { margin: 0; flex: 1; }
 .common-footer button { flex-shrink: 0; border: 0; background: transparent; color: var(--card-text-muted); font-size: 12px; cursor: pointer; }
@@ -494,9 +489,9 @@ button { font: inherit; cursor: pointer; }
 </style>
 
 <style scoped>
-.common-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: -7px 0 2px; }
+.common-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: 0; }
 .common-tags button { border: 1px solid var(--hairline, #dce1e9); background: var(--surface-soft, #f5f7fa); color: var(--card-text, #172033); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
-.common-tags button[aria-pressed="true"] { color: #fff; background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); }
+.common-tags button[aria-pressed="true"] { color: var(--on-accent); background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); }
 .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 .card-tags span { font-size: 10px; border-radius: 5px; background: var(--surface-soft, #f5f7fa); padding: 2px 6px; color: var(--card-text-muted, #7c879b); }
 </style>

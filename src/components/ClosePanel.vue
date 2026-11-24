@@ -130,7 +130,7 @@ const description = computed(() => props.policy.needsConfirmation && !props.atte
   align-items: center;
   gap: 8px;
   border: 0;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
 }
 .primary-action:hover { background: var(--accent-hover); }

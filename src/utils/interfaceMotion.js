@@ -5,38 +5,35 @@ export function installInterfaceMotion() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
 
   let mountFrame = null
-  let waitingObserver = null
+  let rootObserver = null
+  let activeTabs = null
   let disposeMotion = null
-
-  const attachToTabs = (root) => {
-    const tabs = root.querySelector(TAB_SELECTOR)
-    if (!tabs) return false
-
-    waitingObserver?.disconnect()
-    waitingObserver = null
-    disposeMotion = setupMotion(root, tabs)
-    return true
-  }
 
   const attach = () => {
     const root = document.querySelector(ROOT_SELECTOR)
-
     if (!root) {
       mountFrame = window.requestAnimationFrame(attach)
       return
     }
 
-    if (attachToTabs(root)) return
-
-    waitingObserver = new MutationObserver(() => attachToTabs(root))
-    waitingObserver.observe(root, { childList: true, subtree: true })
+    // 分享跳转面板会卸载 tablist；返回后重新连接新节点，释放旧观察器。
+    const reconcile = () => {
+      const tabs = root.querySelector(TAB_SELECTOR)
+      if (tabs === activeTabs) return
+      disposeMotion?.()
+      disposeMotion = null
+      activeTabs = tabs
+      if (tabs) disposeMotion = setupMotion(root, tabs)
+    }
+    reconcile()
+    rootObserver = new MutationObserver(reconcile)
+    rootObserver.observe(root, { childList: true, subtree: true })
   }
 
   mountFrame = window.requestAnimationFrame(attach)
-
   return () => {
-    if (mountFrame) window.cancelAnimationFrame(mountFrame)
-    waitingObserver?.disconnect()
+    if (mountFrame !== null) window.cancelAnimationFrame(mountFrame)
+    rootObserver?.disconnect()
     disposeMotion?.()
   }
 }

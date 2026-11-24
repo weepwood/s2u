@@ -12,7 +12,6 @@
         </span>
         <span class="brand-copy">
           <strong>Scheme to URL</strong>
-          <small>Link bridge</small>
         </span>
       </a>
 
@@ -54,7 +53,7 @@
 
     <section class="workspace" aria-label="链接转换工作区">
       <div class="workspace-head">
-        <nav v-if="!showCloseMsg" class="mode-tabs" role="tablist" aria-label="页面模式" @keydown="handleTabNavigation">
+        <nav v-if="!showCloseMsg" class="mode-tabs segmented-tabs" role="tablist" aria-label="页面模式" @keydown="handleTabNavigation">
           <button
             id="create-tab"
             type="button"
@@ -944,7 +943,6 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped src="../styles/change.css"></style>
 <style>/* 仅用于首次加载非默认标签时的短暂占位；请求完成后立即展示真实组件。 */
 .app-shell .lazy-panel-loading {
   min-height: 160px;
