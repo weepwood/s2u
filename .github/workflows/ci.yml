@@ -44,7 +44,8 @@ jobs:
         run: node scripts/performance-report.mjs
 
   browser-smoke:
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 尚不支持 ubuntu-latest 当前使用的 26.04。
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:

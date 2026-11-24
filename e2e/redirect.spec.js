@@ -10,7 +10,7 @@ test('普通网址自动跳转，完整传递查询与片段且不发送 Referer
     referer = route.request().headers().referer
     await route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>目标网页</h1>' })
   })
-  await page.goto(share(target))
+  await page.goto(share(target), { waitUntil: 'commit' })
   await expect(page).toHaveURL(target)
   await expect(page.getByRole('heading', { name: '目标网页' })).toBeVisible()
   expect(referer).toBeUndefined()
