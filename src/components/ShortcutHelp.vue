@@ -1,5 +1,5 @@
 <template>
-  <dialog ref="dialog" class="shortcut-dialog" aria-labelledby="shortcut-title" @close="emit('close')" @click="backdrop">
+  <BaseDialog ref="dialog" class="shortcut-dialog" aria-labelledby="shortcut-title" @close="emit('close')">
     <div class="shortcut-body">
       <header class="shortcut-heading">
         <div><h2 id="shortcut-title">键盘快捷键</h2><p>无需鼠标也能完成主要操作</p></div>
@@ -15,17 +15,14 @@
       </dl>
       <p class="shortcut-note">输入框和弹窗中的快捷键按各自场景处理，不会触发页面操作。</p>
     </div>
-  </dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import BaseDialog from './ui/BaseDialog.vue'
 const emit = defineEmits(['close'])
 const dialog = ref(null)
-function backdrop(event) {
-  if (event.target === dialog.value) dialog.value.close()
-}
-onMounted(() => dialog.value?.showModal())
 </script>
 
 <style scoped>

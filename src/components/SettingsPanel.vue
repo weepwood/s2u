@@ -1,12 +1,10 @@
 <template>
-  <dialog ref="dialog" class="cloud-dialog" aria-labelledby="sync-title" @close="$emit('close')" @click="onBackdrop">
+  <BaseDialog ref="dialog" class="cloud-dialog" aria-labelledby="sync-title" @close="$emit('close')">
     <header class="cloud-head">
       <div><h2 id="sync-title">云端同步</h2><span>GitHub Gist</span></div>
       <button type="button" class="cloud-close" aria-label="关闭云端同步" @click="dialog.close()"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
     </header>
-    <nav class="cloud-tabs segmented-tabs" aria-label="同步管理">
-      <button v-for="item in tabs" :key="item.id" type="button" :aria-pressed="tab === item.id" @click="switchTab(item.id)">{{ item.label }}</button>
-    </nav>
+    <SegmentedTabs class="cloud-tabs" label="同步管理" :items="tabs" :model-value="tab" @update:model-value="switchTab" />
     <div ref="scrollArea" class="cloud-scroll" :data-direction="direction">
       <p v-if="error || cloud.syncError.value" class="cloud-error" role="alert">{{ error || cloud.syncError.value }}</p>
       <Transition name="sync-panel">
@@ -14,7 +12,7 @@
       <template v-if="!editing && cloud.cloudToken.value">
         <div class="cloud-account"><strong>{{ cloud.account.value || 'GitHub' }}</strong><span class="cloud-status" :data-status="cloud.syncStatus.value" role="status">{{ status }}</span></div>
         <dl class="cloud-details"><dt>Gist</dt><dd>{{ cloud.cloudGistId.value }}</dd><dt>最近同步</dt><dd>{{ cloud.lastSyncTime.value ? date(cloud.lastSyncTime.value) : '尚未验证' }}</dd></dl>
-        <button type="button" class="cloud-primary" :disabled="busy" @click="$emit('sync', {})">立即同步</button>
+        <BaseButton class="cloud-primary" variant="primary" :disabled="busy" @click="$emit('sync', {})">立即同步</BaseButton>
         <div class="cloud-actions">
           <a :href="'https://gist.github.com/' + encodeURIComponent(cloud.cloudGistId.value)" target="_blank" rel="noopener noreferrer">打开 Gist ↗</a>
           <button type="button" :disabled="busy" @click="$emit('test')">测试连接</button>
@@ -31,7 +29,7 @@
           <label for="gist-token">GitHub Token</label>
           <a href="https://github.com/settings/personal-access-tokens/new?name=S2U%20Gist%20Sync&amp;description=S2U%20workspace%20sync&amp;expires_in=90&amp;gists=write" target="_blank" rel="noopener noreferrer">创建最小权限 Token ↗</a>
         </div>
-        <input id="gist-token" v-model="token" :disabled="finding || busy" type="password" autocomplete="off" placeholder="粘贴 GitHub Token" aria-describedby="gist-token-note"/>
+        <BaseInput id="gist-token" v-model="token" :disabled="finding || busy" type="password" autocomplete="off" placeholder="粘贴 GitHub Token" aria-describedby="gist-token-note"/>
         <p id="gist-token-note" class="cloud-note">只需 Gist 读写权限，Token 仅保存在当前标签页会话。</p>
         <details class="token-guide">
           <summary>如何创建 Token？</summary>
@@ -62,22 +60,22 @@
           <select v-if="cloud.candidates.value.length" v-model="gist" aria-label="选择已有 Gist"><option value="">请选择同步文件</option><option v-for="item in cloud.candidates.value" :key="item.id" :value="item.id">{{ item.description }} · {{ item.id.slice(0,8) }}</option></select>
           <p v-if="searched && !cloud.candidates.value.length" class="cloud-note">未找到匹配文件，可手动指定或创建新的 Gist。</p>
         </template>
-        <input v-if="mode === 'manual'" v-model="gist" aria-label="Gist ID 或地址" placeholder="Gist ID 或完整地址" autocomplete="off"/>
+        <BaseInput v-if="mode === 'manual'" v-model="gist" aria-label="Gist ID 或地址" placeholder="Gist ID 或完整地址" autocomplete="off"/>
         <p v-if="mode === 'new'" class="cloud-note">将创建一个新的 Secret Gist，上传本机历史记录。</p>
-        <button type="button" class="cloud-primary" :disabled="!token.trim() || busy || finding || (mode !== 'new' && !gist.trim())" @click="connect">{{ busy ? '处理中…' : '连接 Gist' }}</button>
+        <BaseButton class="cloud-primary" variant="primary" :disabled="!token.trim() || busy || finding || (mode !== 'new' && !gist.trim())" @click="connect">{{ busy ? '处理中…' : '连接 Gist' }}</BaseButton>
         <button v-if="cloud.cloudToken.value" type="button" @click="editing = false; token = ''">取消更换</button>
         <button v-if="busy" type="button" @click="disconnect">取消连接</button>
       </template>
     </section>
     <section v-else-if="tab === 'preferences'" key="preferences" class="cloud-body">
-      <label class="cloud-option"><span>自动同步</span><input type="checkbox" :checked="cloud.preferences.value.auto" @change="pref('auto', $event.target.checked)"/></label>
+      <BaseSwitch :model-value="cloud.preferences.value.auto"  @update:model-value="pref('auto', $event)">自动同步</BaseSwitch>
       <label class="cloud-option"><span>同步延迟</span><select :value="cloud.preferences.value.delay" @change="pref('delay', Number($event.target.value))"><option :value="3000">3 秒</option><option :value="5000">5 秒</option><option :value="10000">10 秒</option></select></label>
       <div class="cloud-divider"></div>
       <strong>同步内容</strong>
-      <label class="cloud-option"><span>历史记录</span><input type="checkbox" checked disabled/></label>
-      <label class="cloud-option"><span>常用链接、标签与排序</span><input type="checkbox" :checked="cloud.preferences.value.common" :disabled="busy" @change="pref('common', $event.target.checked)"/></label>
-      <label class="cloud-option"><span>自定义应用图标</span><input type="checkbox" :disabled="!cloud.preferences.value.common || busy" :checked="cloud.preferences.value.icons" @change="pref('icons', $event.target.checked)"/></label>
-      <label class="cloud-option"><span>深浅主题</span><input type="checkbox" :checked="cloud.preferences.value.theme" :disabled="busy" @change="pref('theme', $event.target.checked)"/></label>
+      <BaseSwitch :model-value="true" disabled>历史记录</BaseSwitch>
+      <BaseSwitch :model-value="cloud.preferences.value.common" :disabled="busy" @update:model-value="pref('common', $event)">常用链接、标签与排序</BaseSwitch>
+      <BaseSwitch :model-value="cloud.preferences.value.icons" :disabled="!cloud.preferences.value.common || busy" @update:model-value="pref('icons', $event)">自定义应用图标</BaseSwitch>
+      <BaseSwitch :model-value="cloud.preferences.value.theme" :disabled="busy" @update:model-value="pref('theme', $event)">深浅主题</BaseSwitch>
       <p class="cloud-note">收藏及主题为可选同步。双端冲突会暂停；图标关闭不会删除云端已有图标。每份文件限制 900 KB。</p>
     </section>
     <section v-else key="backup" class="cloud-body">
@@ -94,10 +92,15 @@
     </section>
       </Transition>
     </div>
-  </dialog>
+  </BaseDialog>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import BaseDialog from './ui/BaseDialog.vue'
+import BaseButton from './ui/BaseButton.vue'
+import BaseInput from './ui/BaseInput.vue'
+import BaseSwitch from './ui/BaseSwitch.vue'
+import SegmentedTabs from './ui/SegmentedTabs.vue'
 const props = defineProps({ cloud: { type: Object, required: true } })
 const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test'])
 const cloud = props.cloud
@@ -108,8 +111,6 @@ const tabs = [{id:'connection',label:'连接'},{id:'preferences',label:'同步�
 const busy = computed(() => ['connecting','syncing'].includes(cloud.syncStatus.value))
 const status = computed(() => ({connecting:'连接中',syncing:'同步中',connected:'已同步',error:'同步异常',ready:'待验证'}[cloud.syncStatus.value] || '未连接'))
 const date = value => new Date(value).toLocaleString('zh-CN')
-onMounted(() => dialog.value?.showModal())
-function onBackdrop(event) { if (event.target === dialog.value) { const rect = dialog.value.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.value.close() } }
 function switchTab(value) {
   if (tab.value === value) return
   direction.value = tabs.findIndex(item => item.id === value) < tabs.findIndex(item => item.id === tab.value) ? 'backward' : 'forward'
