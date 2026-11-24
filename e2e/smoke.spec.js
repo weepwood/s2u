@@ -1131,3 +1131,33 @@ test('三个页面共享输入尺寸和工具栏基线，窄屏仍可操作', as
   await expect(page.getByRole('button', { name: '导出', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '云端同步' })).toBeVisible()
 })
+
+
+test('快捷启动键盘选中项保持在结果可视区域', async ({ page }) => {
+  await page.setViewportSize({width:390,height:540})
+  await page.goto('/')
+  await page.getByRole('button',{name:'打开快捷启动命令面板'}).click()
+  const dialog = page.getByRole('dialog',{name:'快捷启动命令面板'})
+  const search = dialog.getByLabel('搜索命令')
+  await expect(search).toBeFocused()
+  await page.keyboard.press('ArrowUp')
+  const selected = dialog.locator('[role=option][aria-selected=true]')
+  await expect(selected).toBeVisible()
+  await expect.poll(()=>selected.evaluate(node=>{
+    const row=node.getBoundingClientRect(), list=node.parentElement.getBoundingClientRect()
+    return Math.max(row.bottom-list.bottom,list.top-row.top,0)
+  })).toBeLessThan(2)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+})
+
+test('快速切换三页后只保留最终活动面板',async({page})=>{
+  await page.goto('/')
+  const nav=page.getByRole('tablist',{name:'页面模式'})
+  await nav.getByRole('tab',{name:/历史记录/}).click()
+  await nav.getByRole('tab',{name:/常用链接/}).click()
+  await nav.getByRole('tab',{name:/创建链接/}).click()
+  await expect(page.locator('#create-panel')).toBeVisible()
+  await expect(page.locator('.content-card .panel-enter-active,.content-card .panel-leave-active')).toHaveCount(0)
+  await expect(nav.getByRole('tab',{name:/创建链接/})).toHaveAttribute('aria-selected','true')
+})

@@ -63,7 +63,7 @@
       <button v-if="searchQuery" type="button" @click="$emit('update:searchQuery', '')">清除搜索</button>
     </div>
 
-    <div v-else class="history-list">
+    <TransitionGroup v-else tag="div" name="workspace-list" class="history-list">
       <article v-for="item in filteredHistory" :key="item.scheme" class="history-item">
         <button
           type="button"
@@ -103,7 +103,7 @@
           </svg>
         </button>
       </article>
-    </div>
+    </TransitionGroup>
   </section>
 </template>
 
