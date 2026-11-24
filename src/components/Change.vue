@@ -183,7 +183,7 @@
 
     <SettingsPanel v-if="showSettings" :cloud="cloud" @close="closeSyncSettings"
       @connect="connectGist" @sync="syncGist" @disconnect="disconnectGist"
-      @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" />
+      @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" @test="testGistConnection" />
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
       @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
@@ -706,7 +706,7 @@ watch(commonLinks, () => { if (!applyingRemote && preferences.value.common) auto
 watch(darkMode, () => { if (!applyingRemote && preferences.value.theme) autoSync() }, { flush: 'sync' })
 
 function syncGist({ silent = false, resolve = '' } = {}) {
-  if (!cloudToken.value || !cloudGistId.value || showCloseMsg.value) return Promise.resolve(false)
+  if (!cloudToken.value || !cloudGistId.value || showCloseMsg.value || syncStatus.value === 'connecting') return Promise.resolve(false)
   const ctx = cloud.context()
   if (syncPromise && activeContext && cloud.isCurrent(activeContext)) {
     syncRequested = true
@@ -720,7 +720,7 @@ function syncGist({ silent = false, resolve = '' } = {}) {
       const remote = await pullFromGist()
       if (!cloud.isCurrent(ctx) || remote === null) return false
       const summary = inspectImport(remote)
-      if (summary.invalid) throw new Error('云端历史包含无效记录，已停止同步')
+      if (summary.invalid || (Array.isArray(remote?.tombstones) && summary.tombstones !== remote.tombstones.length)) throw new Error('云端历史包含无效记录或删除标记，已停止同步')
       const extras = {}
       const prefs = { ...preferences.value }
       if (prefs.common) {
@@ -759,10 +759,20 @@ function syncGist({ silent = false, resolve = '' } = {}) {
 async function connectGist(options) {
   try {
     await connect(historySnapshot(), { ...options, validate: data => {
-      if (inspectImport(data).invalid) throw new Error('Gist 包含无效历史记录')
+      const summary = inspectImport(data)
+      if (summary.invalid || (Array.isArray(data?.tombstones) && summary.tombstones !== data.tombstones.length)) throw new Error('Gist 包含无效历史记录或删除标记')
     } })
     if (await syncGist({ silent: true })) showToast('已连接 GitHub Gist', 'success')
   } catch { /* 连接错误由 composable 维护 */ }
+}
+
+async function testGistConnection() {
+  try {
+    const payload = await cloud.testConnection()
+    const summary = inspectImport(payload)
+    if (summary.invalid || (Array.isArray(payload?.tombstones) && summary.tombstones !== payload.tombstones.length)) throw new Error('历史文件包含无效数据')
+    showToast('读取验证通过，写入权限须实际同步确认', 'success')
+  } catch (error) { syncError.value = error.message || '连接检查失败' }
 }
 
 async function restoreGistRecovery({ index, version }) {
@@ -873,8 +883,14 @@ function handleKeydown(event) {
 
 let initialSyncIdle = null
 let initialSyncFallback = null
-function onSyncFocus() {
-  if (!showCloseMsg.value && cloudToken.value && preferences.value.auto && !['connecting','syncing','error'].includes(syncStatus.value) && (pending.value || Date.now() - (lastSyncTime.value || 0) > 60000)) syncGist({ silent: true })
+function onSyncFocus(event) {
+  const transientError = /超时|请求失败（5\\d\\d）|fetch|network/i.test(syncError.value)
+  const retryOnline = event?.type === 'online' && syncStatus.value === 'error' && transientError
+  if (!showCloseMsg.value && cloudToken.value && preferences.value.auto &&
+      !['connecting','syncing'].includes(syncStatus.value) && (syncStatus.value !== 'error' || retryOnline) &&
+      (pending.value || Date.now() - (lastSyncTime.value || 0) > 60000)) {
+    syncGist({ silent: true })
+  }
 }
 function scheduleInitialSync() {
   if (!preferences.value.auto) return

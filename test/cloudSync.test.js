@@ -42,7 +42,9 @@ test('写入验证失败保留待同步状态', async()=>{
   assert.equal(sync.pending.value,true); assert.equal(storage.get('s2u_gist_pending_'+ID),'1')
 })
 test('主动取消不误报错误', async()=>{
-  const sync=setup(); globalThis.fetch=(_url,opts)=>new Promise((_resolve,reject)=>opts.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}))
+  const sync=setup(); globalThis.fetch=async()=>reply(gist(history(0)))
+  await sync.pullFromGist()
+  globalThis.fetch=(_url,opts)=>new Promise((_resolve,reject)=>opts.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}))
   const task=sync.pushToGist(history(1)); sync.cleanup()
   await assert.rejects(task,/请求已取消/); assert.notEqual(sync.syncStatus.value,'error')
 })
@@ -113,4 +115,21 @@ test('推送失败后仍处理同连接最新排队快照',async()=>{
   resolveFirst({ok:false,status:500})
   assert.equal(await first,true);assert.equal(await second,true)
   assert.equal(patches,2);assert.deepEqual(data,history(2))
+})
+
+
+test('拉取失败清除旧观察状态，禁止使用旧快照推送',async()=>{
+  const sync=setup(); let patches=0
+  globalThis.fetch=async()=>reply(gist(history(0)))
+  await sync.pullFromGist()
+  globalThis.fetch=async(_url,opts)=>{if(opts.method==='PATCH')patches++;return {ok:false,status:503}}
+  assert.equal(await sync.pullFromGist(),null)
+  await assert.rejects(sync.pushToGist(history(1)),/禁止写入/)
+  assert.equal(patches,0)
+})
+test('只读连接测试不写入 Gist',async()=>{
+  const sync=setup();let writes=0
+  globalThis.fetch=async(url,opts)=>{if(opts.method!=='GET')writes++;return reply(url.endsWith('/user')?{login:'test-user'}:gist(history(0)))}
+  assert.deepEqual(await sync.testConnection(),history(0))
+  assert.equal(writes,0)
 })

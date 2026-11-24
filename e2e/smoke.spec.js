@@ -941,7 +941,7 @@ test('云同步是独立弹窗，支持全局入口、窄屏、Escape 和焦点�
   await trigger.click()
   const dialog = page.getByRole('dialog', { name: '云端同步' })
   await expect(dialog).toBeVisible()
-  await expect(page.getByRole('heading', { name: '输入目标地址' })).toBeVisible()
+  await expect(page.locator('#create-link-title')).toBeVisible()
   const rect = await dialog.boundingBox()
   expect(rect.x).toBeGreaterThanOrEqual(0)
   expect(rect.x + rect.width).toBeLessThanOrEqual(321)

@@ -133,6 +133,8 @@ export function useCloudSync() {
     if (!cloudToken.value || !cloudGistId.value) return null
     const ctx = context()
     syncStatus.value = 'syncing'
+    lastObservedContent = null
+    lastObservedFiles = {}
     try {
       const gist = await fetchGist(ctx)
       const text = readFile(gist, HISTORY_FILE)
@@ -152,7 +154,13 @@ export function useCloudSync() {
     const key = BASE_PREFIX + connectionKey() + ':' + name
     const stored = localStorage.getItem(key)
     const base = stored ? validate(JSON.parse(stored)) : null
-    return resolve === 'local' ? local : resolve === 'remote' && remote !== null ? remote : mergeWorkspace(local, remote, base)
+    try { return mergeWorkspace(local, remote, base) }
+    catch (error) {
+      if (error.name !== 'WorkspaceConflictError') throw error
+      if (resolve === 'local') return local
+      if (resolve === 'remote' && remote !== null) return remote
+      throw error
+    }
   }
   function pushToGist(data, extras = {}) {
     if (!cloudToken.value || !cloudGistId.value) return Promise.resolve(false)
@@ -172,6 +180,7 @@ export function useCloudSync() {
       pendingPayload = null
       try {
         assertCurrent(ctx)
+        if (lastObservedContent === null) throw new Error('尚未成功拉取远端记录，禁止写入')
         const fresh = await fetchGist(ctx)
         const freshContent = readFile(fresh, HISTORY_FILE)
         if (lastObservedContent !== null && freshContent !== lastObservedContent) throw Object.assign(new Error('云端记录已被其它设备修改，本次写入已暂停；请重新同步'), { name: 'GistConflictError' })
@@ -193,7 +202,11 @@ export function useCloudSync() {
             if (!samePayload(JSON.parse(readFile(verified, name)), JSON.parse(file.content))) throw new Error('写入后验证失败，请重新同步')
           }
           lastObservedContent = readFile(verified, HISTORY_FILE)
-          for (const name of Object.keys(extras)) lastObservedFiles[name] = readFile(verified, name)
+          if (!samePayload(JSON.parse(lastObservedContent), data)) throw new Error('写入后历史验证失败，请重新同步')
+          for (const name of Object.keys(extras)) {
+            lastObservedFiles[name] = readFile(verified, name)
+            if (!samePayload(JSON.parse(lastObservedFiles[name]), extras[name])) throw new Error('写入后工作区验证失败，请重新同步')
+          }
         } else lastObservedContent = freshContent
         assertCurrent(ctx)
         for (const [name, value] of Object.entries(extras)) localStorage.setItem(BASE_PREFIX + ctx.id + ':' + name, encodeFile(value))
@@ -207,6 +220,17 @@ export function useCloudSync() {
       }
     }
     return pushed
+  }
+  async function testConnection() {
+    const ctx = context()
+    if (!ctx.token || !ctx.id) throw new Error('请先连接')
+    const user = await client.request('/user', { token: ctx.token })
+    assertCurrent(ctx)
+    const gist = await fetchGist(ctx)
+    if (gist.owner.login !== user.login) throw new Error('Gist 不属于当前 GitHub 账号')
+    const payload = JSON.parse(readFile(gist, HISTORY_FILE))
+    assertCurrent(ctx)
+    return payload
   }
   function refreshBackups() { backups.value = listBackups(connectionKey()).map(({ savedAt, remoteContent, files }) => ({ savedAt, bytes: new TextEncoder().encode(remoteContent + JSON.stringify(files || {})).length })) }
   function getBackupBundle(index) { const item = listBackups(connectionKey())[index]; return item ? { savedAt: item.savedAt, history: JSON.parse(item.remoteContent), files: item.files || {} } : null }
@@ -242,7 +266,9 @@ export function useCloudSync() {
       } catch { /* 同步错误由调用方展示 */ }
     }, delay)
   }
-  function resumePending(task = retryTask) { if (task && pending.value && preferences.value.auto) scheduleAutoSync(task, 0) }
+  function resumePending(task = retryTask) {
+    if (task && pending.value && preferences.value.auto) scheduleAutoSync(task, 0)
+  }
   function cleanup() {
     generation++
     if (syncTimer) clearTimeout(syncTimer)
@@ -251,5 +277,5 @@ export function useCloudSync() {
   }
   return { cloudToken, cloudGistId, account, syncStatus, syncError, lastSyncTime, preferences, pending, candidates, backups, revisions,
     loadConfig, setPreferences, markPending, saveConfig, connect, discover, disconnect, pushToGist, pullFromGist, prepareOptional,
-    getLatestRecovery, getBackupBundle, refreshBackups, loadRevisions, readRevision, scheduleAutoSync, resumePending, cleanup, context, isCurrent }
+    testConnection, getLatestRecovery, getBackupBundle, refreshBackups, loadRevisions, readRevision, scheduleAutoSync, resumePending, cleanup, context, isCurrent }
 }

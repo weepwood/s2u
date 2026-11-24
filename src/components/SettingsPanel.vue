@@ -15,7 +15,8 @@
         <button type="button" class="cloud-primary" :disabled="busy" @click="$emit('sync', {})">立即同步</button>
         <div class="cloud-actions">
           <a :href="'https://gist.github.com/' + encodeURIComponent(cloud.cloudGistId.value)" target="_blank" rel="noopener noreferrer">打开 Gist ↗</a>
-          <button type="button" :disabled="busy" @click="editing = true; token = ''; gist = cloud.cloudGistId.value">更换 Token / Gist</button>
+          <button type="button" :disabled="busy" @click="$emit('test')">测试连接</button>
+          <button type="button" :disabled="busy" @click="editing = true; token = ''; gist = cloud.cloudGistId.value; mode = 'manual'">更换 Token / Gist</button>
           <button type="button" @click="disconnect">断开连接</button>
         </div>
         <div v-if="cloud.syncError.value.includes('双端冲突')" class="cloud-actions">
@@ -69,7 +70,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 const props = defineProps({ cloud: { type: Object, required: true } })
-const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore'])
+const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test'])
 const cloud = props.cloud
 const dialog = ref(null), tab = ref('connection'), token = ref(''), gist = ref(cloud.cloudGistId.value), mode = ref(gist.value ? 'manual' : 'existing')
 const editing = ref(false), finding = ref(false), searched = ref(false), error = ref('')
@@ -82,7 +83,8 @@ function onBackdrop(event) { if (event.target === dialog.value) { const rect = d
 function switchTab(value) { tab.value = value; error.value = ''; if (value === 'backup') { try { cloud.refreshBackups() } catch (e) { error.value = e.message } } }
 async function discover() { finding.value = true; error.value = ''; searched.value = false; gist.value = ''; try { await cloud.discover(token.value.trim()); searched.value = true } catch (e) { error.value = e.message } finally { finding.value = false } }
 function connect() {
-  if (!confirm('连接后将合并本机历史与选定 Gist，并可能上传本机链接。确认继续？')) return
+  const extra = [cloud.preferences.value.common && '收藏/标签/排序', cloud.preferences.value.icons && '图标', cloud.preferences.value.theme && '主题'].filter(Boolean)
+  if (!confirm('连接后将合并本机历史' + (extra.length ? '及已开启的' + extra.join('、') : '') + '，并可能上传本机数据至选定 Gist。确认继续？')) return
   const options = { token: token.value, id: gist.value, create: mode.value === 'new' }
   editing.value = false; token.value = ''; error.value = ''
   emit('connect', options)
@@ -90,7 +92,10 @@ function connect() {
 function disconnect() { emit('disconnect'); token.value = ''; editing.value = false; gist.value = cloud.cloudGistId.value; mode.value = gist.value ? 'manual' : 'existing' }
 function pref(key, value) {
   if (value === true && ['common','icons','theme'].includes(key) && !confirm('开启后将同步此类数据到 Secret Gist，确认？')) return
-  try { cloud.setPreferences({ [key]: value, ...(key === 'common' && !value ? { icons: false } : {}) }) } catch (e) { error.value = e.message }
+  try {
+    cloud.setPreferences({ [key]: value, ...(key === 'common' && !value ? { icons: false } : {}) })
+    if (value === true && cloud.cloudToken.value && cloud.preferences.value.auto && !busy.value) emit('sync', {})
+  } catch (e) { error.value = e.message }
 }
 function resolve(value) { if (confirm('将按所选方向处理收藏及主题冲突。请确认已备份数据，继续？')) emit('sync', { resolve: value }) }
 async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { error.value = e.message } }
