@@ -64,6 +64,12 @@
   transition:border-color var(--motion-fast) ease,box-shadow var(--motion-fast) ease;
 }
 .app-shell .ui-select--compact { min-height:34px; }
+/* WebKit 原生 select 可能绘制与手动主题不一致的白色背景。 */
+.app-shell select.ui-select, .app-shell dialog .cloud-body select {
+  appearance:none; background-color:var(--surface-elevated); color:var(--card-text);
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 12px) 50%,calc(100% - 8px) 50%; background-size:4px 4px; background-repeat:no-repeat; padding-right:24px;
+}
 .app-shell .ui-select:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 .app-shell .ui-select:disabled { opacity:.5; cursor:not-allowed; }
 .app-shell .ui-search-field .control-field__clear:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }

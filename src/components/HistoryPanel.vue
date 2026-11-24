@@ -358,7 +358,7 @@ function formatDate(timestamp) {
 }
 .history-filters { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--card-text-muted); }
 .history-filter-fields { display:flex; gap:8px; min-width:0; }
-.history-filter-fields select { min-width:0; max-width:150px; min-height:34px; padding:0 8px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); font:inherit; }
+.history-filter-fields select { min-width:0; max-width:150px; min-height:34px; padding-left:8px; border-color:var(--hairline); }
 .history-day-heading { font-size:12px; color:var(--card-text-muted); font-weight:650; margin:8px 4px 2px; }
 .history-actions { display:flex; gap:2px; align-items:center; }
 .history-bookmark { display:grid; place-items:center; width:30px; height:36px; padding:0; border:0; border-radius:10px; background:transparent; color:var(--card-text-muted); cursor:pointer; }

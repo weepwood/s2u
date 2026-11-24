@@ -1,0 +1,46 @@
+name: Cross-browser UI acceptance
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'playwright*.js'
+      - 'index.html'
+      - 'package*.json'
+      - '.github/workflows/cross-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cross-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npm run build
+      - name: Verify three pages and dialogs
+        run: npx playwright test --config=playwright.visual.config.js --project=${{ matrix.browser }}
+      - name: Upload screenshots and browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-${{ matrix.browser }}
+          path: |
+            test-results/cross-browser-*/ui-*.png
+            test-results/cross-browser-*/motion-report.json
+          if-no-files-found: ignore
+          retention-days: 7

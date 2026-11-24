@@ -2,6 +2,7 @@
  * 不透明表面用于文字密集内容和模态窗口；半透明表面只用于顶栏、导航及主卡片。
  */
 .app-shell {
+  color-scheme: light;
   --workspace-max-width: 820px;
   --page-bg: #f3f6fc;
   --page-bg-soft: rgba(255, 255, 255, .72);
@@ -77,6 +78,7 @@
 }
 
 .app-shell.dark {
+  color-scheme: dark;
   --page-bg: #0e1420;
   --page-bg-soft: rgba(24, 32, 47, .82);
   --card-bg: rgba(21, 29, 44, .90);

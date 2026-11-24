@@ -33,6 +33,8 @@ test('真实触屏窄屏操作尺寸、历史删除常驻与双主题截图', as
     await page.setViewportSize({width:390,height:844})
     await page.screenshot({path:testInfo.outputPath('ui-mobile-dark-common.png'),animations:'disabled'})
     await page.getByRole('tab',{name:/创建链接/}).tap()
+    await expect(page.locator('#url')).toBeVisible()
+    await expect(page.locator('.content-card > .panel-leave-active')).toHaveCount(0)
     await page.screenshot({path:testInfo.outputPath('ui-mobile-dark-create.png'),animations:'disabled'})
     await page.setViewportSize({width:900,height:800})
     await page.getByRole('tab',{name:/历史记录/}).tap()
