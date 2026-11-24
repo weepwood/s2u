@@ -22,7 +22,7 @@ export function groupHistoryByDay(items,now=Date.now()) {
   const groups=new Map()
   for(const item of items) {
     const key=dateKey(item.recently)
-    if(!groups.has(key))groups.set(key,{key,label:key===today?'今天':key===prior?'昨天':key==='unknown'?'未知日期':key,items:[]})
+    if(!groups.has(key))groups.set(key,{key,label:key===today?'今天':key===prior?'昨天':key==='unknown'?'未知日期':key.replace(/^(\d+)-(\d+)-(\d+)$/,'$1年$2月$3日'),items:[]})
     groups.get(key).items.push(item)
   }
   return [...groups.values()]

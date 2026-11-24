@@ -1640,3 +1640,15 @@ test('链接模板仅填入经校验的地址，取消与切换不写历史',asy
   await expect(page.getByText('可以分享',{exact:true})).toBeVisible()
 })
 
+
+test('创建入口区分示例和链接模板，预览明确复制并打开语义', async ({page})=>{
+  await page.setViewportSize({width:375,height:800})
+  await page.goto('/')
+  const examples=page.getByRole('group',{name:'快速填入示例地址'})
+  await expect(examples.getByRole('button')).toHaveCount(4)
+  await expect(examples.getByRole('button',{name:'链接模板'})).toHaveCount(0)
+  await page.getByRole('button',{name:'填入网页示例'}).click()
+  await expect(page.locator('.preview-url')).toHaveAttribute('aria-label',/复制并打开分享链接/)
+  await expect(page.getByRole('button',{name:'链接模板',exact:true})).toBeVisible()
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+})

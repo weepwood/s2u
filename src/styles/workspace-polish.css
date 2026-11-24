@@ -14,10 +14,12 @@
 .app-shell .url-input-panel .field-message { margin: 0; min-height: 16px; }
 
 .app-shell .starter-links {
-  display: flex; align-items: center; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
   gap: 8px 12px; margin-top: 2px;
 }
-.app-shell .starter-actions { display: flex; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.app-shell .starter-actions { display:flex; align-items:center; flex-wrap:wrap; gap:7px; min-width:0; }
+.app-shell .starter-label { font-size:11px; color:var(--card-text-muted); margin-right:2px; }
+.app-shell .template-trigger { border-color:var(--hairline-strong); color:var(--accent); background:var(--surface-elevated); }
 .app-shell .starter-chip {
   display: inline-flex; align-items: center; justify-content: center;
   gap: 6px; min-height: 30px; padding: 3px 10px;
@@ -33,7 +35,7 @@
 }
 .app-shell .starter-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app-shell .recent-section { gap: 12px; padding-top: 2px; }
+.app-shell .recent-section { gap:12px; padding-top:16px; border-top:1px solid var(--hairline); }
 .app-shell .recent-head { align-items: center; }
 .app-shell .recent-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .app-shell .recent-item { min-height: 54px; border: 1px solid var(--hairline); border-radius: 11px; background: var(--surface-soft); }
@@ -50,12 +52,18 @@
 .app-shell .common-panel .common-card {
   border: 1px solid var(--hairline); border-radius: 16px;
   background: var(--surface-elevated);
-  box-shadow: 0 3px 10px rgba(33, 47, 80, 0.035);
+  box-shadow: var(--surface-rim);
 }
-.app-shell .common-panel .common-card:hover {
-  border-color: var(--hairline-strong);
-  box-shadow: var(--shadow-sm);
-}
+.app-shell .common-panel .common-card:is(:hover,:focus-within) { border-color:var(--hairline-strong); box-shadow:var(--shadow-sm); }
+.app-shell .common-panel .app-icon { box-shadow:var(--surface-rim); border:1px solid var(--hairline); box-sizing:border-box; }
+.app-shell .common-panel .card-tags span { border:1px solid var(--hairline); max-width:100%; overflow-wrap:anywhere; }
+.app-shell .common-panel .common-list-view .common-card { padding:12px; }
+.app-shell .common-panel .common-list-view .app-icon { width:40px; height:40px; }
+.app-shell .history-panel .history-day-heading { display:flex; align-items:center; gap:10px; }
+.app-shell .history-panel .history-day-heading::after { content:''; height:1px; flex:1; background:var(--hairline); }
+.app-shell .history-panel .history-page-controls { padding-top:10px; border-top:1px solid var(--hairline); }
+.app-shell .history-panel .history-item:focus-within { background:var(--surface-hover); }
+@media(min-width:641px) { .app-shell .history-panel .history-main { min-height:58px; } }
 .app-shell .common-panel .common-tags button { min-height: 31px; }
 .app-shell .history-panel .history-item { border-radius: 12px; }
 .app-shell .history-panel .history-item:hover { background: var(--surface-hover); }
