@@ -77,7 +77,7 @@ async function capture(page,testInfo,width,theme) {
     }
   }
 }
-test('三页浅深主题真实截图及弹窗焦点',async({page},testInfo)=>{
+test('三页浅深主题真实截图',async({page},testInfo)=>{
   await seed(page)
   await page.setViewportSize({width:1280,height:900})
   await page.emulateMedia({colorScheme:'light',reducedMotion:'reduce'})
@@ -86,6 +86,16 @@ test('三页浅深主题真实截图及弹窗焦点',async({page},testInfo)=>{
   await page.getByRole('button',{name:'切换到深色模式'}).click()
   await expect(page.locator('.app-shell')).toHaveClass(/dark/)
   await capture(page,testInfo,1280,'dark')
+})
+test('云同步弹窗下拉、鼠标选择和焦点恢复',async({page},testInfo)=>{
+  await seed(page)
+  await page.setViewportSize({width:1280,height:900})
+  await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'})
+  await page.goto('/')
+  if(!(await page.locator('.app-shell').evaluate(el=>el.classList.contains('dark'))))await page.getByRole('button',{name:'切换到深色模式'}).click()
+  await expect(page.locator('.app-shell')).toHaveClass(/dark/)
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  await settledCard(page)
   const trigger=page.getByRole('button',{name:'打开云同步设置'})
   await trigger.click()
   const dialog=page.getByRole('dialog',{name:'云端同步'})
