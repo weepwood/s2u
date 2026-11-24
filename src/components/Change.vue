@@ -199,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
@@ -207,19 +207,20 @@ import Toast from './Toast.vue'
 import ShortcutHelp from './ShortcutHelp.vue'
 import QrShareDialog from './QrShareDialog.vue'
 import CommandPalette from './CommandPalette.vue'
-import { useDarkMode, DARK_MODE_STORAGE_KEY } from '../composables/useDarkMode.js'
-import { makeWorkspaceBackup, parseWorkspaceBackup, planWorkspaceRestore, runWorkspaceRestore, RECOVERY_KEY, MAX_WORKSPACE_BACKUP_BYTES } from '../domain/sync/workspaceBackup.js'
-import { useHistory, HISTORY_STORAGE_KEY } from '../composables/useHistory.js'
-import { useCommonLinks, COMMON_LINKS_STORAGE_KEY } from '../composables/useCommonLinks.js'
+import { useDarkMode } from '../composables/useDarkMode.js'
+import { useHistory } from '../composables/useHistory.js'
+import { useCommonLinks } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
-import { openWorkspace, listWorkspaces, createWorkspace, activateWorkspace } from '../domain/storage/workspaceScope.js'
-import { COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
+import { openWorkspace } from '../domain/storage/workspaceScope.js'
 import { useClipboard } from '../composables/useClipboard.js'
+import { useWorkspaceSync } from '../composables/workspace/useWorkspaceSync.js'
+import { useShareRedirect } from '../composables/workspace/useShareRedirect.js'
+import { useBookmarkActions } from '../composables/workspace/useBookmarkActions.js'
+import { useWorkspaceNavigation } from '../composables/workspace/useWorkspaceNavigation.js'
+import { useHistoryActions } from '../composables/workspace/useHistoryActions.js'
 import {
-  decodeShareTarget,
   encodeShareLink,
   getAppBaseUrl,
-  getTargetOpenPolicy,
   normalizeTarget,
 } from '../domain/linkCodec.js'
 
@@ -246,144 +247,20 @@ function warmPanel(panel) {
   load?.().catch(() => {}) // 预取失败时仍由 Vue 的异步组件提供错误处理。
 }
 
-const MAX_IMPORT_SIZE = 2 * 1024 * 1024
 const workspace = openWorkspace()
-const workspaceProfiles = ref([])
-const { darkMode, toggle: toggleDark } = useDarkMode(workspace.storage)
-
-const {
-  history,
-  searchQuery,
-  storageError,
-  load: loadHistory,
-  add: addHistory,
-  remove: removeHistory,
-  clear: clearHistory,
-  merge: mergeHistory,
-  mergeImport: mergeImportHistory,
-  inspectImport,
-  snapshot: historySnapshot,
-  exportJSON: exportHistory,
-  filtered: filterHistory,
-} = useHistory(workspace.storage)
-
-const {
-  links: commonLinks,
-  storageError: commonStorageError,
-  load: loadCommonLinks,
-  save: persistCommonLink,
-  remove: deleteCommonLink,
-  restoreDefaults: restoreCommonLinks,
-  move: moveCommonLinkStore,
-  reorder: reorderCommonLinkStore,
-  renameTag: renameCommonTagStore,
-  pin: pinCommonLinkStore,
-  exportJSON: exportCommonJSON,
-  inspectImport: inspectCommonImport,
-  importJSON: importCommonJSON,
-  validateSync: validateCommonSync,
-  syncSnapshot: commonSyncSnapshot,
-  applySync: applyCommonSync,
-} = useCommonLinks(workspace.storage)
-const commonPanel = ref(null)
-const { copyText, copyToClipboard, cleanup: cleanupClipboard } = useClipboard()
-
+const { darkMode, toggle:toggleDark } = useDarkMode(workspace.storage)
+const historyStore = useHistory(workspace.storage)
+const { history, searchQuery, storageError, load:loadHistory, add:addHistory, exportJSON:exportHistory, filtered:filterHistory } = historyStore
+const commonStore = useCommonLinks(workspace.storage)
+const { links:commonLinks, storageError:commonStorageError, load:loadCommonLinks } = commonStore
 const cloud = useCloudSync(workspace)
-const {
-  cloudToken, cloudGistId, syncStatus, syncError, lastSyncTime, preferences, pending,
-  loadConfig, connect, disconnect, pushToGist, pullFromGist, scheduleAutoSync,
-  cleanup: cleanupSync, getLatestRecovery,
-} = cloud
-
-const commandPaletteOpen = ref(false)
+const { syncStatus, pending, loadConfig } = cloud
+const commonPanel = ref(null)
+const { copyText, copyToClipboard, cleanup:cleanupClipboard } = useClipboard()
 const qrShareUrl = ref('')
-const helpOpen = ref(false)
-const helpTrigger = ref(null)
 const url = ref('')
 const urlError = ref('')
-const activePanel = ref('create')
-const switchDirection = ref('forward')
-const TAB_ORDER = ['create', 'history', 'common']
-
-function prepareLeavingPanel(element) {
-  // 视觉上允许短暂重叠，但旧面板不能抢占焦点或被辅助技术当成有效页面。
-  element.inert = true
-  element.setAttribute('aria-hidden', 'true')
-}
-
-function activateEnteringPanel(element) {
-  // 连续快速切换时，Vue 可能复用中途退场的节点。
-  element.inert = false
-  element.removeAttribute('aria-hidden')
-}
-
-function switchPanel(panel) {
-  const nextIndex = TAB_ORDER.indexOf(panel)
-  const previousIndex = TAB_ORDER.indexOf(activePanel.value)
-  if (nextIndex < 0 || nextIndex === previousIndex) return
-  // 在 Vue 更改面板前同步设置方向，保证首次过渡也沿正确方向滑入。
-  switchDirection.value = nextIndex > previousIndex ? 'forward' : 'backward'
-  activePanel.value = panel
-}
-
-function handleTabNavigation(event) {
-  const tab = event.target instanceof Element ? event.target.closest('[role="tab"]') : null
-  if (!tab || !event.currentTarget.contains(tab)) return
-  if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return
-
-  const activeIndex = TAB_ORDER.indexOf(activePanel.value)
-  let nextIndex
-  switch (event.key) {
-    case 'ArrowRight':
-      nextIndex = (activeIndex + 1) % TAB_ORDER.length
-      break
-    case 'ArrowLeft':
-      nextIndex = (activeIndex + TAB_ORDER.length - 1) % TAB_ORDER.length
-      break
-    case 'Home':
-      nextIndex = 0
-      break
-    case 'End':
-      nextIndex = TAB_ORDER.length - 1
-      break
-    default:
-      return
-  }
-
-  event.preventDefault()
-  const next = TAB_ORDER[nextIndex]
-  switchPanel(next)
-  nextTick(() => document.getElementById(`${next}-tab`)?.focus())
-}
-const showSettings = ref(false)
-let syncTrigger = null
-function openSyncSettings() {
-  syncTrigger = document.activeElement
-  try { workspaceProfiles.value = listWorkspaces() } catch (error) { showToast(error.message || '无法读取工作区列表', 'error') }
-  showSettings.value = true
-}
-function switchWorkspace(id) {
-  if (id === workspace.id || syncPromise || ['connecting','syncing'].includes(syncStatus.value)) return
-  try {
-    if (!confirm('切换工作区？当前数据保留，仅重新加载当前标签页；切换后需重新输入 Token。')) return
-    if (!activateWorkspace(id)) return
-    cleanupSync()
-    window.location.reload()
-  } catch (error) { showToast(error.message, 'error', 4000) }
-}
-function addWorkspace(login) {
-  if (syncPromise || ['connecting','syncing'].includes(syncStatus.value)) return
-  try {
-    const id = createWorkspace(login)
-    workspaceProfiles.value = listWorkspaces()
-    switchWorkspace(id)
-  } catch (error) { showToast(error.message, 'error', 4000) }
-}
-function closeSyncSettings() { showSettings.value = false; clearWorkspacePreview(); nextTick(() => syncTrigger?.isConnected && syncTrigger.focus()) }
 const showCloseMsg = ref(false)
-const redirectPolicy = ref(null)
-const redirectAttempted = ref(false)
-let autoRedirectTimer = null
 const origin = getAppBaseUrl()
 
 const toast = ref({ message: '', type: 'info', duration: 2500, key: 0 })
@@ -420,91 +297,6 @@ function notifyStorageError() {
   showToast(storageError.value, 'error', 4000)
 }
 
-function changeUrl(inputUrl) {
-  cancelAutoRedirect()
-  const policy = getTargetOpenPolicy(inputUrl)
-  redirectPolicy.value = null
-  redirectAttempted.value = false
-  showCloseMsg.value = false
-
-  if (!policy.ok) {
-    urlError.value = policy.error
-    showToast(policy.error, 'error', 4000)
-    return
-  }
-
-  // 未知应用协议在明确确认前不导航，也不写入历史。
-  if (policy.needsConfirmation) {
-    redirectPolicy.value = policy
-    showCloseMsg.value = true
-    return
-  }
-
-  redirectPolicy.value = policy
-  showCloseMsg.value = true
-  if (policy.protocol === 'http:' || policy.protocol === 'https:') {
-    attemptRedirect()
-  } else {
-    // 外部协议可能中断首屏 load；先让回退面板完成渲染，再自动尝试。
-    // 若页面资源迟迟未完成，短超时保证不会永久等待。
-    if (document.readyState === 'complete') {
-      scheduleAutoRedirect()
-    } else {
-      window.addEventListener('load', scheduleAutoRedirect, { once: true })
-      autoRedirectTimer = window.setTimeout(attemptRedirect, 1200)
-    }
-  }
-}
-
-function cancelAutoRedirect() {
-  window.removeEventListener('load', scheduleAutoRedirect)
-  if (autoRedirectTimer !== null) window.clearTimeout(autoRedirectTimer)
-  autoRedirectTimer = null
-}
-
-function scheduleAutoRedirect() {
-  cancelAutoRedirect()
-  autoRedirectTimer = window.setTimeout(attemptRedirect, 0)
-}
-
-function attemptRedirect() {
-  cancelAutoRedirect()
-  const policy = redirectPolicy.value
-  if (!policy?.ok) return
-
-  // 手动点击时保持同步导航，不能在用户操作与 Scheme 调用之间等待网络。
-  if (!redirectAttempted.value) {
-    const saved = addHistory(policy.target)
-    if (!saved) notifyStorageError()
-    autoSync()
-  }
-  redirectAttempted.value = true
-  try {
-    window.location.replace(policy.target)
-  } catch {
-    showToast('无法打开此链接，请确认浏览器与目标应用支持该协议', 'error', 4000)
-  }
-  // 外部应用是否真正启动无法可靠检测；始终保留手动重试及复制入口。
-}
-
-function readShareHash() {
-  cancelAutoRedirect()
-  const target = decodeShareTarget(window.location.hash)
-  if (target) {
-    changeUrl(target)
-  } else {
-    showCloseMsg.value = false
-    redirectPolicy.value = null
-    redirectAttempted.value = false
-  }
-}
-
-function cancelClose() {
-  // 不依赖配置的公开域名，避免预览站点上的跨域 replaceState 异常。
-  window.history.replaceState(null, '', window.location.pathname + window.location.search)
-  readShareHash()
-}
-
 function gotoUrl(fullUrl) {
   if (!fullUrl) return
   navigator.clipboard.writeText(fullUrl).catch(() => {})
@@ -520,57 +312,6 @@ function toHistoryUrl(scheme) {
 
   navigator.clipboard.writeText(encodeShareLink(origin, normalized.target)).catch(() => {})
   window.open(normalized.target, '_blank', 'noopener,noreferrer')
-}
-
-function deleteHistoryItem(scheme) {
-  if (!removeHistory(scheme)) {
-    notifyStorageError()
-    return
-  }
-  autoSync()
-  showToast('已删除记录', 'info')
-}
-
-function invalidHistory() {
-  if (!confirm('确定清空所有历史记录？此操作不可撤销。')) return
-  if (!clearHistory()) {
-    notifyStorageError()
-    return
-  }
-  autoSync()
-  showToast('历史记录已清空', 'info')
-}
-
-function onImportFile(event) {
-  const file = event.target.files?.[0]
-  event.target.value = ''
-  if (!file) return
-
-  if (file.size > MAX_IMPORT_SIZE) {
-    showToast('导入失败：文件不能超过 2 MB', 'error')
-    return
-  }
-
-  const reader = new FileReader()
-  reader.onload = (loadEvent) => {
-    try {
-      const imported = JSON.parse(String(loadEvent.target?.result ?? ''))
-      const summary = inspectImport(imported)
-      if (summary.valid === 0) throw new Error('文件中没有有效记录')
-
-      const invalidHint = summary.invalid ? `，忽略 ${summary.invalid} 条无效记录` : ''
-      if (!confirm(`将合并 ${summary.valid} 条有效记录${invalidHint}，是否继续？`)) return
-
-      const added = mergeImportHistory(imported)
-      notifyStorageError()
-      autoSync()
-      showToast(`导入完成，新增 ${added} 条记录`, 'success')
-    } catch (error) {
-      showToast(`导入失败：${error.message || '文件格式不正确'}`, 'error', 4000)
-    }
-  }
-  reader.onerror = () => showToast('导入失败：无法读取文件', 'error')
-  reader.readAsText(file)
 }
 
 function openQrShare(shareUrl) {
@@ -595,464 +336,25 @@ function copy() {
   })
 }
 
-function reorderCommonLink(id, targetId, position) {
-  if (reorderCommonLinkStore(id,targetId,position)) showToast('链接顺序已保存','success')
-  else if (commonStorageError.value) showToast(commonStorageError.value,'error',4000)
-}
-
-function renameCommonTag(previous,next) {
-  try {
-    if (renameCommonTagStore(previous,next)) {
-      commonPanel.value?.finishTagEdit(next)
-      showToast(next ? '标签已更新' : '标签已移除','success')
-    } else if (commonStorageError.value) {
-      commonPanel.value?.showTagError(commonStorageError.value)
-    }
-  } catch (error) { commonPanel.value?.showTagError(error.message || '标签无效') }
-}
-
-function pinCommonLink(id) {
-  if (pinCommonLinkStore(id)) {
-    showToast('常用链接已置顶', 'success')
-  } else if (commonStorageError.value) {
-    showToast(commonStorageError.value, 'error', 4000)
-  }
-}
-
-function moveCommonLink(id, offset) {
-  if (moveCommonLinkStore(id, offset)) {
-    showToast('链接顺序已保存', 'success')
-  } else if (commonStorageError.value) {
-    showToast(commonStorageError.value, 'error', 4000)
-  }
-}
-
-function exportCommonLinks() {
-  try {
-    const blob = new Blob([exportCommonJSON()], { type: 'application/json;charset=utf-8' })
-    const href = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = href
-    link.download = 's2u-common-links-' + new Date().toISOString().slice(0, 10) + '.json'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(href), 1000)
-    showToast('常用链接备份已导出', 'success')
-  } catch {
-    showToast('导出常用链接失败', 'error', 4000)
-  }
-}
-
-async function importCommonLinks(file) {
-  if (file.size > 2 * 1024 * 1024) {
-    showToast('导入文件不能超过 2 MB', 'error', 4000)
-    return
-  }
-  try {
-    const imported = JSON.parse(await file.text())
-    const summary = inspectCommonImport(imported)
-    if (!summary.added) {
-      showToast('备份中的链接已全部存在，无需重复导入')
-      return
-    }
-    if (!confirm(`备份包含 ${summary.count} 条，预计新增 ${summary.added} 条，跳过重复 ${summary.duplicates} 条。确认追加导入？`)) return
-    const added = importCommonJSON(imported)
-    if (added < 0) {
-      showToast(commonStorageError.value, 'error', 4000)
-      return
-    }
-    showToast(`已导入 ${added} 条常用链接`, 'success')
-  } catch (error) {
-    showToast(error?.message || '备份导入失败', 'error', 4000)
-  }
-}
-
-async function copyCommonRaw(target) {
-  const normalized = normalizeTarget(target)
-  if (!normalized.ok) {
-    showToast(normalized.error, 'error', 4000)
-    return
-  }
-  try {
-    await navigator.clipboard.writeText(normalized.target)
-    showToast('原始链接已复制', 'success')
-  } catch {
-    showToast('复制原始链接失败，请检查剪贴板权限', 'error', 4000)
-  }
-}
-
-function openCommonLink(target) {
-  // 用户点击时直接导航到经过统一校验的原始地址，而非 s2u 分享 URL。
-  // 保持同步调用，以保留浏览器启动自定义应用 Scheme 所需的用户操作上下文。
-  const normalized = normalizeTarget(target)
-  if (!normalized.ok) {
-    showToast(normalized.error, 'error', 4000)
-    return
-  }
-  try {
-    window.location.assign(normalized.target)
-  } catch {
-    showToast('无法打开此链接，请确认目标应用或浏览器支持该协议', 'error', 4000)
-  }
-}
-
-function saveHistoryBookmark(item) {
-  // 使用同一收藏校验及工作区存储入口，不增加历史使用次数或触发外部跳转。
-  const persisted=persistCommonLink(item)
-  if(persisted)showToast('已添加到常用链接','success')
-  else if(commonStorageError.value)throw new Error(commonStorageError.value)
-  return persisted
-}
-
-function saveCommonLink(item) {
-  try {
-    const persisted = persistCommonLink(item)
-    if (persisted) {
-      commonPanel.value?.cancelEdit()
-      showToast('常用链接已保存', 'success')
-    } else {
-      showToast(commonStorageError.value, 'error', 4000)
-    }
-  } catch (error) {
-    commonPanel.value?.showError(error.message || '链接无效')
-  }
-}
-
-function removeCommonLink(id) {
-  if (deleteCommonLink(id)) showToast('常用链接已删除')
-  else if (commonStorageError.value) showToast(commonStorageError.value, 'error', 4000)
-}
-
-function resetCommonLinks() {
-  if (restoreCommonLinks()) showToast('已恢复默认应用', 'success')
-  else showToast(commonStorageError.value, 'error', 4000)
-}
-
-async function copyCommonLink(item) {
-  const normalized = normalizeTarget(item.target)
-  if (!normalized.ok) {
-    showToast(normalized.error, 'error', 4000)
-    return
-  }
-  try {
-    const shareLink = encodeShareLink(origin, normalized.target)
-    await navigator.clipboard.writeText(shareLink)
-    const saved = addHistory(normalized.target)
-    if (!saved) notifyStorageError()
-    autoSync()
-    showToast('已复制 ' + item.name + ' 的分享链接', 'success')
-  } catch {
-    showToast('复制失败，请检查浏览器剪贴板权限', 'error', 4000)
-  }
-}
-
-function autoSync() {
-  if (!showCloseMsg.value) scheduleAutoSync(() => syncGist({ silent: true }))
-}
-
-let syncPromise = null
-let syncRequested = false
-let activeContext = null
-let applyingRemote = false
-const workspacePreview = ref(null)
-let workspaceIncoming = null
-let previewGeneration = 0
-function clearWorkspacePreview() { previewGeneration++; workspaceIncoming = null; workspacePreview.value = null }
-function currentWorkspace() {
-  return makeWorkspaceBackup({ history: historySnapshot(), commonLinks: commonSyncSnapshot(true), darkMode: darkMode.value })
-}
-function downloadWorkspace(data, name) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'})
-  if (blob.size > MAX_WORKSPACE_BACKUP_BYTES) throw new Error('备份超过 8 MiB，请分别导出历史与收藏')
-  const href = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = href; link.download = name
-  document.body.appendChild(link); link.click(); link.remove()
-  setTimeout(() => URL.revokeObjectURL(href), 1000)
-}
-function exportWorkspace() {
-  try {
-    if (storageError.value || commonStorageError.value) throw new Error('本机存在存储异常，请先处理再导出')
-    downloadWorkspace(currentWorkspace(), 's2u-workspace-backup.json')
-  } catch (error) { showToast(error.message, 'error') }
-}
-function exportBeforeConflict() {
-  try {
-    const raw = workspace.storage.getItem('s2u_workspace_before_conflict_v1')
-    if (!raw) { showToast('暂无冲突处理前快照', 'info'); return }
-    downloadWorkspace(JSON.parse(raw), 's2u-before-conflict.json')
-  } catch (error) { showToast(error.message, 'error') }
-}
-function exportBeforeRestore() {
-  try {
-    const raw = workspace.storage.getItem(RECOVERY_KEY)
-    if (!raw) { showToast('暂无恢复前快照', 'info'); return }
-    downloadWorkspace(JSON.parse(raw), 's2u-before-restore.json')
-  } catch (error) { showToast(error.message, 'error') }
-}
-async function previewWorkspace(file) {
-  clearWorkspacePreview()
-  const generation = previewGeneration
-  try {
-    if (!file || file.size > MAX_WORKSPACE_BACKUP_BYTES) throw new Error('请选择不超过 8 MiB 的 JSON 备份')
-    const raw = await file.text()
-    if (generation !== previewGeneration || !showSettings.value) return
-    const incoming = parseWorkspaceBackup(raw, {inspectHistory:inspectImport, validateCommon:validateCommonSync})
-    const plan = planWorkspaceRestore(currentWorkspace(), incoming, validateCommonSync)
-    workspaceIncoming = incoming
-    workspacePreview.value = { ...plan.summary, name:file.name }
-  } catch (error) {
-    if (generation === previewGeneration) workspacePreview.value = {error:error.message}
-  }
-}
-function restoreWorkspace({ theme = false } = {}) {
-  if (!workspaceIncoming || syncPromise || ['connecting','syncing'].includes(syncStatus.value)) return
-  if (storageError.value || commonStorageError.value) { workspacePreview.value = {error:'本机存在存储异常，已停止恢复'}; return }
-  try {
-    const before = currentWorkspace()
-    const plan = planWorkspaceRestore(before, workspaceIncoming, validateCommonSync)
-    if (!confirm('合并 ' + plan.summary.history + ' 条历史、' + plan.summary.tombstones + ' 个删除标记，新增 ' + plan.summary.added + ' 条收藏？已有同地址收藏保持不变，历史删除标记仍有效。恢复前保存快照，并暂停自动同步。')) return
-    cloud.setPreferences({auto:false})
-    applyingRemote = true
-    try {
-      runWorkspaceRestore(workspace.storage, [HISTORY_STORAGE_KEY, COMMON_LINKS_STORAGE_KEY, DARK_MODE_STORAGE_KEY], before, () => {
-        mergeHistory(plan.history)
-        if (plan.commonLinks) applyCommonSync(plan.commonLinks, true)
-        if (theme && plan.settings) {
-          workspace.storage.setItem(DARK_MODE_STORAGE_KEY, JSON.stringify(plan.settings.darkMode))
-          darkMode.value = plan.settings.darkMode
-        }
-      }, () => { loadHistory(); loadCommonLinks(); darkMode.value = before.settings.darkMode })
-    } finally { applyingRemote = false }
-    cloud.markPending()
-    clearWorkspacePreview()
-    showToast('工作区已合并恢复，自动同步已暂停', 'success', 4000)
-  } catch (error) {
-    cloud.markPending()
-    workspacePreview.value = {error:error.message}
-  }
-}
-
-function validateSettings(value) {
-  if (value?.version !== 1 || typeof value.darkMode !== 'boolean') throw new Error('云端主题格式错误')
-  return { version: 1, darkMode: value.darkMode }
-}
-watch(commonLinks, () => { if (!applyingRemote && preferences.value.common) autoSync() }, { deep: true, flush: 'sync' })
-watch(darkMode, () => { if (!applyingRemote && preferences.value.theme) autoSync() }, { flush: 'sync' })
-
-function syncGist({ silent = false, resolve = [] } = {}) {
-  if (!cloudToken.value || !cloudGistId.value || showCloseMsg.value || syncStatus.value === 'connecting') return Promise.resolve(false)
-  const ctx = cloud.context()
-  if (syncPromise && activeContext && cloud.isCurrent(activeContext)) {
-    if (Array.isArray(resolve) && resolve.length) return Promise.resolve(false)
-    syncRequested = true
-    return syncPromise
-  }
-  activeContext = ctx
-  cloud.markPending()
-  const task = (async () => {
-    do {
-      syncRequested = false
-      cloud.beginConflictCheck()
-      const remote = await pullFromGist()
-      if (!cloud.isCurrent(ctx) || remote === null) return false
-      const summary = inspectImport(remote)
-      if (summary.invalid || (Array.isArray(remote?.tombstones) && summary.tombstones !== remote.tombstones.length)) throw new Error('云端历史包含无效记录或删除标记，已停止同步')
-      const extras = {}
-      const prefs = { ...preferences.value }
-      if (prefs.common) {
-        const validate = data => {
-          const value = validateCommonSync(data)
-          if (!prefs.icons && value.items.some(item => item.icon)) throw new Error('云端收藏包含图标，请开启图标同步或关闭收藏同步；不会覆盖云端图标')
-          return value
-        }
-        extras[COMMON_FILE] = cloud.prepareOptional(COMMON_FILE, commonSyncSnapshot(prefs.icons), validate, resolve)
-      }
-      if (prefs.theme) extras[SETTINGS_FILE] = cloud.prepareOptional(SETTINGS_FILE, { version: 1, darkMode: darkMode.value }, validateSettings, resolve)
-      if (!cloud.isCurrent(ctx)) return false
-      cloud.assertConflictsResolved(resolve)
-      // 只在所有冲突均有有效选择且当前连接仍有效时才应用本地修改。
-      if (Array.isArray(resolve) && resolve.length) {
-        workspace.storage.setItem('s2u_workspace_before_conflict_v1', JSON.stringify(currentWorkspace()))
-      }
-      applyingRemote = true
-      try {
-        mergeHistory(remote)
-        if (extras[COMMON_FILE]) applyCommonSync(extras[COMMON_FILE], prefs.icons)
-        if (extras[SETTINGS_FILE]) darkMode.value = extras[SETTINGS_FILE].darkMode
-      } finally { applyingRemote = false }
-      notifyStorageError()
-      if (!await pushToGist(historySnapshot(), extras)) return false
-      cloud.clearConflicts()
-      resolve = []
-    } while (syncRequested && cloud.isCurrent(ctx))
-    if (!silent) showToast('云端同步完成', 'success')
-    return true
-  })().catch(error => {
-    if (cloud.isCurrent(ctx)) { syncStatus.value = 'error'; syncError.value = error.message || '同步失败' }
-    return false
-  })
-  const wrapped = task.finally(() => {
-    if (syncPromise === wrapped) { syncPromise = null; activeContext = null; syncRequested = false }
-  })
-  syncPromise = wrapped
-  return wrapped
-}
-
-async function connectGist(options) {
-  try {
-    await connect(historySnapshot(), { ...options, validate: data => {
-      const summary = inspectImport(data)
-      if (summary.invalid || (Array.isArray(data?.tombstones) && summary.tombstones !== data.tombstones.length)) throw new Error('Gist 包含无效历史记录或删除标记')
-    } })
-    if (await syncGist({ silent: true })) showToast('已连接 GitHub Gist', 'success')
-  } catch { /* 连接错误由 composable 维护 */ }
-}
-
-async function testGistConnection() {
-  try {
-    const payload = await cloud.testConnection()
-    const summary = inspectImport(payload)
-    if (summary.invalid || (Array.isArray(payload?.tombstones) && summary.tombstones !== payload.tombstones.length)) throw new Error('历史文件包含无效数据')
-    showToast('读取验证通过，写入权限须实际同步确认', 'success')
-  } catch (error) { syncError.value = error.message || '连接检查失败' }
-}
-
-async function restoreGistRecovery({ index, version }) {
-  const ctx = cloud.context()
-  if (['connecting','syncing'].includes(syncStatus.value)) return
-  try {
-    const snapshot = version ? await cloud.readRevision(version) : getLatestRecovery(index)
-    if (!cloud.isCurrent(ctx) || !snapshot) return
-    const summary = inspectImport(snapshot)
-    if (summary.invalid || (Array.isArray(snapshot?.tombstones) && summary.tombstones !== snapshot.tombstones.length)) throw new Error('备份包含无效记录或删除标记')
-    if (!confirm('备份包含 ' + summary.valid + ' 条记录及 ' + summary.tombstones + ' 个删除标记。将合并到本机历史，是否继续？')) return
-    if (!cloud.isCurrent(ctx) || ['connecting','syncing'].includes(syncStatus.value)) throw new Error('连接已变化，请重新选择备份')
-    workspace.storage.setItem('s2u_history_before_recovery', JSON.stringify(historySnapshot()))
-    mergeHistory(snapshot)
-    cloud.markPending()
-    showToast('已合并恢复至本机，确认后可手动同步', 'success')
-  } catch (error) { if (cloud.isCurrent(ctx)) { syncError.value = error.message; syncStatus.value = 'error' } }
-}
-
-function exportGistBundle(index) {
-  try {
-    const backup = cloud.getBackupBundle(index)
-    if (!backup) return
-    const href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }))
-    const link = document.createElement('a')
-    link.href = href
-    link.download = 's2u-gist-workspace-backup.json'
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(href), 1000)
-  } catch (error) { showToast(error.message || '导出备份失败', 'error', 4000) }
-}
-
-function exportGistRecovery(index = -1) {
-  try {
-    const snapshot = getLatestRecovery(index)
-    if (!snapshot) {
-      showToast('目前没有同步前备份，首次成功推送后会自动保留', 'info', 4000)
-      return
-    }
-    // 导出标准 s2u-history JSON，可用历史记录“导入”功能尝试恢复。
-    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' })
-    const href = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = href
-    link.download = 's2u-gist-backup-' + new Date().toISOString().slice(0, 10) + '.json'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(href), 1000)
-    showToast('同步前备份已导出，请妥善保管历史数据', 'success')
-  } catch (error) {
-    showToast(error?.message || '无法导出同步备份', 'error', 4000)
-  }
-}
-
-function disconnectGist() {
-  disconnect()
-  syncPromise = null; activeContext = null; syncRequested = false
-  showToast('已断开 GitHub Gist', 'info')
-}
-
-function closeHelp() {
-  helpOpen.value = false
-  nextTick(() => helpTrigger.value?.focus())
-}
-
-function handleKeydown(event) {
-  if (event.isComposing) return
-  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
-    event.preventDefault()
-    if (!document.querySelector('dialog[open]')) commandPaletteOpen.value = true
-    return
-  }
-  // 原生 modal dialog 的键盘交互优先于页面快捷键，Esc 由浏览器关闭弹窗。
-  if (document.querySelector('dialog[open]')) return
-
-  const target = event.target
-  const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
-  const isContentEditable = target instanceof HTMLElement && target.isContentEditable
-
-  if (event.key === '?' && !isInput && !isContentEditable && !event.ctrlKey && !event.metaKey && !event.altKey) {
-    event.preventDefault()
-    helpOpen.value = true
-    return
-  }
-
-  if (activePanel.value === 'create' && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-    event.preventDefault()
-    copy()
-    return
-  }
-
-  if (event.key === 'Escape' && isInput && activePanel.value === 'create') {
-    url.value = ''
-    urlError.value = ''
-    return
-  }
-
-  if (
-    event.key.toLowerCase() === 'h' &&
-    !event.metaKey &&
-    !event.ctrlKey &&
-    !event.altKey &&
-    !isInput &&
-    !isContentEditable
-  ) {
-    event.preventDefault()
-    switchPanel(activePanel.value === 'history' ? 'create' : 'history')
-  }
-}
-
-let initialSyncIdle = null
-let initialSyncFallback = null
-function onSyncFocus(event) {
-  const transientError = /超时|请求失败（5\\d\\d）|fetch|network/i.test(syncError.value)
-  const retryOnline = event?.type === 'online' && syncStatus.value === 'error' && transientError
-  if (!showCloseMsg.value && cloudToken.value && preferences.value.auto &&
-      !['connecting','syncing'].includes(syncStatus.value) && (syncStatus.value !== 'error' || retryOnline) &&
-      (pending.value || Date.now() - (lastSyncTime.value || 0) > 60000)) {
-    syncGist({ silent: true })
-  }
-}
-function scheduleInitialSync() {
-  if (!preferences.value.auto) return
-  if ('requestIdleCallback' in window) {
-    initialSyncIdle = window.requestIdleCallback(() => {
-      initialSyncIdle = null
-      if (preferences.value.auto) syncGist({ silent: true }).catch(() => {})
-    }, { timeout: 2000 })
-  } else {
-    initialSyncFallback = window.setTimeout(() => {
-      initialSyncFallback = null
-      if (preferences.value.auto) syncGist({ silent: true }).catch(() => {})
-    }, 800)
-  }
-}
+// 视图仅装配各业务模块；依赖显式注入，复用已有 store，不创建第二套数据。
+const {
+  workspaceProfiles, showSettings, openSyncSettings, closeSyncSettings, switchWorkspace, addWorkspace,
+  autoSync, workspacePreview, clearWorkspacePreview, exportWorkspace, exportBeforeConflict, exportBeforeRestore,
+  previewWorkspace, restoreWorkspace, syncGist, connectGist, testGistConnection, restoreGistRecovery,
+  exportGistBundle, exportGistRecovery, disconnectGist, scheduleInitialSync, startSyncLifecycle, stopSyncLifecycle,
+} = useWorkspaceSync({workspace, cloud, historyStore, commonStore, darkMode, showCloseMsg, showToast, notifyStorageError})
+const {
+  redirectPolicy, redirectAttempted, attemptRedirect, readShareHash, cancelClose, startRedirectLifecycle, stopRedirectLifecycle,
+} = useShareRedirect({showCloseMsg, urlError, addHistory, autoSync, showToast, notifyStorageError})
+const {
+  reorderCommonLink, renameCommonTag, pinCommonLink, moveCommonLink, exportCommonLinks, importCommonLinks,
+  copyCommonRaw, openCommonLink, saveHistoryBookmark, saveCommonLink, removeCommonLink, resetCommonLinks, copyCommonLink,
+} = useBookmarkActions({commonStore, commonPanel, origin, addHistory, autoSync, notifyStorageError, showToast})
+const { deleteHistoryItem, invalidHistory, onImportFile } = useHistoryActions({historyStore, showToast, notifyStorageError, autoSync})
+const {
+  commandPaletteOpen, helpOpen, helpTrigger, activePanel, switchDirection, prepareLeavingPanel, activateEnteringPanel,
+  switchPanel, handleTabNavigation, closeHelp, handleKeydown,
+} = useWorkspaceNavigation({url, urlError, copy})
 
 onMounted(() => {
   loadHistory()
@@ -1068,9 +370,8 @@ onMounted(() => {
 
   const hasSavedConfig = loadConfig()
   if (workspace.unavailable) showToast('无法读取工作区，请检查浏览器存储权限', 'error', 5000)
-  window.addEventListener('hashchange', readShareHash)
-  window.addEventListener('online', onSyncFocus)
-  window.addEventListener('focus', onSyncFocus)
+  startRedirectLifecycle()
+  startSyncLifecycle()
   if (window.location.hash) {
     // 分享链接转发优先；无需与初始云同步竞争网络资源。
     readShareHash()
@@ -1081,14 +382,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (initialSyncIdle !== null) window.cancelIdleCallback(initialSyncIdle)
-  if (initialSyncFallback !== null) window.clearTimeout(initialSyncFallback)
-  window.removeEventListener('hashchange', readShareHash)
-  window.removeEventListener('online', onSyncFocus)
-  window.removeEventListener('focus', onSyncFocus)
-  cancelAutoRedirect()
+  stopRedirectLifecycle()
   cleanupClipboard()
-  cleanupSync()
+  stopSyncLifecycle()
 })
 </script>
 
