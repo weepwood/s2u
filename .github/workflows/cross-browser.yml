@@ -2,7 +2,7 @@ name: Cross-browser UI acceptance
 on:
   push:
     branches: [master]
-    paths: ['package.json']
+    paths: ['package.json', '.github/workflows/release-v2.yml']
   pull_request:
     branches: [master]
     paths:
@@ -12,6 +12,7 @@ on:
       - 'index.html'
       - 'package*.json'
       - '.github/workflows/cross-browser.yml'
+      - '.github/workflows/release-v2.yml'
   workflow_dispatch:
 permissions:
   contents: read

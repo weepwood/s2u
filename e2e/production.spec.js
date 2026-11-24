@@ -1,17 +1,32 @@
 import { test, expect } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 
 test('线上实际构建、三页交互与链接历史回归',async({page,context},testInfo)=>{
+  test.setTimeout(120000)
   await context.grantPermissions(['clipboard-read','clipboard-write'])
   const expectedHtml=await readFile('dist/index.html','utf8')
   const assetPattern=/\/s2u\/assets\/[^"'\s<>]+\.(?:js|css)/g
   const expected=[...new Set(expectedHtml.match(assetPattern)||[])].sort()
   expect(expected.some(x=>x.endsWith('.js'))).toBe(true)
+  // CDN may briefly serve the previous deployment. Wait for the exact artifact,
+  // never accept a different entry hash as a successful release.
+  await expect.poll(async()=>{
+    const response=await page.request.get('./',{headers:{'Cache-Control':'no-cache'}})
+    if(!response.ok())return []
+    return [...new Set((await response.text()).match(assetPattern)||[])].sort()
+  },{timeout:60000,intervals:[1000,2000,5000]}).toEqual(expected)
   const response=await page.goto('./',{waitUntil:'domcontentloaded'})
   expect(response.status()).toBe(200)
-  const actual=[...new Set((await response.text()).match(assetPattern)||[])].sort()
-  expect(actual).toEqual(expected)
-  for(const asset of actual)expect((await page.request.get(new URL(asset,page.url()).href)).ok()).toBe(true)
+  expect(await response.text()).toBe(expectedHtml)
+  const publicFiles=['favicon.svg',...(await readdir('dist/assets')).map(name=>'assets/'+name),...(await readdir('dist/icons')).map(name=>'icons/'+name)]
+  const hash=buffer=>createHash('sha256').update(buffer).digest('hex')
+  for(const file of publicFiles){
+    const asset=await page.request.get(new URL(file,page.url()).href)
+    expect(asset.ok(),file).toBe(true)
+    expect(hash(await asset.body()),file).toBe(hash(await readFile('dist/'+file)))
+  }
+  console.log('S2U_PRODUCTION_ARTIFACT_VERIFIED '+JSON.stringify({index:true,publicFiles:publicFiles.length,entries:expected}))
   const target='https://example.com/release-v2?q=100%25#check'
   const input=page.locator('#url')
   await expect(input).toBeVisible()
