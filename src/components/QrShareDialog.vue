@@ -23,6 +23,7 @@
 <script setup>
 import { ref } from 'vue'
 import BaseDialog from './ui/BaseDialog.vue'
+import { writeClipboardText } from '../composables/useClipboard.js'
 
 const props = defineProps({ shareUrl: { type: String, required: true } })
 const emit = defineEmits(['close'])
@@ -77,7 +78,7 @@ function download() {
 
 async function copy() {
   try {
-    await navigator.clipboard.writeText(props.shareUrl)
+    await writeClipboardText(props.shareUrl)
     message.value = '分享链接已复制'
   } catch {
     message.value = '复制失败，请手动选中链接'
