@@ -999,3 +999,42 @@ test('分享结果使用轻量内嵌链接行，浅深主题与 320px 窄屏保�
   await card.getByRole('button', { name: '生成分享二维码' }).click()
   await expect(page.getByRole('dialog', { name: '分享二维码' })).toBeVisible()
 })
+
+
+test('三个页面共享输入尺寸和工具栏基线，窄屏仍可操作', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
+  await page.setViewportSize({ width: 1280, height: 840 })
+  await page.goto('/')
+  const measures = async () => {
+    const values = []
+    for (const name of ['创建链接', '历史记录', '常用链接']) {
+      await page.getByRole('tab', { name: new RegExp(name) }).click()
+      const field = page.locator('.panel-stack:not([aria-hidden="true"]) .control-field')
+      await expect(field).toBeVisible()
+      await expect(field).toHaveCSS('height', '54px')
+      await expect(field).toHaveCSS('border-radius', '12px')
+      await expect(field.locator('.control-field__icon svg')).toHaveCSS('width', '18px')
+      const box = await field.boundingBox()
+      values.push(box)
+    }
+    for (const value of values.slice(1)) {
+      expect(Math.abs(value.x - values[0].x)).toBeLessThan(2)
+      expect(Math.abs(value.y - values[0].y)).toBeLessThan(2)
+      expect(Math.abs(value.width - values[0].width)).toBeLessThan(2)
+    }
+  }
+  await measures()
+  await page.getByRole('button', { name: '切换到深色模式' }).click()
+  await measures()
+  const commonSearch = page.getByRole('searchbox', { name: '搜索常用链接' })
+  await commonSearch.fill('missing-app')
+  await expect(page.getByText('没有匹配的链接')).toBeVisible()
+  await page.getByRole('button', { name: '清除筛选' }).click()
+  await expect(commonSearch).toHaveValue('')
+  await page.setViewportSize({ width: 320, height: 740 })
+  await measures()
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByRole('button', { name: '导入', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '导出', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '云端同步' })).toBeVisible()
+})

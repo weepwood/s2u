@@ -7,13 +7,13 @@
       @update:search-query="$emit('update:searchQuery', $event)"
       @select="$emit('select', $event)"
       @delete="$emit('delete', $event)"
+      @export="$emit('export')"
+      @import-file="$emit('importFile', $event)"
     />
     <HistoryFooter
       :show-settings="showSettings"
       @clear="$emit('clear')"
-      @export="$emit('export')"
       @toggle-settings="$emit('toggleSettings')"
-      @import-file="$emit('importFile', $event)"
     />
     <SettingsPanel
       v-if="showSettings"

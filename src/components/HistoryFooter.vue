@@ -1,18 +1,6 @@
 <template>
   <footer class="history-footer">
     <div class="footer-actions" aria-label="历史记录操作">
-      <button type="button" @click="$emit('export')">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        导出
-      </button>
-      <button type="button" @click="triggerImport">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 15V3m0 0 4 4m-4-4L8 7M5 19h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        导入
-      </button>
       <button
         type="button"
         :class="{ active: showSettings }"
@@ -31,33 +19,23 @@
         </svg>
         清空
       </button>
-      <input ref="importInput" type="file" accept=".json,application/json" class="sr-only" @change="$emit('importFile', $event)" />
     </div>
 
     <p>
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M7 10V8a5 5 0 0 1 10 0v2m-9 0h8a2 2 0 0 1 2 2v7H6v-7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
       </svg>
-      记录默认保存在本机浏览器。
-      <a href="https://github.com/weepwood/s2u" target="_blank" rel="noopener">查看源代码</a>
+      默认本机保存，云端同步可选。
     </p>
   </footer>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
 defineProps({
   showSettings: { type: Boolean, default: false },
 })
 
-defineEmits(['clear', 'export', 'toggleSettings', 'importFile'])
-
-const importInput = ref(null)
-
-function triggerImport() {
-  importInput.value?.click()
-}
+defineEmits(['clear', 'toggleSettings'])
 </script>
 
 <style scoped>
@@ -130,27 +108,6 @@ function triggerImport() {
   width: 14px;
   height: 14px;
   color: var(--success);
-}
-
-.history-footer a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.history-footer a:hover {
-  text-decoration: underline;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 @media (max-width: 560px) {

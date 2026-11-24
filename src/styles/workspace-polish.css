@@ -1,33 +1,13 @@
 /* 组件间视觉一致性：只保留跨组件规则，不再覆盖主题和外壳布局。 */
-.app-shell .url-input-panel { gap: 25px; }
-.app-shell .url-input-panel .section-heading h2,
-.app-shell .history-panel .section-heading h2,
-.app-shell .common-panel .common-heading h2 { letter-spacing: -0.025em; font-weight: 680; line-height: 1.35; }
-.app-shell .url-input-panel .section-heading h2 { font-size: 23px; }
 .app-shell .url-input-panel .privacy-badge {
   background: color-mix(in srgb, var(--success) 9%, var(--card-bg-solid));
   border-color: color-mix(in srgb, var(--success) 22%, var(--hairline));
   color: var(--card-text-soft);
   min-height: 33px;
 }
-.app-shell .url-input-panel .field-group { gap: 10px; }
-.app-shell .url-input-panel .field-group > label {
-  font-size: 13px; font-weight: 650; color: var(--card-text-soft);
-}
-.app-shell .url-input-panel .input-wrap {
-  height: 54px; border-radius: var(--radius-control);
-  border-color: var(--hairline-strong);
-  box-shadow: inset 0 1px 2px rgba(26, 40, 77, 0.025);
-}
-.app-shell .url-input-panel .input-wrap:hover:not(:focus-within):not(.error) { border-color: var(--hairline-strong); }
-.app-shell .url-input-panel .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.app-shell .url-input-panel .input-wrap.error { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent); }
 .app-shell .url-input-panel .copy-btn:disabled { box-shadow: none; }
-.app-shell .url-input-panel .text-input {
-  font-size: 13px; font-variant-ligatures: none;
-}
 .app-shell .url-input-panel .copy-btn {
-  height: 54px; min-width: 142px; border-radius: var(--radius-control);
+  height: var(--control-height); min-width: 0; border-radius: var(--radius-control);
   box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 17%, transparent);
 }
 .app-shell .url-input-panel .copy-btn:hover:not(:disabled) { box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 21%, transparent); }
@@ -81,8 +61,6 @@
   box-shadow: var(--shadow-sm);
 }
 .app-shell .common-panel .common-tags button { min-height: 31px; }
-.app-shell .common-panel .common-toolbar input:focus-visible,
-.app-shell .history-panel .search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .app-shell .history-panel .history-item { border-radius: 12px; }
 .app-shell .history-panel .history-item:hover { background: var(--surface-hover); }
 .app-shell .common-panel .add-button:focus-visible,
@@ -104,7 +82,6 @@
   .app-shell .recent-list { grid-template-columns: 1fr; }
 }
 @media (max-width: 420px) {
-  .app-shell .url-input-panel .section-heading h2 { font-size: 21px; }
   .app-shell .starter-links { gap: 7px; }
   .app-shell .starter-label { width: 100%; min-height: auto; }
 }
