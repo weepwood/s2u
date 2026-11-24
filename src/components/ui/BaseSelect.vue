@@ -1,5 +1,5 @@
 <template>
-  <button ref="trigger" type="button" class="ui-select" :class="{'ui-select--compact':compact}" role="combobox"
+  <button ref="trigger" v-bind="$attrs" type="button" class="ui-select" :class="{'ui-select--compact':compact}" role="combobox"
     aria-haspopup="listbox" :aria-expanded="open" :aria-controls="listId" :aria-activedescendant="open ? listId+'-'+active : undefined"
     :disabled="disabled" @click="toggle" @keydown="keys" @blur="close">
     <span>{{ options.find(o=>o.value===modelValue)?.label || '请选择' }}</span>
@@ -16,6 +16,7 @@
 </template>
 <script setup>
 import { ref, useId, nextTick, watch, onBeforeUnmount } from 'vue'
+defineOptions({inheritAttrs:false})
 const props=defineProps({modelValue:{type:[String,Number],default:''},options:{type:Array,required:true},disabled:Boolean,compact:Boolean})
 const emit=defineEmits(['update:modelValue','change'])
 const trigger=ref(null),menu=ref(null),host=ref(null),open=ref(false),active=ref(0),position=ref({})
@@ -50,7 +51,12 @@ function show(){
   window.addEventListener('resize',close)
   nextTick(reveal)
 }
-function reveal(){menu.value?.children[active.value]?.scrollIntoView({block:'nearest'})}
+function reveal(){
+  const el=menu.value,row=el?.children[active.value]
+  if(!row)return
+  if(row.offsetTop<el.scrollTop)el.scrollTop=row.offsetTop
+  else if(row.offsetTop+row.offsetHeight>el.scrollTop+el.clientHeight)el.scrollTop=row.offsetTop+row.offsetHeight-el.clientHeight
+}
 function toggle(){if(open.value)close();else show()}
 function choose(i){
   const option=props.options[i]

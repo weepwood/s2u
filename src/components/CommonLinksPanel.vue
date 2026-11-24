@@ -528,7 +528,7 @@ button { font: inherit; cursor: pointer; }
 .common-list-view .common-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 12px; }
 .common-list-view .card-buttons { grid-column:2; margin-top:0; }
 .common-list-view .card-buttons button { flex:none; }
-.common-list-view .card-main { grid-column:1; grid-row:1; }
+.common-list-view .card-main { grid-column:1; grid-row:1 / span 2; }
 .common-tag-manager { padding:9px 12px; border:1px solid var(--hairline); border-radius:var(--radius-control); background:var(--surface-soft); }
 .common-tag-manager summary { font-size:12px; color:var(--card-text-muted); cursor:pointer; }
 .common-tag-fields { display:grid; gap:9px; margin-top:10px; font-size:12px; }
