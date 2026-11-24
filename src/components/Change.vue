@@ -121,7 +121,7 @@
             @cancel="cancelClose"
           />
 
-          <HistoryWorkspace
+          <component :is="HistoryWorkspace"
             v-else-if="activePanel === 'history'"
             key="history"
             :history="history"
@@ -146,7 +146,7 @@
             role="tabpanel"
             aria-labelledby="common-tab"
           >
-            <CommonLinksPanel
+            <component :is="CommonLinksPanel"
               ref="commonPanel"
               :items="commonLinks"
               @save="saveCommonLink"
@@ -185,7 +185,7 @@
       </div>
     </section>
 
-    <SettingsPanel v-if="showSettings" :cloud="cloud" :workspace-preview="workspacePreview" :workspace="workspace.id" :profiles="workspaceProfiles" @close="closeSyncSettings"
+    <component :is="SettingsPanel" v-if="showSettings" :cloud="cloud" :workspace-preview="workspacePreview" :workspace="workspace.id" :profiles="workspaceProfiles" @close="closeSyncSettings"
       @switch-workspace="switchWorkspace" @create-workspace="addWorkspace"
       @export-workspace="exportWorkspace" @preview-workspace="previewWorkspace" @restore-workspace="restoreWorkspace"
       @cancel-workspace="clearWorkspacePreview" @export-before-restore="exportBeforeRestore" @export-before-conflict="exportBeforeConflict"
@@ -193,14 +193,15 @@
       @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" @test="testGistConnection" />
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
       @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
-    <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
-    <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
+    <component :is="QrShareDialog" v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
+    <component :is="ShortcutHelp" v-if="helpOpen" @close="closeHelp" />
     <Toast :message="toast.message" :type="toast.type" :duration="toast.duration" :key="toast.key" />
   </main>
 </template>
 
 <script setup>
-import { ref, computed, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { createAsyncView } from '../composables/useAsyncView.js'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
@@ -223,51 +224,25 @@ import {
   normalizeTarget,
 } from '../domain/linkCodec.js'
 
-// 仅首屏创建面板同步加载。历史/收藏 UI 在用户访问对应标签时再下载。
-const loadHistoryWorkspace = () => import('./HistoryWorkspace.vue')
-const loadCommonLinksPanel = () => import('./CommonLinksPanel.vue')
-const LoadingPanel = {
-  render: () => h('div', { class: 'lazy-panel-loading', role: 'status' }, '正在加载界面…'),
-}
-const HistoryWorkspace = defineAsyncComponent({
-  loader: loadHistoryWorkspace,
-  loadingComponent: LoadingPanel,
-  delay: 120,
-})
-const SettingsPanel = defineAsyncComponent(() => import('./SettingsPanel.vue'))
-// 二维码和快捷键帮助不是首屏必需资源；保留快捷启动同步加载，避免键盘入口等待。
-const loadQrShareDialog = () => import('./QrShareDialog.vue')
-const loadShortcutHelp = () => import('./ShortcutHelp.vue')
-const QrShareDialog = defineAsyncComponent({
-  loader: loadQrShareDialog,
-  onError(error, retry, fail, attempts) {
-    if (attempts === 1) { retry(); return }
-    qrShareUrl.value = ''
-    showToast('二维码界面加载失败，请刷新页面后重试', 'error', 4000)
-    fail()
-  },
-})
-const ShortcutHelp = defineAsyncComponent({
-  loader: loadShortcutHelp,
-  onError(error, retry, fail, attempts) {
-    if (attempts === 1) { retry(); return }
-    closeHelp()
-    showToast('快捷键帮助加载失败，请刷新页面后重试', 'error', 4000)
-    fail()
-  },
-})
-function warmShortcutHelp() {
-  loadShortcutHelp().catch(() => {})
-}
-const CommonLinksPanel = defineAsyncComponent({
-  loader: loadCommonLinksPanel,
-  loadingComponent: LoadingPanel,
-  delay: 120,
-})
+// 低频资源共享加载、预取、错误恢复和超时策略；快捷启动保持同步加载。
+const { view: HistoryWorkspace, warm: warmHistory } = createAsyncView(
+  () => import('./HistoryWorkspace.vue'), { label: '历史记录', panelId: 'history-panel', labelledBy: 'history-tab' },
+)
+const { view: CommonLinksPanel, warm: warmCommon } = createAsyncView(
+  () => import('./CommonLinksPanel.vue'), { label: '常用链接' },
+)
+const { view: SettingsPanel } = createAsyncView(
+  () => import('./SettingsPanel.vue'), { label: '云端同步', cancel: () => closeSyncSettings() },
+)
+const { view: QrShareDialog } = createAsyncView(
+  () => import('./QrShareDialog.vue'), { label: '分享二维码', cancel: () => { qrShareUrl.value = '' } },
+)
+const { view: ShortcutHelp, warm: warmShortcutHelp } = createAsyncView(
+  () => import('./ShortcutHelp.vue'), { label: '键盘快捷键', cancel: () => closeHelp() },
+)
 function warmPanel(panel) {
-  const load = panel === 'history' ? loadHistoryWorkspace
-    : panel === 'common' ? loadCommonLinksPanel : null
-  load?.().catch(() => {}) // 预取失败时仍由 Vue 的异步组件提供错误处理。
+  if (panel === 'history') warmHistory()
+  if (panel === 'common') warmCommon()
 }
 
 const workspace = openWorkspace()
@@ -413,14 +388,3 @@ onBeforeUnmount(() => {
   stopSyncLifecycle()
 })
 </script>
-
-<style>/* 仅用于首次加载非默认标签时的短暂占位；请求完成后立即展示真实组件。 */
-.app-shell .lazy-panel-loading {
-  min-height: 160px;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  color: var(--card-text-muted);
-  letter-spacing: 0.02em;
-}
-</style>

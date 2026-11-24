@@ -14,6 +14,43 @@ test('首页渲染与特殊字符分享链接预览', async ({ page, context }) 
     .toBe('https://example.com/path?q=100%25#%E7%AB%A0%E8%8A%82')
 })
 
+
+test('慢速帮助弹窗可取消，迟到的资源不会重新打开弹窗', async ({ page }) => {
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  await page.route('**/assets/ShortcutHelp-*.js', async route => {
+    await gate
+    await route.continue()
+  })
+  try {
+    await page.goto('/')
+    await page.locator('#url').fill('https://example.com/draft')
+    await page.getByRole('button', { name: '查看快捷键' }).click()
+    const loading = page.getByRole('dialog', { name: '加载键盘快捷键' })
+    await expect(loading.getByRole('status')).toContainText('正在加载')
+    await loading.getByRole('button', { name: '取消' }).click()
+    await expect(loading).toHaveCount(0)
+    release()
+    await expect(page.locator('#url')).toHaveValue('https://example.com/draft')
+    await page.getByRole('tab', { name: /历史记录/ }).click()
+    await expect(page.locator('#history-panel').getByText('还没有创建过链接')).toBeVisible()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.getByRole('button', { name: '查看快捷键' }).click()
+    await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible()
+  } finally { release() }
+})
+
+test('历史界面资源失败显示局部恢复，创建页输入仍保留', async ({ page }) => {
+  await page.route('**/assets/HistoryWorkspace-*.js', route => route.abort())
+  await page.goto('/')
+  await page.locator('#url').fill('https://example.com/draft')
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.getByRole('alert').filter({ hasText: '界面加载失败' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '重试加载' })).toBeVisible()
+  await page.getByRole('tab', { name: /创建链接/ }).click()
+  await expect(page.locator('#url')).toHaveValue('https://example.com/draft')
+})
+
 test('危险协议必须被拒绝且不得写入历史记录', async ({ page }) => {
   await page.goto('/')
   await page.locator('#url').fill('javascript:alert(1)')
