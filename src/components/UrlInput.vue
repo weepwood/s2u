@@ -99,10 +99,12 @@
 
     <div v-if="urlValue && !urlError && shareUrl" class="preview-card">
       <div class="preview-head">
-        <div>
+        <div class="preview-title">
           <span class="preview-label">生成结果</span>
           <span class="preview-state">
-            <span aria-hidden="true"></span>
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="m3.5 8 3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
             可以分享
           </span>
         </div>
@@ -113,16 +115,21 @@
             </svg>
             二维码
           </button>
-          <button type="button" class="preview-open" @click="$emit('goto', shareUrl)">
-            打开测试
+          <button type="button" class="preview-open preview-test" @click="$emit('goto', shareUrl)">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
+            打开测试
           </button>
         </div>
       </div>
       <button type="button" class="preview-url" :title="safeDecode(shareUrl)" @click="$emit('goto', shareUrl)">
-        {{ safeDecode(shareUrl) }}
+        <span class="preview-link-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M9 15l6-6M8 16l-1 1a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-1 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="preview-url-text">{{ safeDecode(shareUrl) }}</span>
       </button>
     </div>
 

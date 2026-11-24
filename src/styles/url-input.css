@@ -239,85 +239,161 @@
   flex: 0 0 auto;
 }
 
+/* 分享结果：浅色玻璃层 + 内嵌地址行，避免嵌套的实边框卡片。 */
 .preview-card {
-  padding: 15px;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
   border: 1px solid var(--hairline);
-  border-radius: 16px;
+  border-radius: 15px;
   background:
-    linear-gradient(135deg, var(--accent-soft), transparent 52%),
+    linear-gradient(120deg, color-mix(in srgb, var(--accent-soft) 42%, transparent), transparent 66%),
     var(--surface-soft);
+  box-shadow: inset 0 1px 0 var(--glass-rim);
 }
 
 .preview-head {
-  margin-bottom: 11px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 6px 12px;
+  min-width: 0;
 }
 
-.preview-head > div {
+.preview-title {
   display: flex;
   align-items: center;
-  gap: 9px;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-inline-start: 2px;
 }
 
 .preview-label {
   margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--card-text);
 }
 
 .preview-state {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--success);
-  font-size: 10px;
-  font-weight: 700;
+  gap: 3px;
+  color: color-mix(in srgb, var(--success) 72%, var(--card-text));
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
 }
 
-.preview-state > span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
+.preview-state svg { width: 13px; height: 13px; }
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .preview-open {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  border: 0;
+  min-height: 30px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
-  color: var(--accent);
+  color: var(--card-text-soft);
   font: inherit;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
+.preview-open svg { width: 15px; height: 15px; flex: none; }
+.preview-open.preview-test {
+  background: color-mix(in srgb, var(--card-bg-solid) 68%, transparent);
+  border-color: var(--hairline);
+}
 .preview-open:hover {
-  text-decoration: underline;
-}
-
-.preview-open svg {
-  width: 14px;
-  height: 14px;
+  background: var(--surface-hover);
+  border-color: var(--hairline);
+  color: var(--accent);
 }
 
 .preview-url {
+  box-sizing: border-box;
   width: 100%;
-  padding: 0;
-  overflow: hidden;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 11px 12px;
   border: 0;
-  background: transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-bg-solid) 76%, transparent);
   color: var(--card-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.preview-link-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.preview-link-icon svg { width: 14px; height: 14px; }
+
+.preview-url-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  white-space: normal;
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.6;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
+  line-height: 22px;
+}
+
+.preview-url:hover {
+  background: var(--card-bg-solid);
+  color: var(--accent);
+}
+
+.preview-open:focus-visible, .preview-url:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .preview-url-text { -webkit-line-clamp: 3; }
+  .preview-open { min-height: 34px; }
+}
+@media (max-width: 420px) {
+  .preview-card { padding: 10px; }
+  .preview-head { gap: 7px; }
+  .preview-actions { width: 100%; justify-content: flex-start; }
+  .preview-title { gap: 8px; }
+  .preview-url { padding: 9px; gap: 7px; }
+}
+@media (pointer: coarse) {
+  .preview-open { min-height: 40px; }
 }
 
 .recent-section {
@@ -414,14 +490,4 @@
   .privacy-badge {
     display: none;
   }
-}
-
-/* 不同宽度下分享操作均保持可读，不挤压长链接展示区。 */
-.preview-head { flex-wrap: wrap; row-gap: 8px; }
-.preview-head > div { flex-wrap: wrap; }
-.preview-open { min-height: 32px; padding: 3px 6px; border-radius: 7px; }
-.preview-open:focus-visible, .preview-url:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-@media (max-width: 420px) {
-  .preview-head { gap: 6px; }
-  .preview-head > div { width: 100%; }
 }

@@ -48,19 +48,6 @@ body,
   box-sizing: border-box;
 }
 
-/* 生成结果保留足够上下文，但最多占两行。 */
-.app-shell .preview-url {
-  display: -webkit-box;
-  width: 100%;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
-  text-overflow: clip;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
 /* 列表项保持紧凑，用省略号截断连续长字符串。 */
 .app-shell .recent-item,
 .app-shell .history-main {
@@ -83,8 +70,3 @@ body,
   overflow: hidden;
 }
 
-@media (max-width: 640px) {
-  .app-shell .preview-url {
-    -webkit-line-clamp: 3;
-  }
-}
