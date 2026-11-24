@@ -56,3 +56,14 @@
 .app-shell .ui-segmented button { position:relative; z-index:1; min-width:0; min-height:var(--tab-height); padding:0 4px; border:0; border-radius:var(--tab-radius); background:transparent; color:var(--card-text-muted); font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; transition:color var(--motion-fast) ease,transform var(--motion-fast) ease; }
 .app-shell .ui-segmented button[aria-pressed=true] { color:var(--card-text); }
 .app-shell .ui-segmented:not(.tabs-ready) button[aria-pressed=true] { background:var(--tab-indicator-bg); }
+
+/* 筛选与设置共享原生下拉控件；紧凑工具栏保留原尺寸。 */
+.app-shell .ui-select {
+  box-sizing:border-box; min-width:0; min-height:var(--dialog-field-height); border:1px solid var(--hairline-strong);
+  border-radius:var(--radius-control); padding:0 10px; background:var(--surface-elevated); color:var(--card-text); font:inherit;
+  transition:border-color var(--motion-fast) ease,box-shadow var(--motion-fast) ease;
+}
+.app-shell .ui-select--compact { min-height:34px; }
+.app-shell .ui-select:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.app-shell .ui-select:disabled { opacity:.5; cursor:not-allowed; }
+.app-shell .ui-search-field .control-field__clear:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }

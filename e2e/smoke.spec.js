@@ -1411,3 +1411,37 @@ test('历史协议筛选、频率排序和转收藏不改变历史数据',async(
   await page.getByRole('tab',{name:/常用链接/}).click()
   await expect(page.locator('.common-card').filter({hasText:'笔记网页'})).toBeVisible()
 })
+
+test('收藏弹窗可反复打开关闭，取消与 Escape 恢复焦点',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/')
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  const add=page.getByRole('button',{name:/添加常用链接/})
+  for(let i=0;i<2;i++){
+    await add.click()
+    const dialog=page.getByRole('dialog',{name:'添加常用链接'})
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel('应用名称').fill('临时收藏')
+    if(i===0)await page.keyboard.press('Escape')
+    else await dialog.getByRole('button',{name:'取消',exact:true}).click()
+    await expect(dialog).not.toBeVisible()
+    await expect(add).toBeFocused()
+  }
+  await add.click()
+  await expect(page.getByRole('dialog',{name:'添加常用链接'}).getByLabel('应用名称')).toHaveValue('')
+  await page.keyboard.press('Escape')
+})
+test('两页统一搜索栏清除后回到输入焦点',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  for(const [tab,label,clear,role] of [['历史记录','搜索历史记录','清除搜索','textbox'],['常用链接','搜索常用链接','清除常用链接搜索','searchbox']]){
+    await page.getByRole('tab',{name:new RegExp(tab)}).click()
+    const input=page.getByRole(role,{name:label})
+    await input.fill('no match')
+    await page.locator('.ui-search-field').getByRole('button',{name:clear,exact:true}).click()
+    await expect(input).toHaveValue('')
+    await expect(input).toBeFocused()
+    await expect(input.locator('..')).toHaveCSS('height','54px')
+  }
+})

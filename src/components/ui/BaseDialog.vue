@@ -5,6 +5,7 @@
 </template>
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+const props = defineProps({ autoOpen: {type:Boolean,default:true} })
 const emit = defineEmits(['close','opened'])
 const element = ref(null)
 let trigger = null, pointerOutside = false, closing = false
@@ -25,12 +26,16 @@ function restoreFocus() {
   nextTick(() => { if (target?.isConnected && !document.querySelector('dialog[open]')) target.focus({preventScroll:true}) })
 }
 function closed() { if (closing) return; closing = true; emit('close'); restoreFocus() }
-onMounted(() => {
+function showModal() {
+  if (!element.value || element.value.open) return
   trigger = document.activeElement
-  element.value?.showModal()
+  closing = false
+  pointerOutside = false
+  element.value.showModal()
   emit('opened')
-})
+}
+onMounted(() => { if (props.autoOpen) showModal() })
 onBeforeUnmount(() => { if (element.value?.open) { closing = true; close(); restoreFocus() } })
 // 暴露真实 dialog，供命令面板等复杂内容定位内部焦点。
-defineExpose({ close, element })
+defineExpose({ close, showModal, element })
 </script>
