@@ -99,6 +99,18 @@ jobs:
         if: needs.scope.outputs.scope == 'full'
         run: npx playwright test e2e/smoke.spec.js e2e/redirect.spec.js
 
+      - name: UI interaction and screenshot evidence
+        run: npx playwright test e2e/ui-polish.spec.js
+
+      - name: Upload UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-polish-screenshots
+          path: test-results/ui-polish-*/ui-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Render performance and large history
         if: needs.scope.outputs.scope == 'full'
         run: npx playwright test e2e/performance.spec.js

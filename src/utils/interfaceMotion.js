@@ -17,7 +17,12 @@ export function installInterfaceMotion() {
       else delete root.dataset.motionReady
     }
     reconcile()
-    rootObserver = new MutationObserver(reconcile)
+    // 只在新增或移除页签容器时扫描，忽略列表行、搜索结果等普通 DOM 变动。
+    rootObserver = new MutationObserver(records => {
+      if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(node =>
+        node.nodeType === 1 && (node.matches(TAB_SELECTOR) || node.querySelector(TAB_SELECTOR))
+      ))) reconcile()
+    })
     rootObserver.observe(root, { childList: true, subtree: true })
   }
   frame = requestAnimationFrame(attach)
@@ -33,7 +38,7 @@ export function installInterfaceMotion() {
 function setupMotion(tabs) {
   let frame = null, readyFrame = null, destroyed = false
   function update() {
-    if (frame !== null) cancelAnimationFrame(frame)
+    if (frame !== null) return
     frame = requestAnimationFrame(() => {
       frame = null
       if (destroyed) return

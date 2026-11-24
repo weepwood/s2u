@@ -542,11 +542,13 @@ button { font: inherit; cursor: pointer; }
     border-radius: 11px;
     box-shadow: 0 7px 22px rgba(24, 37, 68, .12);
     opacity: 0;
+    pointer-events: none;
     transform: translateY(-4px);
     transition: opacity .16s ease, transform .16s ease;
   }
   .common-card:is(:hover, :focus-within) .card-actions {
     opacity: 1;
+    pointer-events: auto;
     transform: translateY(0);
   }
 }
@@ -557,8 +559,9 @@ button { font: inherit; cursor: pointer; }
     flex-wrap: wrap;
     justify-content: flex-end;
   }
-  .common-card .card-actions button { min-height: 34px; min-width: 34px; }
-  .common-card .card-actions .pin-button { min-width: 42px; }
+  .common-card .card-actions button { min-height:44px; min-width:44px; }
+  .common-card .card-buttons button, .common-view-toggle button { min-height:44px; }
+  .common-view-toggle button { min-width:44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .common-card .card-actions { transition: none !important; transform: none !important; }

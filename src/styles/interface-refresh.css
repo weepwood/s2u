@@ -79,3 +79,9 @@
   .app-shell .workspace-list-move,.app-shell .workspace-list-enter-active { transition:none !important; }
   .app-shell .workspace-list-enter-from { opacity:1; transform:none; }
 }
+
+@media(prefers-reduced-motion:reduce) {
+  .app-shell .segmented-tabs button:active,
+  .app-shell .content-card button:not(:disabled):active,
+  .app-shell :is(.history-item,.recent-item):hover { transform:none !important; }
+}

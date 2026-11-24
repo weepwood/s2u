@@ -76,3 +76,11 @@
 .app-shell .panel-head { height:36px; }
 .app-shell .content-card > :not(.panel-leave-active) { width:100%; min-width:0; box-sizing:border-box; }
 .app-shell .field-group { align-content:start; }
+
+@media (pointer: coarse) {
+  .app-shell .control-field__input, .app-shell dialog input:not([type=checkbox]):not([type=file]), .app-shell dialog select { font-size:16px; }
+  .app-shell .control-field__clear { width:44px; height:44px; margin-right:3px; }
+  .app-shell .panel-toolbar-actions .action-btn, .app-shell .panel-head .action-btn { min-height:44px; }
+  .app-shell .panel-head:has(.action-btn) { height:auto; min-height:44px; }
+  .app-shell :is(.starter-chip,.preview-open) { min-height:44px; }
+}
