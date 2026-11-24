@@ -8,7 +8,7 @@ export const LINK_TEMPLATES = Object.freeze([
 
 function field(values,key,required=false){
   const raw=values?.[key]??''
-  if(typeof raw!=='string'||raw.length>4096||/[\u0000-\u001f\u007f]/.test(raw))throw new Error('参数包含无效字符或超出长度限制')
+  if(typeof raw!=='string'||raw.length>4096||[...raw].some(char => { const code=char.charCodeAt(0); return code < 32 || code === 127 }))throw new Error('参数包含无效字符或超出长度限制')
   const value=raw.trim()
   if(required&&!value)throw new Error('请填写必填参数')
   return value
