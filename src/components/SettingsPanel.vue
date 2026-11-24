@@ -25,10 +25,10 @@
       </template>
       <template v-else>
         <div class="cloud-label"><label for="gist-token">GitHub Token</label><a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">创建 Token ↗</a></div>
-        <input id="gist-token" v-model="token" type="password" autocomplete="off" placeholder="输入具备 Gist 权限的 Token"/>
+        <input id="gist-token" v-model="token" :disabled="finding || busy" type="password" autocomplete="off" placeholder="输入具备 Gist 权限的 Token"/>
         <p class="cloud-note">仅保存在当前标签页会话。Secret Gist 知道地址的人仍可能读取，请勿同步敏感链接。</p>
         <label for="gist-mode">连接方式</label>
-        <select id="gist-mode" v-model="mode"><option value="existing">查找已有 Gist</option><option value="manual">输入 Gist ID / 地址</option><option value="new">创建新的 Gist</option></select>
+        <select id="gist-mode" v-model="mode" :disabled="finding || busy"><option value="existing">查找已有 Gist</option><option value="manual">输入 Gist ID / 地址</option><option value="new">创建新的 Gist</option></select>
         <template v-if="mode === 'existing'">
           <button type="button" :disabled="!token.trim() || finding || busy" @click="discover">{{ finding ? '正在查找…' : '查找已有 Gist' }}</button>
           <select v-if="cloud.candidates.value.length" v-model="gist" aria-label="选择已有 Gist"><option value="">请选择同步文件</option><option v-for="item in cloud.candidates.value" :key="item.id" :value="item.id">{{ item.description }} · {{ item.id.slice(0,8) }}</option></select>
@@ -38,6 +38,7 @@
         <p v-if="mode === 'new'" class="cloud-note">将创建一个新的 Secret Gist，上传本机历史记录。</p>
         <button type="button" class="cloud-primary" :disabled="!token.trim() || busy || finding || (mode !== 'new' && !gist.trim())" @click="connect">{{ busy ? '处理中…' : '连接 Gist' }}</button>
         <button v-if="cloud.cloudToken.value" type="button" @click="editing = false; token = ''">取消更换</button>
+        <button v-if="busy" type="button" @click="disconnect">取消连接</button>
       </template>
     </section>
     <section v-else-if="tab === 'preferences'" class="cloud-body">
@@ -56,7 +57,7 @@
       <p v-if="!cloud.backups.value.length" class="cloud-note">暂无备份</p>
       <div v-for="(item, index) in cloud.backups.value" :key="index" class="cloud-backup">
         <span>{{ date(item.savedAt) }} · {{ Math.ceil(item.bytes / 1024) }} KB</span>
-        <div class="cloud-actions"><button type="button" @click="$emit('export-backup', index)">导出历史</button><button type="button" :disabled="busy" @click="$emit('restore', { index })">合并恢复</button></div>
+        <div class="cloud-actions"><button type="button" @click="$emit('export-backup', index)">导出历史</button><button type="button" @click="$emit('export-bundle', index)">完整备份</button><button type="button" :disabled="busy" @click="$emit('restore', { index })">合并恢复</button></div>
       </div>
       <div class="cloud-divider"></div>
       <button type="button" :disabled="!cloud.cloudToken.value || busy" @click="loadVersions">查看云端版本历史</button>
@@ -68,7 +69,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 const props = defineProps({ cloud: { type: Object, required: true } })
-const emit = defineEmits(['close','connect','sync','disconnect','export-backup','restore'])
+const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore'])
 const cloud = props.cloud
 const dialog = ref(null), tab = ref('connection'), token = ref(''), gist = ref(cloud.cloudGistId.value), mode = ref(gist.value ? 'manual' : 'existing')
 const editing = ref(false), finding = ref(false), searched = ref(false), error = ref('')

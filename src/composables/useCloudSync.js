@@ -46,9 +46,11 @@ export function useCloudSync() {
   }
   function setPreferences(next) {
     const p = { ...preferences.value, ...next }
+    if (!p.common) p.icons = false
     if (![3000,5000,10000].includes(p.delay)) return
     localStorage.setItem(PREF_KEY, JSON.stringify(p))
     preferences.value = p
+    if (next.common === true || next.theme === true || next.icons === true) markPending()
     if (!p.auto && syncTimer) { clearTimeout(syncTimer); syncTimer = null }
   }
   function markPending(value = true) {
@@ -64,6 +66,7 @@ export function useCloudSync() {
     localStorage.setItem(OWNER_KEY, account.value)
   }
   async function discover(token) {
+    candidates.value = []
     const ctx = context()
     const user = await client.request('/user', { token })
     const result = []
@@ -89,7 +92,7 @@ export function useCloudSync() {
       let gist
       if (create) {
         gist = await client.request('/gists', { token, method: 'POST', body: { description: 'Scheme to URL - History Sync', public: false, files: { [HISTORY_FILE]: { content: encodeFile(historyData) } } } })
-        id = gist.id
+        id = parseGistId(gist.id)
       } else {
         id = parseGistId(id)
         gist = await client.request('/gists/' + encodeURIComponent(id), { token })
@@ -206,6 +209,7 @@ export function useCloudSync() {
     return pushed
   }
   function refreshBackups() { backups.value = listBackups(connectionKey()).map(({ savedAt, remoteContent, files }) => ({ savedAt, bytes: new TextEncoder().encode(remoteContent + JSON.stringify(files || {})).length })) }
+  function getBackupBundle(index) { const item = listBackups(connectionKey())[index]; return item ? { savedAt: item.savedAt, history: JSON.parse(item.remoteContent), files: item.files || {} } : null }
   function getLatestRecovery(index = -1) {
     const items = listBackups(connectionKey())
     const item = index < 0 ? items.at(-1) : items[index]
@@ -247,5 +251,5 @@ export function useCloudSync() {
   }
   return { cloudToken, cloudGistId, account, syncStatus, syncError, lastSyncTime, preferences, pending, candidates, backups, revisions,
     loadConfig, setPreferences, markPending, saveConfig, connect, discover, disconnect, pushToGist, pullFromGist, prepareOptional,
-    getLatestRecovery, refreshBackups, loadRevisions, readRevision, scheduleAutoSync, resumePending, cleanup, context, isCurrent }
+    getLatestRecovery, getBackupBundle, refreshBackups, loadRevisions, readRevision, scheduleAutoSync, resumePending, cleanup, context, isCurrent }
 }

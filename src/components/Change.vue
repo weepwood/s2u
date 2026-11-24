@@ -183,7 +183,7 @@
 
     <SettingsPanel v-if="showSettings" :cloud="cloud" @close="closeSyncSettings"
       @connect="connectGist" @sync="syncGist" @disconnect="disconnectGist"
-      @export-backup="exportGistRecovery" @restore="restoreGistRecovery" />
+      @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" />
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
       @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
@@ -779,6 +779,19 @@ async function restoreGistRecovery({ index, version }) {
   } catch (error) { syncError.value = error.message; syncStatus.value = 'error' }
 }
 
+function exportGistBundle(index) {
+  try {
+    const backup = cloud.getBackupBundle(index)
+    if (!backup) return
+    const href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = href
+    link.download = 's2u-gist-workspace-backup.json'
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+  } catch (error) { showToast(error.message || '导出备份失败', 'error', 4000) }
+}
+
 function exportGistRecovery(index = -1) {
   try {
     const snapshot = getLatestRecovery(index)
@@ -861,7 +874,7 @@ function handleKeydown(event) {
 let initialSyncIdle = null
 let initialSyncFallback = null
 function onSyncFocus() {
-  if (!showCloseMsg.value && cloudToken.value && preferences.value.auto && (pending.value || Date.now() - (lastSyncTime.value || 0) > 60000)) syncGist({ silent: true })
+  if (!showCloseMsg.value && cloudToken.value && preferences.value.auto && !['connecting','syncing','error'].includes(syncStatus.value) && (pending.value || Date.now() - (lastSyncTime.value || 0) > 60000)) syncGist({ silent: true })
 }
 function scheduleInitialSync() {
   if (!preferences.value.auto) return

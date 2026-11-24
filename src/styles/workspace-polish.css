@@ -276,4 +276,7 @@
 .app-shell .cloud-dot { position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--accent); }
 .app-shell .cloud-trigger[data-status=connected] .cloud-dot { background:var(--success); }
 .app-shell .cloud-trigger[data-status=error] .cloud-dot { background:var(--danger); }
-@media(max-width:420px) { .app-shell .header-actions .cloud-trigger { width:32px; height:32px; border-radius:9px; } }
+@media(max-width:420px) {
+  .app-shell .header-actions .cloud-trigger { width:32px; height:32px; border-radius:9px; }
+  .app-shell .app-header .brand-copy { display:none; }
+}
