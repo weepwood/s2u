@@ -51,6 +51,78 @@ test('历史界面资源失败显示局部恢复，创建页输入仍保留', as
   await expect(page.locator('#url')).toHaveValue('https://example.com/draft')
 })
 
+test('剪贴板权限不可用时打开测试仍响应用户点击', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+    window.open = (url) => { window.__openedShare = url }
+  })
+  await page.goto('/')
+  await page.locator('#url').fill('https://example.com/test')
+  await page.getByRole('button', { name: '打开测试' }).click()
+  await expect.poll(() => page.evaluate(() => window.__openedShare)).toContain('#target=')
+  await expect(page.getByText('未能复制分享链接，请检查剪贴板权限')).toBeVisible()
+})
+
+test('剪贴板延迟完成不会清除正在编辑的新地址', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: () => new Promise(resolve => { window.__finishClipboard = resolve }),
+    } })
+  })
+  await page.goto('/')
+  const input = page.locator('#url')
+  await input.fill('https://example.com/first')
+  await page.getByRole('button', { name: '复制链接' }).click()
+  await expect.poll(() => page.evaluate(() => typeof window.__finishClipboard)).toBe('function')
+  await input.fill('https://example.com/second')
+  await page.evaluate(() => window.__finishClipboard())
+  await expect(page.getByRole('button', { name: '已复制' })).toBeVisible()
+  await expect(input).toHaveValue('https://example.com/second')
+  await page.getByRole('tab', { name: /历史记录/ }).click()
+  await expect(page.locator('#history-panel').getByText('https://example.com/first')).toBeVisible()
+  await expect(page.locator('#history-panel').getByText('https://example.com/second')).toHaveCount(0)
+})
+
+
+test('真实断网后的异步页面可退出，联网后不自动刷新或丢失草稿', async ({ page, context }) => {
+  await page.goto('/')
+  await page.locator('#url').fill('https://example.com/offline-draft')
+  await page.evaluate(() => { window.__offlineProbe = 'same-document' })
+  await context.setOffline(true)
+  try {
+    await page.getByRole('tab', { name: /历史记录/ }).click()
+    await expect(page.getByRole('alert').filter({ hasText: '界面加载失败' })).toBeVisible({ timeout: 20000 })
+    await expect(page.getByRole('button', { name: '重试加载' })).toBeVisible()
+  } finally { await context.setOffline(false) }
+  await page.getByRole('tab', { name: /创建链接/ }).click()
+  await expect(page.locator('#url')).toHaveValue('https://example.com/offline-draft')
+  expect(await page.evaluate(() => window.__offlineProbe)).toBe('same-document')
+  await page.getByRole('tab', { name: /常用链接/ }).click()
+  await expect(page.locator('#common-panel .common-card')).toHaveCount(4)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('慢速模板加载交接焦点，关闭后恢复到原入口', async ({ page }) => {
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  await page.route('**/assets/LinkTemplateDialog-*.js', async route => {
+    await gate
+    await route.continue()
+  })
+  try {
+    await page.goto('/')
+    const trigger = page.getByRole('button', { name: '链接模板', exact: true })
+    await trigger.click()
+    await expect(page.getByRole('dialog', { name: '加载链接模板' })).toBeVisible()
+    release()
+    const dialog = page.getByRole('dialog', { name: '链接模板', exact: true })
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: '取消', exact: true }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+  } finally { release() }
+})
+
 test('危险协议必须被拒绝且不得写入历史记录', async ({ page }) => {
   await page.goto('/')
   await page.locator('#url').fill('javascript:alert(1)')
