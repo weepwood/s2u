@@ -374,4 +374,5 @@ function formatDate(timestamp) {
 .history-bookmark-actions { display:flex; justify-content:flex-end; gap:8px; }
 .bookmark-error { margin:0; color:var(--danger); font-size:12px; }
 @media(max-width:640px){.history-actions{gap:0}.history-bookmark{width:28px}.history-filter-fields select{max-width:130px}.history-bookmark-form{padding:16px}}
+@media (hover:none), (pointer:coarse) { .delete-btn,.history-bookmark { width:44px; height:44px; opacity:1; } .delete-btn { margin-right:2px; } .history-filter-fields select { min-height:44px; } }
 </style>

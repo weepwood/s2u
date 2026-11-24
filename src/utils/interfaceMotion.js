@@ -18,7 +18,11 @@ export function installInterfaceMotion() {
       else delete root.dataset.motionReady
     }
     reconcile()
-    rootObserver = new MutationObserver(reconcile)
+    rootObserver = new MutationObserver(records => {
+      if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(node =>
+        node.nodeType === 1 && (node.matches(TAB_SELECTOR) || node.querySelector(TAB_SELECTOR))
+      ))) reconcile()
+    })
     rootObserver.observe(root, { childList: true, subtree: true })
   }
   frame = requestAnimationFrame(attach)
@@ -69,7 +73,7 @@ function setupMotion(tabs) {
     if (motionFrame === null) motionFrame = requestAnimationFrame(tick)
   }
   function update() {
-    if (frame !== null) cancelAnimationFrame(frame)
+    if (frame !== null) return
     frame = requestAnimationFrame(() => {
       frame = null
       if (destroyed) return

@@ -90,7 +90,10 @@ function setupAutoHeight(card) {
     if (isDestroyed) return
 
     const panel = getRenderedPanel()
-    if (!panel) return
+    if (!panel) {
+      if (!activeAnimation) finishAnimation()
+      return
+    }
 
     const targetHeight = measurePanelHeight(panel)
     // 文案、toast 或观察器反复通知但高度不变时，不重启动画。
@@ -140,7 +143,7 @@ function setupAutoHeight(card) {
 
   const scheduleAnimation = () => {
     if (isDestroyed) return
-    if (animationFrame) window.cancelAnimationFrame(animationFrame)
+    if (animationFrame !== null) return
 
     // 在下一帧统一读取新面板的完整布局高度。此时外层卡片仍保持旧高度，
     // 因而不会把新内容的自然高度提前暴露到页面中。
