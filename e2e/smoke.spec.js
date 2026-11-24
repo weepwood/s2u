@@ -679,6 +679,40 @@ test('命令面板方向键移动时更新辅助技术的选中项', async ({ pa
   await expect(input).toHaveAttribute('aria-activedescendant', 'command-item-0')
 })
 
+test('命令面板按标签多关键词和来源筛选，外壳稳定并恢复焦点',async({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem('s2u_common_links_v1',JSON.stringify({version:1,items:[
+      {id:'editor',name:'Visual Studio Code',target:'vscode://',tags:['开发']},
+      {id:'notes',name:'Obsidian',target:'obsidian://',tags:['笔记']}
+    ]}))
+    localStorage.setItem('scheme_history',JSON.stringify({format:'s2u-history',version:2,records:[{scheme:'https://history.example/',count:1,recently:1000,updatedAt:1000}],tombstones:[]}))
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  const trigger=page.getByRole('button',{name:'打开快捷启动命令面板'})
+  await trigger.click()
+  const dialog=page.getByRole('dialog',{name:'快捷启动命令面板'})
+  const input=dialog.getByRole('searchbox',{name:'搜索命令'})
+  await expect(input).toBeFocused()
+  const before=await dialog.boundingBox()
+  await input.fill('visual 开发')
+  await expect(dialog.getByRole('option')).toHaveCount(1)
+  await expect(dialog.getByRole('option').first()).toContainText('Visual Studio Code')
+  await input.fill('')
+  await dialog.getByRole('button',{name:'历史记录',exact:true}).click()
+  await expect(dialog.getByRole('option')).toHaveCount(1)
+  await expect(dialog.getByRole('option').first()).toContainText('https://history.example/')
+  await input.fill('missing')
+  await expect(dialog.getByText('没有找到匹配项')).toBeVisible()
+  const after=await dialog.boundingBox()
+  expect(Math.abs(before.height-after.height)).toBeLessThan(1)
+  expect(Math.abs(before.y-after.y)).toBeLessThan(1)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+})
+
 test('二维码分享本地生成，保留特殊字符分享链接，并能关闭弹窗', async ({ page }) => {
   await page.goto('/')
   await page.getByPlaceholder('weixin://open 或 example.com').fill('obsidian://open?vault=笔记&file=A%20B')
@@ -1343,33 +1377,6 @@ test('统一标签管理合并大小写重复分类并保留收藏',async({page}
 })
 
 
-test('链接模板仅填入经校验的地址，取消与切换不写历史',async({page})=>{
-  await page.setViewportSize({width:320,height:740})
-  await page.emulateMedia({reducedMotion:'reduce'})
-  await page.goto('/')
-  const input=page.locator('#url')
-  await input.fill('https://original.example/')
-  await page.getByRole('button',{name:'链接模板',exact:true}).click()
-  const dialog=page.getByRole('dialog',{name:'链接模板'})
-  await dialog.getByLabel('笔记库').fill('个人 笔记')
-  await dialog.getByLabel('笔记路径').fill('日志/#今日.md')
-  await expect(dialog.locator('.template-preview code')).toContainText('obsidian://open?vault=')
-  await dialog.getByRole('button',{name:'取消',exact:true}).click()
-  await expect(input).toHaveValue('https://original.example/')
-  await page.getByRole('button',{name:'链接模板',exact:true}).click()
-  await dialog.getByRole('button',{name:'网页',exact:true}).click()
-  await dialog.getByLabel('网址',{exact:true}).fill('javascript:alert(1)')
-  await expect(dialog.getByRole('button',{name:'填入目标地址'})).toBeDisabled()
-  await dialog.getByRole('button',{name:'Obsidian',exact:true}).click()
-  await dialog.getByLabel('笔记库').fill('Notes')
-  await dialog.getByLabel('笔记路径').fill('日志/今日.md')
-  await dialog.getByRole('button',{name:'填入目标地址'}).click()
-  await expect(input).toHaveValue('obsidian://open?vault=Notes&file='+encodeURIComponent('日志/今日.md'))
-  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('scheme_history')||'{"records":[]}').records.length)).toBe(0)
-  await expect(page.getByText('可以分享',{exact:true})).toBeVisible()
-})
-
-
 test('历史协议筛选、频率排序和转收藏不改变历史数据',async({page})=>{
   await page.addInitScript(()=>{
     const now=Date.now()
@@ -1404,3 +1411,31 @@ test('历史协议筛选、频率排序和转收藏不改变历史数据',async(
   await page.getByRole('tab',{name:/常用链接/}).click()
   await expect(page.locator('.common-card').filter({hasText:'笔记网页'})).toBeVisible()
 })
+
+
+test('链接模板仅填入经校验的地址，取消与切换不写历史',async({page})=>{
+  await page.setViewportSize({width:320,height:740})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  const input=page.locator('#url')
+  await input.fill('https://original.example/')
+  await page.getByRole('button',{name:'链接模板',exact:true}).click()
+  const dialog=page.getByRole('dialog',{name:'链接模板'})
+  await dialog.getByLabel('笔记库').fill('个人 笔记')
+  await dialog.getByLabel('笔记路径').fill('日志/#今日.md')
+  await expect(dialog.locator('.template-preview code')).toContainText('obsidian://open?vault=')
+  await dialog.getByRole('button',{name:'取消',exact:true}).click()
+  await expect(input).toHaveValue('https://original.example/')
+  await page.getByRole('button',{name:'链接模板',exact:true}).click()
+  await dialog.getByRole('button',{name:'网页',exact:true}).click()
+  await dialog.getByLabel('网址',{exact:true}).fill('javascript:alert(1)')
+  await expect(dialog.getByRole('button',{name:'填入目标地址'})).toBeDisabled()
+  await dialog.getByRole('button',{name:'Obsidian',exact:true}).click()
+  await dialog.getByLabel('笔记库').fill('Notes')
+  await dialog.getByLabel('笔记路径').fill('日志/今日.md')
+  await dialog.getByRole('button',{name:'填入目标地址'}).click()
+  await expect(input).toHaveValue('obsidian://open?vault=Notes&file='+encodeURIComponent('日志/今日.md'))
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('scheme_history')||'{"records":[]}').records.length)).toBe(0)
+  await expect(page.getByText('可以分享',{exact:true})).toBeVisible()
+})
+

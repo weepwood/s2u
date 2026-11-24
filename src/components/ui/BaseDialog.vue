@@ -31,5 +31,6 @@ onMounted(() => {
   emit('opened')
 })
 onBeforeUnmount(() => { if (element.value?.open) { closing = true; close(); restoreFocus() } })
-defineExpose({ close })
+// 暴露真实 dialog，供命令面板等复杂内容定位内部焦点。
+defineExpose({ close, element })
 </script>

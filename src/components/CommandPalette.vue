@@ -1,22 +1,23 @@
 <template>
-  <dialog ref="dialog" class="command-dialog" aria-label="快捷启动命令面板" @close="emit('close')" @click="onBackdrop">
+  <BaseDialog ref="dialog" class="command-dialog" aria-label="快捷启动命令面板" @close="emit('close')" @opened="focusSearch">
     <div class="command-shell">
       <header class="command-header">
         <label class="visually-hidden" for="command-search">搜索常用链接或历史记录</label>
         <input id="command-search" ref="searchInput" v-model="query" type="search"
-          placeholder="搜索应用、网址或 Scheme…" autocomplete="off"
+          placeholder="搜索应用、网址或标签…" autocomplete="off"
           aria-label="搜索命令" aria-controls="command-results" aria-autocomplete="list"
           :aria-activedescendant="matches[selectedIndex] ? `command-item-${selectedIndex}` : undefined"
           @keydown.esc.stop.prevent="dialog?.close()" @keydown="onKeydown" />
         <kbd>Esc</kbd>
       </header>
+      <SegmentedTabs class="command-sources" label="搜索范围" :items="sources" :model-value="source" @update:model-value="changeSource" />
       <div v-if="pending" class="command-confirm">
         <strong>确认打开未知应用协议？</strong>
         <p>协议 {{ pending.protocol }} 可能唤起外部程序，是否继续？</p>
         <div class="command-confirm-actions">
-          <button type="button" @click="returnToSearch">返回</button>
-          <button type="button" @click="copyPending">复制原始地址</button>
-          <button type="button" class="command-primary" @click="confirmOpen">确认打开</button>
+          <BaseButton @click="returnToSearch">返回</BaseButton>
+          <BaseButton @click="copyPending">复制原始地址</BaseButton>
+          <BaseButton variant="primary" class="command-primary" @click="confirmOpen">确认打开</BaseButton>
         </div>
       </div>
       <div v-else id="command-results" class="command-results" role="listbox" aria-label="匹配的快捷操作">
@@ -35,11 +36,15 @@
         <span>Ctrl / ⌘ + K 搜索</span>
       </footer>
     </div>
-  </dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import BaseDialog from './ui/BaseDialog.vue'
+import BaseButton from './ui/BaseButton.vue'
+import SegmentedTabs from './ui/SegmentedTabs.vue'
+import { buildLauncherEntries, searchLauncher } from '../domain/launcherSearch.js'
 import { getTargetOpenPolicy } from '../domain/linkCodec.js'
 
 const props = defineProps({
@@ -53,34 +58,27 @@ const query = ref('')
 const selectedIndex = ref(0)
 const pending = ref(null)
 
-const entries = computed(() => {
-  const seen = new Set()
-  const items = []
-  for (const item of props.commonLinks) {
-    if (seen.has(item.target)) continue
-    seen.add(item.target)
-    items.push({ key: 'favorite-' + item.id, name: item.name, target: item.target, kind: '常用' })
-  }
-  for (const item of props.history) {
-    if (seen.has(item.scheme)) continue
-    seen.add(item.scheme)
-    items.push({ key: 'history-' + item.scheme, name: item.scheme, target: item.scheme, kind: '历史' })
-  }
-  return items
-})
+const source=ref('all')
+const sources=[{id:'all',label:'全部'},{id:'common',label:'常用链接'},{id:'history',label:'历史记录'}]
+const entries=computed(()=>buildLauncherEntries(props.commonLinks,props.history))
+const matches=computed(()=>searchLauncher(entries.value,query.value,source.value))
+function changeSource(next) {
+  source.value=next
+  selectedIndex.value=0
+  pending.value=null
+  nextTick(()=>{const list=dialog.value?.element?.querySelector('.command-results');if(list)list.scrollTop=0})
+}
+function focusSearch(){searchInput.value?.focus({preventScroll:true})}
 
-const matches = computed(() => {
-  const needle = query.value.trim().toLowerCase()
-  return entries.value.filter((item) =>
-    !needle || item.name.toLowerCase().includes(needle) || item.target.toLowerCase().includes(needle)).slice(0, 12)
+watch(query, () => {
+  selectedIndex.value = 0; pending.value = null
+  nextTick(()=>{const list=dialog.value?.element?.querySelector('.command-results');if(list)list.scrollTop=0})
 })
-
-watch(query, () => { selectedIndex.value = 0; pending.value = null })
 watch(matches, list => { if (selectedIndex.value >= list.length) selectedIndex.value = Math.max(0, list.length - 1) })
 function returnToSearch() { pending.value = null; nextTick(() => searchInput.value?.focus({ preventScroll:true })) }
 function revealSelection() {
   nextTick(() => {
-    const container = dialog.value?.querySelector('.command-results')
+    const container = dialog.value?.element?.querySelector('.command-results')
     const item = container?.querySelector('[aria-selected="true"]')
     if (!container || !item) return
     const row = item.getBoundingClientRect(), viewport = container.getBoundingClientRect()
@@ -88,10 +86,6 @@ function revealSelection() {
     if (row.bottom > viewport.bottom) container.scrollTop += row.bottom - viewport.bottom
     else if (row.top < viewport.top) container.scrollTop -= viewport.top - row.top
   })
-}
-
-function onBackdrop(event) {
-  if (event.target === dialog.value) dialog.value.close()
 }
 
 function onKeydown(event) {
@@ -115,7 +109,7 @@ function activate(item) {
   if (!policy.ok) return
   if (policy.needsConfirmation) {
     pending.value = policy
-    nextTick(() => dialog.value?.querySelector('.command-confirm-actions button')?.focus({preventScroll:true}))
+    nextTick(() => dialog.value?.element?.querySelector('.command-confirm-actions button')?.focus({preventScroll:true}))
     return
   }
   dialog.value?.close()
@@ -134,20 +128,20 @@ function copyPending() {
   if (pending.value) emit('copy', pending.value.target)
 }
 
-onMounted(() => {
-  dialog.value?.showModal()
-  searchInput.value?.focus()
-})
 </script>
 
 <style scoped>
 .command-dialog { border: 1px solid var(--hairline, #dce1e9); padding: 0; width: min(620px, calc(100vw - 32px)); max-height: min(75dvh, 620px); border-radius: 18px; background: var(--card-bg-solid, #fff); color: var(--card-text, #172033); box-shadow: 0 32px 90px #0003; }
 .command-dialog::backdrop { background: #0d15268a; backdrop-filter: blur(5px); }
-.command-shell { display: grid; min-width: 0; }
+.command-shell { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; height:100%; min-width:0; min-height:0; }
+.command-dialog { height:min(440px,calc(100dvh - 32px)); max-height:none; overflow:hidden; box-sizing:border-box; }
+.command-sources { position:relative; isolation:isolate; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:8px 12px 0; padding:var(--tab-padding); border:1px solid var(--hairline); border-radius:var(--radius-navigation); background:var(--glass-navigation); }
+.command-header:focus-within { box-shadow:inset 0 -1px var(--accent); }
+.command-results,.command-confirm { min-height:0; align-content:start; overflow-y:auto; scrollbar-gutter:stable; }
 .command-header { display: flex; gap: 12px; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--hairline, #dce1e9); }
 .command-header input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: inherit; font: inherit; font-size: 16px; }
 .command-header kbd { font-size: 11px; border: 1px solid var(--hairline, #dce1e9); padding: 4px 7px; border-radius: 6px; white-space: nowrap; }
-.command-results { padding: 8px; display: grid; gap: 3px; overflow-y: auto; max-height: min(52dvh, 470px); }
+.command-results { padding: 8px; display: grid; gap: 3px; overflow-y: auto; min-height:0; align-content:start; }
 .command-item { display: flex; align-items: center; gap: 12px; text-align: left; padding: 9px 12px; border: 0; border-radius: 11px; background: none; color: inherit; cursor: pointer; min-width: 0; }
 .command-item:hover, .command-item.selected { background: var(--surface-soft, #f5f7fa); }
 .command-item:focus-visible { outline: 2px solid var(--accent, #4f6ef7); }
@@ -159,7 +153,7 @@ onMounted(() => {
 .command-kind { white-space: nowrap; }
 .command-empty { padding: 24px 12px; text-align: center; color: var(--card-text-muted, #7c879b); }
 .command-footer { padding: 11px 18px; border-top: 1px solid var(--hairline, #dce1e9); display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
-.command-confirm { padding: 20px; display: grid; gap: 12px; font-size: 14px; }
+.command-confirm { padding:20px; display:grid; gap:12px; font-size:14px; min-height:0; overflow-y:auto; align-content:start; }
 .command-confirm p { margin: 0; word-break: break-all; color: var(--card-text-muted, #7c879b); }
 .command-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .command-confirm-actions button { border: 1px solid var(--hairline, #dce1e9); color: inherit; background: var(--surface-elevated, #fff); padding: 9px 12px; border-radius: 9px; cursor: pointer; }
