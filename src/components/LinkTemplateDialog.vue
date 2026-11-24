@@ -2,7 +2,7 @@
   <BaseDialog ref="dialog" class="editor-dialog template-dialog" aria-labelledby="template-title" @close="$emit('close')">
     <div class="template-shell">
       <header class="template-header">
-        <h3 id="template-title">链接模板</h3>
+        <div><h3 id="template-title">链接模板</h3><p class="template-hint">选择应用，填写参数后生成目标地址。</p></div>
         <button type="button" class="dialog-close" aria-label="关闭链接模板" @click="dialog?.close()">×</button>
       </header>
       <SegmentedTabs class="template-tabs" label="应用模板" :items="templates" :model-value="selected" @update:model-value="choose"/>
@@ -49,7 +49,7 @@ function apply(){if(result.value)emit('apply',result.value)}
 .template-dialog { width:min(500px,calc(100vw - 24px)); max-width:none; height:min(490px,calc(100vh - 32px)); height:min(490px,calc(100dvh - 32px)); max-height:none; padding:0; box-sizing:border-box; overflow:hidden; }
 .template-shell { height:100%; box-sizing:border-box; padding:18px; display:grid; grid-template-rows:auto auto minmax(0,1fr); gap:12px; }
 .template-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.template-header h3 { margin:0;font-size:18px; }
+.template-header h3 { margin:0 0 4px;font-size:18px; }
 .template-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); position:relative; isolation:isolate; gap:4px; padding:var(--tab-padding); border:1px solid var(--hairline); border-radius:var(--radius-navigation); background:var(--glass-navigation); }
 .template-form { display:grid; align-content:start; gap:10px; min-height:0; overflow:auto; padding:3px; }
 .template-field { display:grid; gap:6px; min-width:0; font-size:12px; }

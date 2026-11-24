@@ -38,6 +38,7 @@
   --shadow-lg: 0 18px 56px rgba(35, 53, 88, .09), 0 2px 6px rgba(35, 53, 88, .045);
   --shadow-sm: 0 4px 14px rgba(41, 56, 95, .06);
   --shadow-indicator: 0 3px 10px rgba(33, 45, 75, .10);
+  --surface-rim: inset 0 1px 0 var(--glass-rim), 0 2px 8px rgba(33,47,80,.035);
   --shadow-popover: 0 24px 65px rgba(13, 26, 54, .24);
   --ambient-opacity: .19;
   --ambient-one: #8298ff;
