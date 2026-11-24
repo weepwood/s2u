@@ -95,7 +95,7 @@
       </p>
     </div>
 
-    <LinkTemplateDialog v-if="templateOpen" @close="templateOpen = false" @apply="applyTemplate" />
+    <component :is="LinkTemplateDialog" v-if="templateOpen" @close="templateOpen = false" @apply="applyTemplate" />
 
     <div v-if="urlValue && !urlError && shareUrl" class="preview-card">
       <div class="preview-head">
@@ -163,10 +163,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { createAsyncView } from '../composables/useAsyncView.js'
 
-const LinkTemplateDialog=defineAsyncComponent(()=>import('./LinkTemplateDialog.vue'))
 const templateOpen=ref(false)
+const { view: LinkTemplateDialog } = createAsyncView(
+  () => import('./LinkTemplateDialog.vue'), { label: '链接模板', cancel: () => { templateOpen.value = false } },
+)
 
 const props = defineProps({
   url: { type: String, default: '' },
