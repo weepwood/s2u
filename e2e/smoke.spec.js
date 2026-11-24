@@ -1411,3 +1411,20 @@ test('历史协议筛选、频率排序和转收藏不改变历史数据',async(
   await page.getByRole('tab',{name:/常用链接/}).click()
   await expect(page.locator('.common-card').filter({hasText:'笔记网页'})).toBeVisible()
 })
+
+
+test('历史、收藏和快捷启动统一空状态，保留原有操作',async({page})=>{
+  await page.setViewportSize({width:320,height:740})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  await page.getByRole('tab',{name:/历史记录/}).click()
+  await expect(page.locator('.ui-empty-state')).toContainText('还没有创建过链接')
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  await page.getByRole('searchbox',{name:'搜索常用链接'}).fill('not-matching-any-link')
+  await expect(page.locator('.ui-empty-state')).toContainText('没有匹配的链接')
+  await page.getByRole('button',{name:'清除筛选',exact:true}).click()
+  await expect(page.locator('.common-card')).toHaveCount(4)
+  await page.getByRole('button',{name:'打开快捷启动命令面板'}).click()
+  await page.getByRole('searchbox',{name:'搜索命令'}).fill('not-matching-any-link')
+  await expect(page.getByRole('dialog').locator('.ui-empty-state--compact')).toContainText('没有找到匹配项')
+})

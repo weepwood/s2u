@@ -65,17 +65,10 @@
       <span aria-live="polite">{{ visibleHistory.length }} / {{ history.length }} 条</span>
     </div>
 
-    <div v-if="visibleHistory.length === 0" class="empty-state">
-      <span class="empty-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M4 7.5h16M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4Z" stroke="currentColor" stroke-width="1.6"/>
-          <path d="M9 11h6M9 15h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <h3>{{ history.length ? '没有找到匹配记录' : '还没有创建过链接' }}</h3>
-      <p v-if="!history.length">复制链接后自动保存。</p>
-      <button v-if="history.length || searchQuery" type="button" @click="clearFilters">清除搜索</button>
-    </div>
+    <EmptyState v-if="visibleHistory.length === 0" class="empty-state" :kind="history.length ? 'search' : 'history'"
+      :title="history.length ? '没有找到匹配记录' : '还没有创建过链接'" :description="history.length ? '' : '复制链接后自动保存。'">
+      <template v-if="history.length || searchQuery" #actions><BaseButton @click="clearFilters">清除搜索</BaseButton></template>
+    </EmptyState>
 
     <TransitionGroup v-else tag="div" name="workspace-list" class="history-list">
       <template v-for="group in groups" :key="group.key">
@@ -150,6 +143,7 @@ import { normalizeTarget } from '../domain/linkCodec.js'
 import { historyProtocol, selectHistoryView, groupHistoryByDay, historyBookmarkName } from '../domain/historyView.js'
 import BaseDialog from './ui/BaseDialog.vue'
 import BaseButton from './ui/BaseButton.vue'
+import EmptyState from './ui/EmptyState.vue'
 import BaseInput from './ui/BaseInput.vue'
 
 const props=defineProps({
@@ -232,57 +226,6 @@ function formatDate(timestamp) {
   font-size: 11px;
   font-weight: 650;
   white-space: nowrap;
-}
-
-.empty-state {
-  padding: 42px 20px 34px;
-  display: grid;
-  justify-items: center;
-  text-align: center;
-}
-
-.empty-icon {
-  width: 58px;
-  height: 58px;
-  margin-bottom: 15px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--hairline);
-  border-radius: 18px;
-  background: var(--surface-soft);
-  color: var(--accent);
-}
-
-.empty-icon svg {
-  width: 27px;
-  height: 27px;
-}
-
-.empty-state h3 {
-  margin: 0;
-  color: var(--card-text);
-  font-size: 15px;
-}
-
-.empty-state p {
-  max-width: 320px;
-  margin: 7px 0 0;
-  color: var(--card-text-muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.empty-state button {
-  margin-top: 15px;
-  padding: 7px 12px;
-  border: 1px solid var(--hairline);
-  border-radius: 9px;
-  background: var(--surface-elevated);
-  color: var(--card-text-soft);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
 }
 
 .history-list {
