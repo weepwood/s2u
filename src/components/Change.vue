@@ -40,6 +40,7 @@
           <span>GitHub</span>
         </a>
         <button ref="helpTrigger" type="button" class="shortcut-help-trigger"
+          @pointerenter="warmShortcutHelp" @focus="warmShortcutHelp"
           aria-label="查看快捷键" title="查看键盘快捷键（?）" @click="helpOpen = true">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
@@ -204,8 +205,6 @@ import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
 import Toast from './Toast.vue'
-import ShortcutHelp from './ShortcutHelp.vue'
-import QrShareDialog from './QrShareDialog.vue'
 import CommandPalette from './CommandPalette.vue'
 import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
@@ -236,6 +235,30 @@ const HistoryWorkspace = defineAsyncComponent({
   delay: 120,
 })
 const SettingsPanel = defineAsyncComponent(() => import('./SettingsPanel.vue'))
+// 二维码和快捷键帮助不是首屏必需资源；保留快捷启动同步加载，避免键盘入口等待。
+const loadQrShareDialog = () => import('./QrShareDialog.vue')
+const loadShortcutHelp = () => import('./ShortcutHelp.vue')
+const QrShareDialog = defineAsyncComponent({
+  loader: loadQrShareDialog,
+  onError(error, retry, fail, attempts) {
+    if (attempts === 1) { retry(); return }
+    qrShareUrl.value = ''
+    showToast('二维码界面加载失败，请刷新页面后重试', 'error', 4000)
+    fail()
+  },
+})
+const ShortcutHelp = defineAsyncComponent({
+  loader: loadShortcutHelp,
+  onError(error, retry, fail, attempts) {
+    if (attempts === 1) { retry(); return }
+    closeHelp()
+    showToast('快捷键帮助加载失败，请刷新页面后重试', 'error', 4000)
+    fail()
+  },
+})
+function warmShortcutHelp() {
+  loadShortcutHelp().catch(() => {})
+}
 const CommonLinksPanel = defineAsyncComponent({
   loader: loadCommonLinksPanel,
   loadingComponent: LoadingPanel,
