@@ -69,13 +69,10 @@ function setupAutoHeight(card) {
 
   const finishAnimation = () => {
     card.style.removeProperty('overflow')
-    card.style.removeProperty('will-change')
   }
 
-  const cancelActiveAnimation = () => {
+  const cancelActiveAnimation = (currentHeight) => {
     if (!activeAnimation) return 0
-
-    const currentHeight = readCurrentHeight()
     const velocity = activeSpring ? sampleSpring(...activeSpring, Number(activeAnimation.currentTime) || 0).velocity : 0
     activeAnimation.cancel()
     activeAnimation = null
@@ -90,14 +87,17 @@ function setupAutoHeight(card) {
     if (isDestroyed) return
 
     const panel = getRenderedPanel()
-    if (!panel) return
+    if (!panel) {
+      if (!activeAnimation) finishAnimation()
+      return
+    }
 
     const targetHeight = measurePanelHeight(panel)
     // 文案、toast 或观察器反复通知但高度不变时，不重启动画。
     if (activeAnimation && !reducedMotion.matches && Math.abs(targetHeight - activeTarget) < 1) return
 
-    const velocity = cancelActiveAnimation()
     const currentHeight = readCurrentHeight()
+    const velocity = cancelActiveAnimation(currentHeight)
 
     if (Math.abs(targetHeight - currentHeight) < 1) {
       card.style.height = `${targetHeight}px`
@@ -106,7 +106,6 @@ function setupAutoHeight(card) {
     }
 
     card.style.overflow = 'hidden'
-    card.style.willChange = 'height'
     card.style.height = `${targetHeight}px`
 
     if (reducedMotion.matches || typeof card.animate !== 'function') {
@@ -140,7 +139,7 @@ function setupAutoHeight(card) {
 
   const scheduleAnimation = () => {
     if (isDestroyed) return
-    if (animationFrame) window.cancelAnimationFrame(animationFrame)
+    if (animationFrame !== null) return
 
     // 在下一帧统一读取新面板的完整布局高度。此时外层卡片仍保持旧高度，
     // 因而不会把新内容的自然高度提前暴露到页面中。
@@ -161,9 +160,11 @@ function setupAutoHeight(card) {
     return panel
   }
 
+  // ResizeObserver covers changes in the active panel; mutation handles replacement.
   const mutationObserver = new MutationObserver(() => {
+    const previous = observedPanel
     const panel = observeCurrentPanel()
-    if (panel) scheduleAnimation()
+    if (panel !== previous || !panelResizeObserver) scheduleAnimation()
   })
 
   mutationObserver.observe(card, {
@@ -196,7 +197,6 @@ function setupAutoHeight(card) {
     reducedMotion.removeEventListener?.('change', scheduleAnimation)
     card.style.removeProperty('height')
     card.style.removeProperty('overflow')
-    card.style.removeProperty('will-change')
     delete card.dataset.autoHeightTransition
   }
 }

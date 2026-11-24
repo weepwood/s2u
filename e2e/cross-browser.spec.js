@@ -52,6 +52,8 @@ test('三页浅深主题真实截图及弹窗焦点',async({page},testInfo)=>{
   await trigger.click()
   const dialog=page.getByRole('dialog',{name:'云端同步'})
   await expect(dialog).toBeVisible()
+  await expect(dialog.locator('#gist-mode')).toHaveCSS('appearance','none')
+  await expect(dialog.locator('#gist-mode')).toHaveCSS('background-color','rgb(32, 44, 61)')
   await page.screenshot({path:testInfo.outputPath('ui-1280-dark-dialog.png'),animations:'disabled'})
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
@@ -80,6 +82,7 @@ test('触屏窄视口与缩短视口三页、模板弹窗',async({browser,browse
   } finally{await context.close()}
 })
 test('预热后五轮反向切换采样及最终落位',async({page},testInfo)=>{
+  test.setTimeout(120000)
   await seed(page)
   await page.setViewportSize({width:1280,height:850})
   await page.goto('/')
@@ -98,31 +101,38 @@ test('预热后五轮反向切换采样及最终落位',async({page},testInfo)=>
       const supported=typeof PerformanceObserver!=='undefined'&&PerformanceObserver.supportedEntryTypes.includes('longtask')
       const observer=supported?new PerformanceObserver(list=>tasks.push(...list.getEntries().map(e=>e.duration))):null
       observer?.observe({type:'longtask'})
-      const next=()=>new Promise(resolve=>requestAnimationFrame(resolve))
+      const start=performance.now()
+      const next=()=>new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{cancelAnimationFrame(raf);reject(new Error('rAF 未在 4 秒内返回，不能形成有效采样'))},4000)
+        const raf=requestAnimationFrame(time=>{clearTimeout(timer);resolve(time)})
+      })
       let previous=await next()
       for(let cycle=0;cycle<5;cycle++){
         for(const index of [2,0,1,2,0]){
           buttons[index].click()
           for(let j=0;j<3;j++){
             const time=await next()
-            const x=new DOMMatrixReadOnly(getComputedStyle(nav,'::before').transform).m41
-            samples.push({dt:time-previous,x,height:card.getBoundingClientRect().height})
+            // 每帧记录时间，隔三帧才读几何，避免测量本身强制布局。
+            samples.push({dt:time-previous,cycle,...(j===2?{x:new DOMMatrixReadOnly(getComputedStyle(nav,'::before').transform).m41,height:card.getBoundingClientRect().height}: {})})
             previous=time
           }
         }
       }
-      const end=performance.now()+650
-      while(performance.now()<end)await next()
+      await new Promise(resolve=>setTimeout(resolve,650))
+      await next()
       if(observer)tasks.push(...observer.takeRecords().map(e=>e.duration))
       observer?.disconnect()
       const sorted=samples.map(s=>s.dt).sort((a,b)=>a-b)
-      return {frames:samples.length,p95:sorted[Math.floor((sorted.length-1)*.95)],max:sorted.at(-1),longTaskSupported:supported,longTaskCount:tasks.length,longTaskTotalMs:tasks.reduce((a,b)=>a+b,0),samples,finalX:new DOMMatrixReadOnly(getComputedStyle(nav,'::before').transform).m41,targetX:buttons[0].offsetLeft}
+      return {durationMs:performance.now()-start,frames:samples.length,p95:sorted[Math.floor((sorted.length-1)*.95)],max:sorted.at(-1),longTaskSupported:supported,longTaskCount:tasks.length,longTaskTotalMs:tasks.reduce((a,b)=>a+b,0),samples,finalX:new DOMMatrixReadOnly(getComputedStyle(nav,'::before').transform).m41,targetX:buttons[0].offsetLeft}
     })
     expect(Math.abs(report.finalX-report.targetX)).toBeLessThan(2)
-    expect(report.samples.every(s=>Number.isFinite(s.height)&&Number.isFinite(s.x))).toBe(true)
+    expect(report.samples).toHaveLength(75)
+    expect(report.samples.filter(s=>s.x!==undefined)).toHaveLength(25)
+    expect(report.samples.every(s=>Number.isFinite(s.dt)&&s.dt>=0&&(s.x===undefined||Number.isFinite(s.height)&&Number.isFinite(s.x)))).toBe(true)
+    await expect.poll(()=>page.locator('.content-card').evaluate(el=>el.style.overflow)).toBe('')
     await expect(tabs.nth(0)).toHaveAttribute('aria-selected','true')
     reports.push({reducedMotion,...report})
   }
   await writeFile(testInfo.outputPath('motion-report.json'),JSON.stringify(reports,null,2))
-  console.log('S2U_MOTION_REPORT '+JSON.stringify(reports.map(report=>({reducedMotion:report.reducedMotion,frames:report.frames,p95:report.p95,max:report.max,longTaskSupported:report.longTaskSupported,longTaskCount:report.longTaskCount,longTaskTotalMs:report.longTaskTotalMs,finalX:report.finalX,targetX:report.targetX}))))
+  console.log('S2U_MOTION_REPORT '+JSON.stringify(reports.map(report=>({reducedMotion:report.reducedMotion,frames:report.frames,durationMs:report.durationMs,p95:report.p95,max:report.max,longTaskSupported:report.longTaskSupported,longTaskCount:report.longTaskCount,longTaskTotalMs:report.longTaskTotalMs,finalX:report.finalX,targetX:report.targetX}))))
 })

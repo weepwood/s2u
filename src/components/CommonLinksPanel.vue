@@ -529,7 +529,7 @@ button { font: inherit; cursor: pointer; }
 
 /* 桌面鼠标：管理工具浮于卡片右上角，仅悬停或键盘进入该卡片时显示。
    不使用 display:none / visibility:hidden：Tab 焦点仍可抵达隐藏控件。 */
-@media (hover: hover) and (pointer: fine) {
+@media (hover: hover) and (pointer: fine) and (min-width: 621px) {
   .common-card .card-actions {
     position: absolute;
     z-index: 2;
@@ -542,23 +542,26 @@ button { font: inherit; cursor: pointer; }
     border-radius: 11px;
     box-shadow: 0 7px 22px rgba(24, 37, 68, .12);
     opacity: 0;
+    pointer-events: none;
     transform: translateY(-4px);
     transition: opacity .16s ease, transform .16s ease;
   }
-  .common-card:is(:hover, :focus-within) .card-actions {
+  .common-card:is(:hover, :focus-within, .common-dragging) .card-actions {
     opacity: 1;
+    pointer-events: auto;
     transform: translateY(0);
   }
 }
 /* 触屏 / 不支持悬停的设备保留常驻操作，避免用户无法管理收藏。 */
-@media (hover: none), (pointer: coarse) {
+@media (hover: none), (pointer: coarse), (max-width: 620px) {
   .common-card .card-actions {
     position: static;
     flex-wrap: wrap;
     justify-content: flex-end;
   }
-  .common-card .card-actions button { min-height: 34px; min-width: 34px; }
-  .common-card .card-actions .pin-button { min-width: 42px; }
+  .common-card .card-actions button { min-height:44px; min-width:44px; }
+  .common-card .card-buttons button, .common-view-toggle button { min-height:44px; }
+  .common-view-toggle button { min-width:44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .common-card .card-actions { transition: none !important; transform: none !important; }
@@ -578,6 +581,7 @@ button { font: inherit; cursor: pointer; }
 .common-list-view .card-main { grid-row:span 2; }
 .common-drag-handle { width:22px; height:30px; display:grid; place-items:center; flex:none; cursor:grab; color:var(--card-text-muted); }
 .common-drag-handle:active { cursor:grabbing; }
+.common-drag-handle svg { pointer-events:none; }
 .common-dragging { opacity:.55; }
 .common-drop-before { box-shadow:inset 0 3px var(--accent); }
 .common-drop-after { box-shadow:inset 0 -3px var(--accent); }

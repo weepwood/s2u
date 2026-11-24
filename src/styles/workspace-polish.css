@@ -83,3 +83,4 @@
 @media (max-width: 420px) {
   .app-shell .starter-links { gap: 7px; }
 }
+.app-shell .history-panel .history-item button:focus-visible { outline-offset:-2px; }
