@@ -15,6 +15,17 @@ async function capture(page,testInfo,width,theme) {
     await expect(page.getByRole('heading',{name:heading,exact:true})).toBeVisible()
     if(id==='create') await page.locator('#url').fill('https://example.com/share?q=demo')
     await expect.poll(()=>page.locator('.content-card > .panel-leave-active').count()).toBe(0)
+    await expect.poll(()=>page.evaluate(()=>{
+      const card=document.querySelector('.content-card'),panel=card.querySelector('[role=tabpanel]:not(.panel-leave-active)')
+      if(!panel)return false
+      return Number(getComputedStyle(panel).opacity)>=.99 && !panel.classList.contains('panel-enter-active') && card.clientHeight+2>=panel.offsetHeight+parseFloat(getComputedStyle(card).paddingTop)+parseFloat(getComputedStyle(card).paddingBottom)
+    })).toBe(true)
+    if(id==='history'&&theme==='dark'){
+      const select=page.getByRole('combobox',{name:'按协议筛选'})
+      await expect(select).toHaveCSS('appearance','none')
+      await expect(select).toHaveCSS('background-color','rgb(32, 44, 61)')
+      await expect(select).toHaveCSS('color','rgb(237, 243, 255)')
+    }
     const bounds=await page.evaluate(()=>{
       const head=document.querySelector('.app-header').getBoundingClientRect()
       const tabs=document.querySelector('.workspace-head').getBoundingClientRect()
