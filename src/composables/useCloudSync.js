@@ -187,7 +187,7 @@ export function useCloudSync() {
     const key = BASE_PREFIX + connectionKey() + ':' + name
     const stored = localStorage.getItem(key)
     const base = stored ? validate(JSON.parse(stored)) : null
-    try { return mergeWorkspace(local, remote, base) }
+    try { return validate(mergeWorkspace(local, remote, base)) }
     catch (error) {
       if (error.name !== 'WorkspaceConflictError') throw error
       if (resolve === 'local') return local
