@@ -47,7 +47,7 @@
 .app-shell .brand-copy small { color: var(--card-text-muted); font-size: 9px; letter-spacing: .10em; text-transform: uppercase; }
 
 .app-shell .header-actions { display: flex; align-items: center; gap: 6px; flex: none; }
-.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger, .launch-trigger) {
+.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger, .launch-trigger, .cloud-trigger) {
   width: var(--header-control-size); min-width: var(--header-control-size);
   height: var(--header-control-size); min-height: var(--header-control-size);
   padding: 0; display: inline-grid; place-items: center; border: 1px solid var(--hairline);
@@ -55,7 +55,7 @@
   box-shadow: var(--shadow-sm); backdrop-filter: blur(var(--control-blur)); cursor: pointer;
   transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
-.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger, .launch-trigger):hover {
+.app-shell .header-actions :is(.github-link, .theme-toggle, .shortcut-help-trigger, .launch-trigger, .cloud-trigger):hover {
   border-color: var(--hairline-strong); color: var(--card-text); background: var(--surface-hover); transform: none;
 }
 .app-shell .github-link { text-decoration: none; }
@@ -63,7 +63,7 @@
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-.app-shell .header-actions :is(.github-link, .shortcut-help-trigger, .launch-trigger) svg,
+.app-shell .header-actions :is(.github-link, .shortcut-help-trigger, .launch-trigger, .cloud-trigger) svg,
 .app-shell .header-actions .theme-toggle .icon-wrap svg { width: 17px; height: 17px; }
 .app-shell .header-actions .theme-toggle .icon-wrap { width: 24px; height: 24px; border-radius: 7px; background: transparent; }
 .app-shell .header-actions .launch-trigger {
@@ -156,3 +156,9 @@
 @media (max-width: 360px) {
   .app-shell .mode-tabs button svg { display: none; }
 }
+
+.app-shell .cloud-trigger { position:relative; }
+.app-shell .cloud-dot { position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+.app-shell .cloud-trigger[data-status=connected] .cloud-dot { background:var(--success); }
+.app-shell .cloud-trigger[data-status=error] .cloud-dot { background:var(--danger); }
+@media(max-width:420px) { .app-shell .brand-copy { display:none; } }

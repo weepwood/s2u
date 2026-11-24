@@ -74,3 +74,9 @@
   .app-shell .panel-head h2 { font-size: 21px; }
   .app-shell .panel-stack { gap: 16px; }
 }
+
+/* 三个页面的直接子面板使用相同盒模型，避免 grid 分配多余空间。 */
+.app-shell .panel-stack { align-content:start; width:100%; box-sizing:border-box; }
+.app-shell .panel-head { height:36px; }
+.app-shell .content-card > :not(.panel-leave-active) { width:100%; min-width:0; box-sizing:border-box; }
+.app-shell .field-group { align-content:start; }

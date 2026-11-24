@@ -8,19 +8,19 @@
 .app-shell .workspace-head { animation: s2u-arrive 300ms 30ms var(--motion-gentle) both; }
 .app-shell .content-card { animation: s2u-arrive 340ms 45ms var(--motion-gentle) both; }
 
-.app-shell .mode-tabs::before {
-  content: ''; position: absolute; z-index: 0; top: 5px; bottom: 5px; left: 0;
-  width: var(--tab-indicator-width, 0px); border-radius: 11px;
+.app-shell .segmented-tabs::before {
+  content: ''; position: absolute; z-index: 0; top: var(--tab-padding); bottom: var(--tab-padding); left: 0;
+  width: var(--tab-indicator-width, 0px); border-radius: var(--tab-radius);
   background: var(--tab-indicator-bg); box-shadow: var(--shadow-indicator);
   opacity: 0; transform: translate3d(var(--tab-indicator-x, 0px), 0, 0);
 }
-.app-shell .mode-tabs.tabs-ready::before {
+.app-shell .segmented-tabs.tabs-ready::before {
   opacity: 1;
   transition: transform var(--motion-panel-duration) var(--motion-standard),
     width var(--motion-panel-duration) var(--motion-standard), background 180ms ease;
 }
-.app-shell .mode-tabs button:active { transform: scale(.98); }
-.app-shell .mode-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.app-shell .segmented-tabs button:active { transform: scale(.98); }
+.app-shell .segmented-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 
 .app-shell .content-card .panel-enter-active {
   transition: opacity 200ms ease-out, transform var(--motion-panel-duration) var(--motion-standard);
@@ -50,7 +50,7 @@
   outline: 2px solid var(--accent); outline-offset: 3px;
 }
 
-.app-shell dialog[open] { animation: s2u-dialog-appear 200ms var(--motion-gentle) both; }
+.app-shell dialog[open] { animation: s2u-dialog-appear var(--motion-dialog-duration) var(--motion-gentle) both; }
 @keyframes s2u-dialog-appear {
   from { opacity: 0; transform: translateY(6px) scale(.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -64,4 +64,9 @@
   }
   .app-shell .content-card, .app-shell .app-header, .app-shell .workspace-head,
   .app-shell dialog[open] { animation: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .content-card .panel-enter-from,
+  .app-shell .content-card .panel-leave-to { transform:none !important; }
 }

@@ -981,3 +981,34 @@ test('Token 创建向导默认折叠，只提供最小 Gist 权限入口', async
   await guide.locator('summary').click()
   await expect(dialog.locator('#gist-token')).toBeVisible()
 })
+
+
+test('云端同步页签共用滑动胶囊且外壳不随内容改变',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  for(const width of [1280,320]){
+    await page.setViewportSize({width,height:740})
+    await page.getByRole('button',{name:'打开云同步设置'}).click()
+    const dialog=page.getByRole('dialog',{name:'云端同步'})
+    const nav=dialog.locator('.cloud-tabs')
+    await expect(nav).toHaveClass(/tabs-ready/)
+    const original=await dialog.boundingBox()
+    const header=await nav.boundingBox()
+    for(const name of ['同步设置','备份恢复','连接']){
+      await nav.getByRole('button',{name,exact:true}).click()
+      await expect.poll(()=>nav.evaluate(node=>{
+        const selected=node.querySelector('[aria-pressed="true"]')
+        return Math.abs(new DOMMatrixReadOnly(getComputedStyle(node,'::before').transform).m41-selected.offsetLeft)
+      })).toBeLessThan(2)
+      const rect=await dialog.boundingBox(), next=await nav.boundingBox()
+      expect(Math.abs(rect.y-original.y)).toBeLessThan(1)
+      expect(Math.abs(rect.height-original.height)).toBeLessThan(1)
+      expect(Math.abs(next.y-header.y)).toBeLessThan(1)
+    }
+    await dialog.locator('.token-guide summary').click()
+    expect(Math.abs((await dialog.boundingBox()).height-original.height)).toBeLessThan(1)
+    await expect(dialog.locator('.cloud-scroll')).toHaveCSS('overflow-y','auto')
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+  }
+})

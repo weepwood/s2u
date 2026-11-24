@@ -8,6 +8,7 @@ import './styles/interface-refresh.css'
 import './styles/long-link-guards.css'
 import './styles/workspace-polish.css'
 import './styles/workspace-controls.css'
+import './styles/shared-dialog.css'
 
 createApp(App).mount('#app')
 
