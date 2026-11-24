@@ -139,14 +139,15 @@
       <div class="recent-list">
         <button
           v-for="item in recentUrls"
-          :key="item"
+          :key="item.target"
           type="button"
           class="recent-item"
-          :title="safeDecode(item)"
-          @click="$emit('goto', item)"
+          :title="item.target"
+          :aria-label="'复制并打开分享链接：' + item.target"
+          @click="$emit('goto', item.shareUrl)"
         >
           <span class="recent-index" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M9 15l6-6M8 16l-1 1a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-1 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
-          <span class="recent-url">{{ safeDecode(item) }}</span>
+          <span class="recent-url">{{ item.target }}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M8 16 16 8M9 8h7v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
