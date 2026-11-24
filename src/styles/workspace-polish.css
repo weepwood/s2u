@@ -216,6 +216,10 @@
 }
 .app-shell .history-panel .search-wrap { border-radius: 8px; box-shadow: none; }
 .app-shell .history-panel .scheme-icon { background: transparent; border-radius: 6px; }
+.app-shell .history-panel .history-main { min-height: 54px; }
+.app-shell .common-panel .card-main .app-icon { width: 44px; height: 44px; }
+.app-shell .common-panel .card-meta > span { font-family: var(--font-mono); font-size: 12px; }
+.app-shell .common-panel .empty-common { padding: 30px 12px; background: transparent; border: 1px dashed var(--hairline-strong); border-radius: 8px; }
 .app-shell .history-panel .empty-state { background: transparent; border-radius: 0; box-shadow: none; }
 
 /* App icons are meaningful; keep them. Only management operations are secondary. */
@@ -259,7 +263,7 @@
 .app-shell dialog::backdrop { backdrop-filter: none; }
 .app-shell dialog.command-dialog .command-item:hover,
 .app-shell dialog.command-dialog .command-item.selected { background: var(--accent-soft); }
-.app-shell .command-primary, .app-shell .settings-panel .primary-action { color: var(--on-accent); }
+.app-shell .command-primary, .app-shell .settings-panel .primary-action, .app-shell .qr-share-primary { color: var(--on-accent); }
 .app-shell dialog :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (max-width: 760px) {

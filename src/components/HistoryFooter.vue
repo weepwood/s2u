@@ -82,12 +82,12 @@ function triggerImport() {
   align-items: center;
   gap: 7px;
   border: 1px solid var(--hairline);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface-elevated);
   color: var(--card-text-soft);
   font: inherit;
-  font-size: 11px;
-  font-weight: 680;
+  font-size: 12px;
+  font-weight: 550;
   cursor: pointer;
   transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
@@ -96,7 +96,7 @@ function triggerImport() {
   border-color: var(--hairline-strong);
   background: var(--surface-hover);
   color: var(--card-text);
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .footer-actions button.active {
@@ -122,7 +122,7 @@ function triggerImport() {
   align-items: center;
   gap: 6px;
   color: var(--card-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 

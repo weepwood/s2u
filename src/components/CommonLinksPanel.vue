@@ -137,7 +137,9 @@
     </div>
     <div v-else class="empty-common">
       <strong>{{ items.length ? '没有匹配的链接' : '还没有常用链接' }}</strong>
-      <p>{{ items.length ? '尝试更换搜索关键词。' : '可添加你经常使用的应用 Scheme 或网址。' }}</p>
+      <p>{{ items.length ? '尝试更换关键词或清除标签筛选。' : '添加经常使用的应用 Scheme 或网址。' }}</p>
+      <button v-if="items.length" type="button" @click="search = ''; selectedTag = ''">清除筛选</button>
+      <button v-else type="button" @click="beginAdd">添加第一个链接</button>
     </div>
 
     <footer class="common-footer">
@@ -150,6 +152,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { getTargetOpenPolicy, normalizeTarget } from '../domain/linkCodec.js'
+import { appIcon as getIcon, appInitials as iconInitials } from '../domain/appIcons.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -218,21 +221,6 @@ const iconBusy = ref(false)
 const iconInput = ref(null)
 const MAX_UPLOAD_BYTES = 1024 * 1024
 const MAX_ICON_DATA_LENGTH = 32768
-
-function getIcon(item) {
-  if (item.icon) return item.icon
-  const scheme = item.target.match(/^([a-z][a-z\d+.-]*):/i)?.[1]?.toLowerCase()
-  if (['obsidian', 'weixin', 'orpheus'].includes(scheme)) {
-    return import.meta.env.BASE_URL + 'icons/common-' + scheme + '.png'
-  }
-  // VS Code 暂使用文字徽标，避免引入来源不明的图标。
-  return ''
-}
-
-function iconInitials(value) {
-  if (value === 'Visual Studio Code') return 'VS'
-  return value.trim().slice(0, 2).toUpperCase()
-}
 
 function openEditor(item = null) {
   editingId.value = item?.id ?? null
@@ -397,7 +385,7 @@ button { font: inherit; cursor: pointer; }
 .pin-button:hover, .pin-button:focus-visible { color: var(--card-text); outline-color: var(--accent); }
 .first-item-indicator { color: var(--card-text-muted); opacity: .65; }
 .card-meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-meta span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta > span { font-size: 12px; color: var(--card-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-buttons { display: flex; gap: 8px; margin-top: auto; }
 .card-buttons button { flex: 1; padding: 0 8px; }
 .primary { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
@@ -445,6 +433,7 @@ button { font: inherit; cursor: pointer; }
 .form-error { margin: 0; font-size: 12px; color: #df4c50; }
 .empty-common { text-align: center; background: var(--surface-soft); padding: 38px 16px; border-radius: 16px; }
 .empty-common p { color: var(--card-text-muted); font-size: 13px; }
+.empty-common button { min-height: 34px; padding: 0 12px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface-elevated); color: var(--card-text); font-size: 13px; }
 .common-footer { border-top: 1px solid var(--hairline); padding-top: 14px; display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .common-footer p { margin: 0; flex: 1; }
 .common-footer button { flex-shrink: 0; border: 0; background: transparent; color: var(--card-text-muted); font-size: 12px; cursor: pointer; }
@@ -462,8 +451,8 @@ button { font: inherit; cursor: pointer; }
     padding: 4px;
     background: var(--card-bg-solid);
     border: 1px solid var(--hairline);
-    border-radius: 11px;
-    box-shadow: 0 7px 22px rgba(24, 37, 68, .12);
+    border-radius: 6px;
+    box-shadow: 0 3px 10px rgba(24, 37, 68, .08);
     opacity: 0;
     transform: translateY(-4px);
     transition: opacity .16s ease, transform .16s ease;
@@ -496,5 +485,5 @@ button { font: inherit; cursor: pointer; }
 .common-tags button { border: 1px solid var(--hairline, #dce1e9); background: var(--surface-soft, #f5f7fa); color: var(--card-text, #172033); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
 .common-tags button[aria-pressed="true"] { color: #fff; background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); }
 .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-.card-tags span { font-size: 10px; border-radius: 5px; background: var(--surface-soft, #f5f7fa); padding: 2px 6px; color: var(--card-text-muted, #7c879b); }
+.card-tags span { font-size: 11px; border-radius: 4px; background: var(--surface-soft, #f5f7fa); padding: 2px 6px; color: var(--card-text-muted, #7c879b); }
 </style>

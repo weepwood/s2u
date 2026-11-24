@@ -57,13 +57,13 @@ defineEmits(['toggle'])
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: var(--surface-soft);
+  background: transparent;
   transition: background 0.18s ease, color 0.18s ease;
 }
 
 .icon-wrap.dark {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: transparent;
+  color: var(--card-text-soft);
 }
 
 .icon-wrap svg {

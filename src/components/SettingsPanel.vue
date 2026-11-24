@@ -130,8 +130,8 @@ function formatDate(timestamp) {
   display: grid;
   gap: 18px;
   border: 1px solid var(--hairline);
-  border-radius: 16px;
-  background: var(--surface-soft);
+  border-radius: 8px;
+  background: var(--card-bg-solid);
 }
 
 .settings-head {
@@ -147,7 +147,7 @@ function formatDate(timestamp) {
   display: grid;
   place-items: center;
   border: 1px solid var(--hairline);
-  border-radius: 11px;
+  border-radius: 6px;
   background: var(--surface-elevated);
   color: var(--accent);
 }
@@ -166,7 +166,7 @@ function formatDate(timestamp) {
 .settings-head p {
   margin: 0;
   color: var(--card-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -177,9 +177,9 @@ function formatDate(timestamp) {
   align-items: center;
   gap: 6px;
   border: 1px solid var(--hairline);
-  border-radius: 999px;
+  border-radius: 5px;
   color: var(--card-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -227,7 +227,7 @@ function formatDate(timestamp) {
   align-items: center;
   gap: 4px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 680;
   text-decoration: none;
 }
@@ -248,7 +248,7 @@ function formatDate(timestamp) {
   display: flex;
   align-items: center;
   border: 1px solid var(--hairline);
-  border-radius: 12px;
+  border-radius: 7px;
   background: var(--surface-elevated);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -292,7 +292,7 @@ function formatDate(timestamp) {
 .last-sync {
   margin: 0;
   color: var(--card-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 

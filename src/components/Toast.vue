@@ -21,7 +21,7 @@
           <path d="M12 10.5v6M12 7.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
       </span>
-      {{ message }}
+      <span class="toast-message">{{ message }}</span>
     </div>
   </Transition>
 </template>
@@ -64,32 +64,36 @@ onBeforeUnmount(() => {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 1000;
   min-height: 44px;
-  padding: 0 15px 0 11px;
+  box-sizing: border-box;
+  max-width: min(480px, calc(100vw - 24px));
+  width: max-content;
+  padding: 10px 13px;
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 13px;
-  background: rgba(18, 24, 36, 0.94);
-  color: #f4f7fb;
-  font-size: 12px;
-  font-weight: 650;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  background: var(--card-bg-solid);
+  color: var(--card-text);
+  font-size: 13px;
+  font-weight: 550;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .10);
   pointer-events: none;
   transform: translateX(-50%);
-  backdrop-filter: blur(18px);
+  line-height: 1.5;
 }
 
 .toast-icon {
-  width: 25px;
-  height: 25px;
+  flex: none;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--card-text-muted);
 }
 
 .toast-icon svg {
@@ -98,14 +102,14 @@ onBeforeUnmount(() => {
 }
 
 .toast.success .toast-icon {
-  background: rgba(69, 199, 132, 0.18);
-  color: #78d9a8;
+  color: var(--success);
 }
 
 .toast.error .toast-icon {
-  background: rgba(255, 116, 125, 0.18);
-  color: #ff8d95;
+  color: var(--danger);
 }
+
+.toast-message { min-width: 0; overflow-wrap: anywhere; }
 
 .toast-enter-active,
 .toast-leave-active {
@@ -115,6 +119,6 @@ onBeforeUnmount(() => {
 .toast-enter-from,
 .toast-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(10px) scale(0.98);
+  transform: translateX(-50%) translateY(4px);
 }
 </style>

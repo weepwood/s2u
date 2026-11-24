@@ -55,14 +55,15 @@
           @click="$emit('select', item.scheme)"
         >
           <span class="scheme-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
+            <img v-if="appIcon({ target: item.scheme })" :src="appIcon({ target: item.scheme })" alt="" width="24" height="24" />
+            <svg v-else viewBox="0 0 24 24" fill="none">
               <path d="M8.5 15.5 15.5 8.5M7 10H5.75A3.75 3.75 0 0 0 2 13.75v2.5A3.75 3.75 0 0 0 5.75 20h2.5A3.75 3.75 0 0 0 12 16.25V15m0-6V7.75A3.75 3.75 0 0 1 15.75 4h2.5A3.75 3.75 0 0 1 22 7.75v2.5A3.75 3.75 0 0 1 18.25 14H17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
             </svg>
           </span>
           <span class="history-content">
             <strong>{{ item.scheme }}</strong>
             <span>
-              {{ formatDate(item.recently).relative }}
+              <time :datetime="new Date(item.recently).toISOString()" :title="formatDate(item.recently).full">{{ formatDate(item.recently).relative }}</time>
               <span aria-hidden="true">·</span>
               已使用 {{ item.count }} 次
             </span>
@@ -91,6 +92,8 @@
 </template>
 
 <script setup>
+import { appIcon } from '../domain/appIcons.js'
+
 defineProps({
   history: { type: Array, default: () => [] },
   searchQuery: { type: String, default: '' },
@@ -241,27 +244,27 @@ function formatDate(timestamp) {
 }
 
 .empty-state {
-  padding: 42px 20px 34px;
+  padding: 28px 12px 24px;
   display: grid;
   justify-items: center;
   text-align: center;
 }
 
 .empty-icon {
-  width: 58px;
-  height: 58px;
-  margin-bottom: 15px;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 9px;
   display: grid;
   place-items: center;
   border: 1px solid var(--hairline);
-  border-radius: 18px;
-  background: var(--surface-soft);
-  color: var(--accent);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--card-text-muted);
 }
 
 .empty-icon svg {
-  width: 27px;
-  height: 27px;
+  width: 20px;
+  height: 20px;
 }
 
 .empty-state h3 {
@@ -316,12 +319,12 @@ function formatDate(timestamp) {
 
 .history-main {
   min-width: 0;
-  min-height: 64px;
-  padding: 9px 8px 9px 12px;
+  min-height: 54px;
+  padding: 7px 8px 7px 8px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -330,8 +333,8 @@ function formatDate(timestamp) {
 }
 
 .scheme-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border: 1px solid var(--hairline);
@@ -339,6 +342,8 @@ function formatDate(timestamp) {
   background: var(--surface-elevated);
   color: var(--accent);
 }
+
+.scheme-icon img { width: 24px; height: 24px; object-fit: contain; border-radius: 4px; }
 
 .scheme-icon svg {
   width: 18px;
@@ -348,7 +353,7 @@ function formatDate(timestamp) {
 .history-content {
   min-width: 0;
   display: grid;
-  gap: 5px;
+  gap: 3px;
 }
 
 .history-content strong {
@@ -366,7 +371,7 @@ function formatDate(timestamp) {
   align-items: center;
   gap: 6px;
   color: var(--card-text-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .open-icon {
@@ -404,6 +409,7 @@ function formatDate(timestamp) {
 }
 
 .history-item:hover .delete-btn,
+.history-item:focus-within .delete-btn,
 .delete-btn:focus-visible {
   opacity: 1;
 }
@@ -417,6 +423,8 @@ function formatDate(timestamp) {
   width: 17px;
   height: 17px;
 }
+
+@media (hover: none), (pointer: coarse) { .delete-btn { opacity: 1; } }
 
 @media (max-width: 640px) {
   .total-badge {

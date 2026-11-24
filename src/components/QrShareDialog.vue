@@ -105,9 +105,9 @@ onMounted(() => {
 .qr-share-url { font-size: 12px; padding: 10px; margin: 0; border-radius: 9px; word-break: break-all; max-height: 75px; overflow: auto; background: var(--surface-soft, #f5f7fa); }
 .qr-share-error { color: var(--danger, #d84b55); font-size: 13px; }
 .qr-share-actions { display: flex; gap: 10px; }
-.qr-share-actions button { border: 1px solid var(--hairline, #dce1e9); border-radius: 10px; padding: 10px 12px; font: inherit; cursor: pointer; flex: 1; color: inherit; background: var(--surface-elevated, #fff); }
+.qr-share-actions button { border: 1px solid var(--hairline, #dce1e9); border-radius: 6px; padding: 10px 12px; font: inherit; cursor: pointer; flex: 1; color: inherit; background: var(--surface-elevated, #fff); }
 .qr-share-actions button:disabled { opacity: .5; cursor: not-allowed; }
-.qr-share-actions .qr-share-primary { background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); color: #fff; }
+.qr-share-actions .qr-share-primary { background: var(--accent, #4f6ef7); border-color: var(--accent, #4f6ef7); color: var(--on-accent, #fff); }
 .qr-share-message { font-size: 12px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .qr-share-dialog::backdrop { backdrop-filter: none; } }
 </style>
