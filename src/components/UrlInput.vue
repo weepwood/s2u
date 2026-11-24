@@ -62,12 +62,13 @@
           <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span>{{ buttonLabel }}</span>
+          <span aria-live="polite">{{ buttonLabel }}</span>
         </button>
       </div>
 
-      <div class="starter-links" role="group" aria-label="快速填入示例地址">
-        <div class="starter-actions">
+      <div class="starter-links">
+        <div class="starter-actions" role="group" aria-label="快速填入示例地址">
+          <span class="starter-label">快速填入</span>
           <button
             v-for="example in starterExamples"
             :key="example.name"
@@ -81,10 +82,10 @@
             <span class="starter-symbol" aria-hidden="true">{{ example.symbol }}</span>
             {{ example.name }}
           </button>
-          <button type="button" class="starter-chip" @click="templateOpen = true" aria-haspopup="dialog">
-            <span class="starter-symbol" aria-hidden="true">＋</span>链接模板
-          </button>
         </div>
+        <button type="button" class="starter-chip template-trigger" @click="templateOpen = true" aria-haspopup="dialog">
+          <span class="starter-symbol" aria-hidden="true">＋</span>链接模板
+        </button>
       </div>
       <p v-if="urlError" id="url-error" class="field-message error-message" role="alert">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -123,7 +124,7 @@
           </button>
         </div>
       </div>
-      <button type="button" class="preview-url" :title="safeDecode(shareUrl)" @click="$emit('goto', shareUrl)">
+      <button type="button" class="preview-url" :title="'复制并打开：' + shareUrl" :aria-label="'复制并打开分享链接：' + shareUrl" @click="$emit('goto', shareUrl)">
         <span class="preview-link-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
             <path d="M9 15l6-6M8 16l-1 1a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-1 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -138,7 +139,7 @@
         <div>
           <h3>最近复制</h3>
         </div>
-        <span>{{ recentUrls.length }} 条</span>
+        <span title="点击记录会复制并打开分享链接">{{ recentUrls.length }} 条 · 复制并打开</span>
       </div>
 
       <div class="recent-list">

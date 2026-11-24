@@ -20,3 +20,11 @@ test('历史转收藏名称使用既有协议校验，拒绝危险目标',()=>{
   assert.equal(historyBookmarkName('obsidian://open?vault=Notes'),'obsidian')
   assert.throws(()=>historyBookmarkName('javascript:alert(1)'),/不支持/)
 })
+
+test('历史较早日期使用本地日历分组和清晰中文标签',()=>{
+  const old={scheme:'https://example.com/old',count:1,recently:new Date(2025,0,3,12).getTime()}
+  const groups=groupHistoryByDay([old],now)
+  assert.equal(groups[0].key,'2025-1-3')
+  assert.equal(groups[0].label,'2025年1月3日')
+  assert.equal(groups[0].items[0],old)
+})
