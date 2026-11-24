@@ -1,0 +1,86 @@
+name: Release v2.0.0
+on:
+  push:
+    branches: [master]
+    paths: ['package.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: release-v2
+  cancel-in-progress: false
+jobs:
+  gate:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify version and exact-commit gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node -e 'const p=require("./package.json"),l=require("./package-lock.json");if(p.version!=="2.0.0"||l.version!==p.version||l.packages[""].version!==p.version)process.exit(1)'
+          for workflow in ci.yml pages.yml cross-browser.yml browser-compat.yml; do
+            for attempt in $(seq 1 80); do
+              run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$GITHUB_SHA&branch=master&event=push&per_page=10" --jq '.workflow_runs[0] // empty')
+              if [ -n "$run" ]; then
+                state=$(jq -r '.status' <<< "$run")
+                conclusion=$(jq -r '.conclusion' <<< "$run")
+                if [ "$state" = completed ]; then
+                  echo "$workflow: $(jq -r '.html_url' <<< "$run") $conclusion"
+                  test "$conclusion" = success
+                  break
+                fi
+              fi
+              if [ "$attempt" = 80 ]; then echo "Timed out: $workflow"; exit 1; fi
+              sleep 10
+            done
+          done
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_PUBLIC_BASE_URL: https://weepwood.github.io/s2u/
+      - run: node scripts/performance-report.mjs
+      - run: npx playwright install --with-deps chromium
+      - name: Verify deployed production in isolated browser
+        run: npx playwright test --config=playwright.production.config.js
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-evidence
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+  publish:
+    needs: gate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Publish only the verified commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/master --jq .object.sha)" = "$GITHUB_SHA"
+          if gh release view v2.0.0 >/dev/null 2>&1; then
+            echo "Release already exists; no changes made"
+            test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.0.0 --jq .object.sha)" = "$GITHUB_SHA"
+            exit 0
+          fi
+          if gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.0.0 >/dev/null 2>&1; then
+            test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/tags/v2.0.0 --jq .object.sha)" = "$GITHUB_SHA"
+            gh release create v2.0.0 --verify-tag --title "S2U v2.0.0" --notes-file CHANGELOG.md
+          else
+            gh release create v2.0.0 --target "$GITHUB_SHA" --title "S2U v2.0.0" --notes-file CHANGELOG.md
+          fi
+          gh release view v2.0.0 --json url,tagName,isDraft,isPrerelease

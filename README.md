@@ -2,7 +2,7 @@
 
 将普通网址或 URL Scheme 转换为可分享的 HTTP 跳转链接。
 
-**在线使用：** [https://s2u2.netlify.app/](https://s2u2.netlify.app/)
+**在线使用：** [GitHub Pages](https://weepwood.github.io/s2u/) · [Netlify](https://s2u2.netlify.app/) · [版本记录](CHANGELOG.md)
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/weepwood/s2u)
 
