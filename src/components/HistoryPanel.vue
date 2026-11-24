@@ -28,14 +28,8 @@
 
     <div v-if="history.length" class="history-filters">
       <div class="history-filter-fields">
-        <BaseSelect v-model="protocol" aria-label="按协议筛选" compact>
-          <option value="">全部协议</option>
-          <option v-for="value in protocols" :key="value" :value="value">{{ value.slice(0,-1) }}</option>
-        </BaseSelect>
-        <BaseSelect v-model="order" aria-label="历史排序" compact>
-          <option value="recent">最近使用</option>
-          <option value="count">使用频率</option>
-        </BaseSelect>
+        <BaseSelect v-model="protocol" aria-label="按协议筛选" compact :options="[{value:'',label:'全部协议'},...protocols.map(value=>({value,label:value.slice(0,-1)}))]" />
+        <BaseSelect v-model="order" aria-label="历史排序" compact :options="[{value:'recent',label:'最近使用'},{value:'count',label:'使用频率'}]" />
       </div>
       <span aria-live="polite">{{ visibleHistory.length }} / {{ history.length }} 条</span>
     </div>
@@ -358,7 +352,7 @@ function formatDate(timestamp) {
 }
 .history-filters { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--card-text-muted); }
 .history-filter-fields { display:flex; gap:8px; min-width:0; }
-.history-filter-fields select { min-width:0; max-width:150px; min-height:34px; padding-left:8px; border-color:var(--hairline); }
+.history-filter-fields .ui-select { min-width:0; max-width:150px; min-height:34px; padding-left:8px; border-color:var(--hairline); }
 .history-day-heading { font-size:12px; color:var(--card-text-muted); font-weight:650; margin:8px 4px 2px; }
 .history-actions { display:flex; gap:2px; align-items:center; }
 .history-bookmark { display:grid; place-items:center; width:30px; height:36px; padding:0; border:0; border-radius:10px; background:transparent; color:var(--card-text-muted); cursor:pointer; }
@@ -373,6 +367,6 @@ function formatDate(timestamp) {
 .history-bookmark-form code { font-size:12px; color:var(--card-text-muted); overflow-wrap:anywhere; }
 .history-bookmark-actions { display:flex; justify-content:flex-end; gap:8px; }
 .bookmark-error { margin:0; color:var(--danger); font-size:12px; }
-@media(max-width:640px){.history-actions{gap:0}.history-bookmark{width:28px}.history-filter-fields select{max-width:130px}.history-bookmark-form{padding:16px}}
-@media (hover:none), (pointer:coarse) { .delete-btn,.history-bookmark { width:44px; height:44px; opacity:1; } .delete-btn { margin-right:2px; } .history-filter-fields select { min-height:44px; } }
+@media(max-width:640px){.history-actions{gap:0}.history-bookmark{width:28px}.history-filter-fields .ui-select{max-width:130px}.history-bookmark-form{padding:16px}}
+@media (hover:none), (pointer:coarse) { .delete-btn,.history-bookmark { width:44px; height:44px; opacity:1; } .delete-btn { margin-right:2px; } .history-filter-fields .ui-select { min-height:44px; } }
 </style>

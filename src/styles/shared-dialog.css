@@ -18,11 +18,11 @@
 }
 .app-shell dialog :is(.cloud-close,.qr-share-close,.dialog-close) svg { width:18px; height:18px; }
 .app-shell dialog :is(.cloud-primary,.qr-share-primary,.command-primary,.editor-actions .primary-button) { color:var(--on-accent); }
-.app-shell dialog :is(.editor-fields input,.cloud-body input:not([type=checkbox]),.cloud-body select) {
+.app-shell dialog :is(.editor-fields input,.cloud-body input:not([type=checkbox])) {
   min-height:var(--dialog-field-height); border-radius:var(--radius-control); border:1px solid var(--hairline-strong);
   transition:border-color var(--motion-fast) ease,box-shadow var(--motion-fast) ease;
 }
-.app-shell dialog :is(.editor-fields input,.cloud-body input:not([type=checkbox]),.cloud-body select):focus {
+.app-shell dialog :is(.editor-fields input,.cloud-body input:not([type=checkbox])):focus {
   outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);
 }
 .app-shell dialog :is(.qr-share-actions button,.editor-actions button,.command-confirm-actions button) {
@@ -57,21 +57,18 @@
 .app-shell .ui-segmented button[aria-pressed=true] { color:var(--card-text); }
 .app-shell .ui-segmented:not(.tabs-ready) button[aria-pressed=true] { background:var(--tab-indicator-bg); }
 
-/* 筛选与设置共享原生下拉控件；紧凑工具栏保留原尺寸。 */
-.app-shell .ui-select {
-  box-sizing:border-box; min-width:0; min-height:var(--dialog-field-height); border:1px solid var(--hairline-strong);
-  border-radius:var(--radius-control); padding:0 10px; background:var(--surface-elevated); color:var(--card-text); font:inherit;
-  transition:border-color var(--motion-fast) ease,box-shadow var(--motion-fast) ease;
-}
+/* 共享自定义下拉框；浮层传送到当前弹窗或应用外壳，避免面板裁切。 */
+.app-shell .ui-select { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; min-height:var(--dialog-field-height); border:1px solid var(--hairline-strong); border-radius:var(--radius-control); padding:0 12px; background:var(--surface-elevated); color:var(--card-text); font:inherit; cursor:pointer; }
 .app-shell .ui-select--compact { min-height:34px; }
-/* WebKit 原生 select 可能绘制与手动主题不一致的白色背景。 */
-.app-shell select.ui-select, .app-shell dialog .cloud-body select {
-  appearance:none; background-color:var(--surface-elevated); color:var(--card-text);
-  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
-  background-position:calc(100% - 12px) 50%,calc(100% - 8px) 50%; background-size:4px 4px; background-repeat:no-repeat; padding-right:24px;
-}
-.app-shell .ui-select:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.app-shell .ui-select span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .ui-select svg { width:16px; height:16px; flex:none; color:var(--card-text-muted); }
+.app-shell .ui-select[aria-expanded=true],.app-shell .ui-select:focus-visible { border-color:var(--accent); outline:2px solid var(--accent-soft); }
 .app-shell .ui-select:disabled { opacity:.5; cursor:not-allowed; }
+.app-shell .ui-select-menu { position:fixed; z-index:100; box-sizing:border-box; overflow:auto; overscroll-behavior:contain; padding:4px; border:1px solid var(--hairline-strong); border-radius:var(--radius-control); background:var(--surface-elevated); color:var(--card-text); box-shadow:var(--shadow-popover); font-size:13px; }
+.app-shell .ui-select-menu [role=option] { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:36px; padding:7px 10px; border-radius:7px; box-sizing:border-box; overflow-wrap:anywhere; cursor:pointer; }
+.app-shell .ui-select-menu .is-active { background:var(--surface-hover); }
+.app-shell .ui-select-menu [aria-selected=true] { color:var(--accent); }
+@media(pointer:coarse) { .app-shell .ui-select,.app-shell .ui-select-menu [role=option] { min-height:44px; } }
 .app-shell .ui-search-field .control-field__clear:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
 
 

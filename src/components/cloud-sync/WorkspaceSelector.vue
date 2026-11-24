@@ -8,9 +8,7 @@
       <summary>切换或新建工作区</summary>
       <div class="workspace-fields">
         <label for="workspace-select">已保存工作区</label>
-        <select id="workspace-select" v-model="selected" :disabled="busy">
-          <option v-for="profile in profiles" :key="profile.id" :value="profile.id">{{ profile.label }}</option>
-        </select>
+        <BaseSelect id="workspace-select" v-model="selected" :disabled="busy" :options="profiles.map(profile=>({value:profile.id,label:profile.label}))" />
         <BaseButton :disabled="busy || !selected || selected === workspace" @click="$emit('switch',selected)">切换工作区</BaseButton>
         <label for="workspace-login">新账号工作区</label>
         <BaseInput id="workspace-login" v-model="login" placeholder="GitHub 用户名" autocomplete="off" :disabled="busy" />
@@ -24,6 +22,7 @@
 import { computed, ref } from 'vue'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
+import BaseSelect from '../ui/BaseSelect.vue'
 const props=defineProps({workspace:{type:String,required:true},profiles:{type:Array,required:true},busy:Boolean})
 defineEmits(['switch','create'])
 const selected=ref(props.workspace),login=ref('')

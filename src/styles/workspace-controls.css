@@ -12,10 +12,10 @@
 .app-shell .panel-head .action-btn { height: 36px; min-height: 36px; }
 .app-shell .panel-head > div { min-width: 0; }
 .app-shell .panel-toolbar {
-  display: grid; grid-template-columns: minmax(0, 1fr) var(--toolbar-actions-width);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
   align-items: center; gap: 10px; min-width: 0;
 }
-.app-shell .panel-toolbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.app-shell .panel-toolbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; }
 .app-shell .control-field {
   position: relative; box-sizing: border-box; display: flex; align-items: center;
   min-width: 0; height: var(--control-height); border: 1px solid var(--hairline-strong);
@@ -52,7 +52,7 @@
 }
 .app-shell .action-btn svg { width: 16px; height: 16px; flex: none; }
 .app-shell .action-btn:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--hairline-strong); color: var(--card-text); }
-.app-shell .panel-toolbar .action-btn { height: var(--control-height); min-width: 0; padding: 0 6px; }
+.app-shell .panel-toolbar .action-btn { height: var(--control-height); min-width: 92px; padding: 0 14px; }
 .app-shell .action-btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-size: 13px; }
 .app-shell .action-btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
 .app-shell .action-btn--primary.copied { background: var(--success); border-color: var(--success); color: var(--on-status); }
@@ -78,7 +78,7 @@
 .app-shell .field-group { align-content:start; }
 
 @media (pointer: coarse) {
-  .app-shell .control-field__input, .app-shell dialog input:not([type=checkbox]):not([type=file]), .app-shell dialog select { font-size:16px; }
+  .app-shell .control-field__input, .app-shell dialog input:not([type=checkbox]):not([type=file]) { font-size:16px; }
   .app-shell .control-field__clear { width:44px; height:44px; margin-right:3px; }
   .app-shell .panel-toolbar-actions .action-btn, .app-shell .panel-head .action-btn { min-height:44px; }
   .app-shell .panel-head:has(.action-btn) { height:auto; min-height:44px; }

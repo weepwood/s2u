@@ -154,10 +154,7 @@
               @open="openCommonLink"
               @copy="copyCommonLink"
               @copy-raw="copyCommonRaw"
-              @move="moveCommonLink"
-              @reorder="reorderCommonLink"
               @rename-tag="renameCommonTag"
-              @pin="pinCommonLink"
               @export="exportCommonLinks"
               @import="importCommonLinks"
             />
@@ -280,7 +277,7 @@ const {
   redirectPolicy, redirectAttempted, attemptRedirect, readShareHash, cancelClose, startRedirectLifecycle, stopRedirectLifecycle,
 } = useShareRedirect({showCloseMsg, urlError, addHistory, autoSync, showToast, notifyStorageError})
 const {
-  reorderCommonLink, renameCommonTag, pinCommonLink, moveCommonLink, exportCommonLinks, importCommonLinks,
+  renameCommonTag, exportCommonLinks, importCommonLinks,
   copyCommonRaw, openCommonLink, saveHistoryBookmark, saveCommonLink, removeCommonLink, resetCommonLinks, copyCommonLink,
 } = useBookmarkActions({commonStore, commonPanel, origin, addHistory, autoSync, notifyStorageError, showToast})
 const { deleteHistoryItem, invalidHistory, onImportFile } = useHistoryActions({historyStore, showToast, notifyStorageError, autoSync})
