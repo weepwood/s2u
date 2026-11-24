@@ -21,7 +21,7 @@
         </div>
       </div>
       <div v-else id="command-results" class="command-results" role="listbox" aria-label="匹配的快捷操作">
-        <p v-if="!matches.length" class="command-empty">没有找到匹配项</p>
+        <EmptyState v-if="!matches.length" class="command-empty" compact title="没有找到匹配项" />
         <button v-for="(item, index) in matches" :key="item.key" :id="`command-item-${index}`" type="button"
           role="option" :aria-selected="selectedIndex === index"
           :class="['command-item', { selected: selectedIndex === index }]"
@@ -43,6 +43,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import BaseDialog from './ui/BaseDialog.vue'
 import BaseButton from './ui/BaseButton.vue'
+import EmptyState from './ui/EmptyState.vue'
 import SegmentedTabs from './ui/SegmentedTabs.vue'
 import { buildLauncherEntries, searchLauncher } from '../domain/launcherSearch.js'
 import { getTargetOpenPolicy } from '../domain/linkCodec.js'
@@ -151,7 +152,7 @@ function copyPending() {
 .command-item-text strong { font-size: 13px; }
 .command-item-text small, .command-kind, .command-footer { color: var(--card-text-muted, #7c879b); font-size: 11px; }
 .command-kind { white-space: nowrap; }
-.command-empty { padding: 24px 12px; text-align: center; color: var(--card-text-muted, #7c879b); }
+
 .command-footer { padding: 11px 18px; border-top: 1px solid var(--hairline, #dce1e9); display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
 .command-confirm { padding:20px; display:grid; gap:12px; font-size:14px; min-height:0; overflow-y:auto; align-content:start; }
 .command-confirm p { margin: 0; word-break: break-all; color: var(--card-text-muted, #7c879b); }

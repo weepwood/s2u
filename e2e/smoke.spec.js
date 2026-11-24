@@ -1517,6 +1517,23 @@ test('最近复制展示真实目标，点击仍复制和打开完整分享链�
 })
 
 
+test('历史、收藏和快捷启动统一空状态，保留原有操作',async({page})=>{
+  await page.setViewportSize({width:320,height:740})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await page.goto('/')
+  await page.getByRole('tab',{name:/历史记录/}).click()
+  await expect(page.locator('.ui-empty-state')).toContainText('还没有创建过链接')
+  await page.getByRole('tab',{name:/常用链接/}).click()
+  await page.getByRole('searchbox',{name:'搜索常用链接'}).fill('not-matching-any-link')
+  await expect(page.locator('.ui-empty-state')).toContainText('没有匹配的链接')
+  await page.getByRole('button',{name:'清除筛选',exact:true}).click()
+  await expect(page.locator('.common-card')).toHaveCount(4)
+  await page.getByRole('button',{name:'打开快捷启动命令面板'}).click()
+  await page.getByRole('searchbox',{name:'搜索命令'}).fill('not-matching-any-link')
+  await expect(page.getByRole('dialog').locator('.ui-empty-state--compact')).toContainText('没有找到匹配项')
+})
+
+
 test('链接模板仅填入经校验的地址，取消与切换不写历史',async({page})=>{
   await page.setViewportSize({width:320,height:740})
   await page.emulateMedia({reducedMotion:'reduce'})
