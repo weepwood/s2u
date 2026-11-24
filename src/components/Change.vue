@@ -182,7 +182,7 @@
 
     <SettingsPanel v-if="showSettings" :cloud="cloud" :workspace-preview="workspacePreview" @close="closeSyncSettings"
       @export-workspace="exportWorkspace" @preview-workspace="previewWorkspace" @restore-workspace="restoreWorkspace"
-      @cancel-workspace="clearWorkspacePreview" @export-before-restore="exportBeforeRestore"
+      @cancel-workspace="clearWorkspacePreview" @export-before-restore="exportBeforeRestore" @export-before-conflict="exportBeforeConflict"
       @connect="connectGist" @sync="syncGist" @disconnect="disconnectGist"
       @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" @test="testGistConnection" />
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
@@ -722,6 +722,13 @@ function exportWorkspace() {
     downloadWorkspace(currentWorkspace(), 's2u-workspace-backup.json')
   } catch (error) { showToast(error.message, 'error') }
 }
+function exportBeforeConflict() {
+  try {
+    const raw = localStorage.getItem('s2u_workspace_before_conflict_v1')
+    if (!raw) { showToast('暂无冲突处理前快照', 'info'); return }
+    downloadWorkspace(JSON.parse(raw), 's2u-before-conflict.json')
+  } catch (error) { showToast(error.message, 'error') }
+}
 function exportBeforeRestore() {
   try {
     const raw = localStorage.getItem(RECOVERY_KEY)
@@ -779,10 +786,11 @@ function validateSettings(value) {
 watch(commonLinks, () => { if (!applyingRemote && preferences.value.common) autoSync() }, { deep: true, flush: 'sync' })
 watch(darkMode, () => { if (!applyingRemote && preferences.value.theme) autoSync() }, { flush: 'sync' })
 
-function syncGist({ silent = false, resolve = '' } = {}) {
+function syncGist({ silent = false, resolve = [] } = {}) {
   if (!cloudToken.value || !cloudGistId.value || showCloseMsg.value || syncStatus.value === 'connecting') return Promise.resolve(false)
   const ctx = cloud.context()
   if (syncPromise && activeContext && cloud.isCurrent(activeContext)) {
+    if (Array.isArray(resolve) && resolve.length) return Promise.resolve(false)
     syncRequested = true
     return syncPromise
   }
@@ -791,6 +799,7 @@ function syncGist({ silent = false, resolve = '' } = {}) {
   const task = (async () => {
     do {
       syncRequested = false
+      cloud.beginConflictCheck()
       const remote = await pullFromGist()
       if (!cloud.isCurrent(ctx) || remote === null) return false
       const summary = inspectImport(remote)
@@ -807,6 +816,11 @@ function syncGist({ silent = false, resolve = '' } = {}) {
       }
       if (prefs.theme) extras[SETTINGS_FILE] = cloud.prepareOptional(SETTINGS_FILE, { version: 1, darkMode: darkMode.value }, validateSettings, resolve)
       if (!cloud.isCurrent(ctx)) return false
+      cloud.assertConflictsResolved(resolve)
+      // 只在所有冲突均有有效选择且当前连接仍有效时才应用本地修改。
+      if (Array.isArray(resolve) && resolve.length) {
+        localStorage.setItem('s2u_workspace_before_conflict_v1', JSON.stringify(currentWorkspace()))
+      }
       applyingRemote = true
       try {
         mergeHistory(remote)
@@ -815,7 +829,8 @@ function syncGist({ silent = false, resolve = '' } = {}) {
       } finally { applyingRemote = false }
       notifyStorageError()
       if (!await pushToGist(historySnapshot(), extras)) return false
-      resolve = ''
+      cloud.clearConflicts()
+      resolve = []
     } while (syncRequested && cloud.isCurrent(ctx))
     if (!silent) showToast('云端同步完成', 'success')
     return true

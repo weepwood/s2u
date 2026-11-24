@@ -19,10 +19,8 @@
           <button type="button" :disabled="busy" @click="editing = true; token = ''; gist = cloud.cloudGistId.value; mode = 'manual'">更换 Token / Gist</button>
           <button type="button" @click="disconnect">断开连接</button>
         </div>
-        <div v-if="cloud.syncError.value.includes('双端冲突')" class="cloud-actions">
-          <button type="button" @click="resolve('local')">保留本机收藏/设置</button>
-          <button type="button" @click="resolve('remote')">保留云端收藏/设置</button>
-        </div>
+        <SyncConflictReview v-if="cloud.conflicts.value.length" :conflicts="cloud.conflicts.value" :busy="busy"
+          @resolve="resolve" @export="$emit('export-workspace')" />
       </template>
       <template v-else>
         <div class="cloud-label">
@@ -84,6 +82,7 @@
         <BaseButton @click="$emit('export-workspace')">导出工作区</BaseButton>
         <BaseButton :disabled="busy" @click="workspaceFile?.click()">导入工作区</BaseButton>
         <BaseButton @click="$emit('export-before-restore')">恢复前快照</BaseButton>
+        <BaseButton @click="$emit('export-before-conflict')">冲突处理前快照</BaseButton>
       </div>
       <input ref="workspaceFile" type="file" accept=".json,application/json" aria-label="导入工作区备份文件" class="workspace-file" tabindex="-1" @change="chooseWorkspace"/>
       <div v-if="workspacePreview" class="cloud-backup workspace-restore-preview" aria-live="polite">
@@ -125,8 +124,9 @@ import BaseButton from './ui/BaseButton.vue'
 import BaseInput from './ui/BaseInput.vue'
 import BaseSwitch from './ui/BaseSwitch.vue'
 import SegmentedTabs from './ui/SegmentedTabs.vue'
+import SyncConflictReview from './cloud-sync/SyncConflictReview.vue'
 const props = defineProps({ cloud: { type: Object, required: true }, workspacePreview: {type:Object, default:null} })
-const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test','export-workspace','preview-workspace','restore-workspace','cancel-workspace','export-before-restore'])
+const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test','export-workspace','preview-workspace','restore-workspace','cancel-workspace','export-before-restore','export-before-conflict'])
 const cloud = props.cloud
 const dialog = ref(null), tab = ref('connection'), token = ref(''), gist = ref(cloud.cloudGistId.value), mode = ref(gist.value ? 'manual' : 'existing')
 const scrollArea = ref(null), direction = ref('forward')
@@ -166,7 +166,7 @@ function pref(key, value) {
     if (value === true && cloud.cloudToken.value && cloud.preferences.value.auto && !busy.value) emit('sync', {})
   } catch (e) { error.value = e.message }
 }
-function resolve(value) { if (confirm('将按所选方向处理收藏及主题冲突。请确认已备份数据，继续？')) emit('sync', { resolve: value }) }
+function resolve(value) { if (confirm('将按已核对的选择处理冲突。先备份本机，再重新验证远端；确认继续？')) emit('sync', { resolve: value }) }
 async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { error.value = e.message } }
 </script>
 <style scoped>

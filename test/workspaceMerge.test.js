@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mergeWorkspace } from '../src/domain/sync/syncEngine.js'
+import { mergeWorkspace, describeWorkspaceConflict, resolveWorkspaceConflict } from '../src/domain/sync/syncEngine.js'
 
 const item = (id, name = id, target = 'https://example.com/' + id) => ({ id, name, target })
 const snapshot = (...items) => ({ format:'s2u-common-links', version:1, items })
@@ -51,4 +51,28 @@ test('同一目标不同 ID、超容量或没有共同基线均停止', () => {
 })
 test('主题双端冲突仍要求人工处理', () => {
   assert.throws(()=>mergeWorkspace({version:1,darkMode:true},{version:1,darkMode:false},null),/双端冲突/)
+})
+
+
+test('逐条选择保留无冲突修改，不把图标原文加入预览',()=>{
+  const left=snapshot({...a,name:'左',icon:'data:image/png;base64,AAAA'},b,{...c,name:'本机 C'})
+  const right=snapshot({...a,name:'右'}, {...b,name:'远端 B'},c)
+  const preview=describeWorkspaceConflict(left,right,base)
+  assert.equal(preview.canChooseRecords,true)
+  assert.deepEqual(preview.rows.filter(x=>x.manual).map(x=>x.id),['a'])
+  assert.doesNotMatch(JSON.stringify(preview),/base64/)
+  const merged=resolveWorkspaceConflict(left,right,base,{mode:'records',records:[['a','remote']]})
+  assert.deepEqual(merged,snapshot({...a,name:'右'},{...b,name:'远端 B'},{...c,name:'本机 C'}))
+  assert.throws(()=>resolveWorkspaceConflict(left,right,base,{mode:'records',records:[]}),/完成所有/)
+  assert.throws(()=>resolveWorkspaceConflict(left,right,base,{mode:'records',records:[['unknown','local']]}),/无效/)
+})
+test('逐条选择保留删除或恢复被一端删除的记录',()=>{
+  const left=snapshot(b,c),right=snapshot({...a,name:'右'},b,c)
+  assert.deepEqual(resolveWorkspaceConflict(left,right,base,{mode:'records',records:[['a','local']]}),left)
+  assert.deepEqual(resolveWorkspaceConflict(left,right,base,{mode:'records',records:[['a','remote']]}),right)
+})
+test('没有共同基线不能逐条选择，允许显式整份选择',()=>{
+  assert.equal(describeWorkspaceConflict(snapshot(a),snapshot(b),null).canChooseRecords,false)
+  assert.throws(()=>resolveWorkspaceConflict(snapshot(a),snapshot(b),null,{mode:'records',records:[]}),/请选择/)
+  assert.deepEqual(resolveWorkspaceConflict(snapshot(a),snapshot(b),null,{mode:'remote'}),snapshot(b))
 })

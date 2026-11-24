@@ -43,7 +43,7 @@ function mergeAppendOrder(local, remote) {
   return result
 }
 
-function mergeCommonLinks(local, remote, baseline) {
+function mergeCommonLinks(local, remote, baseline, choices = new Map()) {
   const baseMap = new Map(baseline.items.map(item => [item.id, item]))
   const left = new Map(local.items.map(item => [item.id, item]))
   const right = new Map(remote.items.map(item => [item.id, item]))
@@ -54,6 +54,8 @@ function mergeCommonLinks(local, remote, baseline) {
     if (samePayload(a, b)) result = a
     else if (samePayload(a, before)) result = b
     else if (samePayload(b, before)) result = a
+    else if (choices.get(id) === 'local') result = a
+    else if (choices.get(id) === 'remote') result = b
     else throw conflict('同一收藏被两端修改，或删除与修改相冲突')
     if (result !== undefined) merged.set(id, result)
   }
@@ -68,6 +70,12 @@ function mergeCommonLinks(local, remote, baseline) {
         if (added.length) throw conflict('新增收藏的插入位置需要人工确认')
         existing.push(item.id)
       } else added.push(item.id)
+    }
+    // 手工选择保留另一端已删除的记录时，仅在本端未重排剩余记录的情况下补回基线位置。
+    if (choices.size && existing.length !== survivingBase.length) {
+      const visible = new Set(existing)
+      if (!samePayload(existing, survivingBase.filter(id => visible.has(id)))) throw conflict('删除冲突与排序变更需要整份确认')
+      return { existing: survivingBase, added }
     }
     return { existing, added }
   }
@@ -93,4 +101,42 @@ export function mergeWorkspace(local, remote, baseline) {
   if ([local, remote, baseline].every(isCommonSnapshot)) return mergeCommonLinks(local, remote, baseline)
   // 无共同基线、主题冲突或无法证明安全的合并一律停止。
   throw conflict('没有共同基线或同一设置已被两端修改')
+}
+
+
+// 比较数据仍在内存中；不将图标 data URL 或凭据暴露给界面。
+function presentItem(item) {
+  return item ? { name:item.name, target:item.target, tags:item.tags || [], hasIcon:!!item.icon } : null
+}
+export function describeWorkspaceConflict(local, remote, baseline) {
+  const common = [local, remote].every(isCommonSnapshot)
+  if (!common) return { kind:'settings', rows:[], localTheme:local?.darkMode, remoteTheme:remote?.darkMode }
+  const left = new Map(local.items.map(item => [item.id,item]))
+  const right = new Map(remote.items.map(item => [item.id,item]))
+  const hasBase = isCommonSnapshot(baseline)
+  const before = new Map(hasBase ? baseline.items.map(item => [item.id,item]) : [])
+  const rows = []
+  for (const id of new Set([...left.keys(),...right.keys(),...before.keys()])) {
+    const a=left.get(id), b=right.get(id), old=before.get(id)
+    if (samePayload(a,b)) continue
+    const manual = hasBase && !samePayload(a,old) && !samePayload(b,old)
+    rows.push({id, local:presentItem(a), remote:presentItem(b), iconChanged:a?.icon !== b?.icon, manual})
+  }
+  return {kind:'common', rows, canChooseRecords:hasBase && rows.some(row=>row.manual),
+    orderChanged:!samePayload(local.items.map(i=>i.id),remote.items.map(i=>i.id)),
+    localOrder:local.items.map(i=>i.name), remoteOrder:remote.items.map(i=>i.name)}
+}
+export function resolveWorkspaceConflict(local, remote, baseline, choice) {
+  if (choice?.mode === 'local') return local
+  if (choice?.mode === 'remote' && remote !== null) return remote
+  const preview = describeWorkspaceConflict(local,remote,baseline)
+  if (choice?.mode !== 'records' || !preview.canChooseRecords || !Array.isArray(choice.records)) throw conflict('请选择处理方式')
+  const required = new Set(preview.rows.filter(row=>row.manual).map(row=>row.id))
+  const decisions = new Map()
+  for (const entry of choice.records) {
+    if (!Array.isArray(entry) || entry.length !== 2 || !required.has(entry[0]) || decisions.has(entry[0]) || !['local','remote'].includes(entry[1])) throw conflict('无效的逐条选择')
+    decisions.set(entry[0],entry[1])
+  }
+  if (decisions.size !== required.size) throw conflict('请完成所有冲突记录的选择')
+  return mergeCommonLinks(local,remote,baseline,decisions)
 }

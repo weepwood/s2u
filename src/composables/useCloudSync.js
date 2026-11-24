@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { createGistClient, parseGistId, readFile, encodeFile, HISTORY_FILE, COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
-import { samePayload, mergeWorkspace } from '../domain/sync/syncEngine.js'
+import { samePayload, mergeWorkspace, describeWorkspaceConflict, resolveWorkspaceConflict } from '../domain/sync/syncEngine.js'
 import { listBackups, saveBackup } from '../domain/sync/backupManager.js'
 
 const LEGACY_CONFIG_KEY = 'cloud_config'
@@ -18,6 +18,23 @@ export function useCloudSync() {
   const syncStatus = ref(''), syncError = ref(''), lastSyncTime = ref(null)
   const preferences = ref({ ...defaults }), pending = ref(false)
   const candidates = ref([]), backups = ref([]), revisions = ref([])
+  const conflicts = ref([])
+  let reviewedConflicts = new Map(), currentConflicts = new Map(), conflictSequence = 0
+  let acceptedChoices = new Set(), unresolvedConflicts = 0
+  function beginConflictCheck() {
+    reviewedConflicts = currentConflicts
+    currentConflicts = new Map()
+    acceptedChoices = new Set()
+    unresolvedConflicts = 0
+    conflicts.value = []
+  }
+  function assertConflictsResolved(choices) {
+    if (unresolvedConflicts) throw new Error('收藏或设置存在双端冲突，请核对差异后确认处理')
+    if (Array.isArray(choices) && choices.some(item => !acceptedChoices.has(item?.id))) throw new Error('冲突预览已变化，请重新同步后核对')
+  }
+  function clearConflicts() {
+    reviewedConflicts = new Map(); currentConflicts = new Map(); conflicts.value = []; acceptedChoices = new Set(); unresolvedConflicts = 0
+  }
   const client = createGistClient()
   let generation = 0, syncTimer = null, pushPromise = null, pendingPayload = null
   let lastObservedContent = null, lastObservedFiles = {}, retryCount = 0
@@ -180,19 +197,38 @@ export function useCloudSync() {
       return remote
     } catch (error) { if (isCurrent(ctx)) report(error); return null }
   }
-  function prepareOptional(name, local, validate, resolve = '') {
+  function prepareOptional(name, local, validate, resolve = []) {
     if (!Object.hasOwn(lastObservedFiles, name)) return null
     const raw = lastObservedFiles[name]
     const remote = raw === null ? null : validate(JSON.parse(raw))
     const key = BASE_PREFIX + connectionKey() + ':' + name
     const stored = localStorage.getItem(key)
     const base = stored ? validate(JSON.parse(stored)) : null
-    try { return validate(mergeWorkspace(local, remote, base)) }
-    catch (error) {
+    const previous = reviewedConflicts.get(name)
+    const unchanged = previous && samePayload(previous.local,local) && samePayload(previous.remote,remote) && samePayload(previous.base,base)
+    const requested = Array.isArray(resolve) && previous ? resolve.find(item => item?.id === previous.id) : null
+    try {
+      const merged = validate(mergeWorkspace(local, remote, base))
+      // 已审查的冲突即使自行消失，也不能在一次过期确认中自动写入。
+      if (requested) throw new Error('冲突预览已变化，请重新同步后核对')
+      return merged
+    } catch (error) {
       if (error.name !== 'WorkspaceConflictError') throw error
-      if (resolve === 'local') return local
-      if (resolve === 'remote' && remote !== null) return remote
-      throw error
+      const decision = unchanged ? requested : null
+      let message = error.message
+      let result = null, accepted = false
+      if (decision) {
+        try { result = validate(resolveWorkspaceConflict(local,remote,base,decision)); accepted = true }
+        catch (failure) { message = failure.message }
+      } else if (Array.isArray(resolve) && resolve.length) {
+        message = '冲突预览已变化，请重新核对本机与云端版本。'
+      }
+      const id = unchanged ? previous.id : ++conflictSequence
+      currentConflicts.set(name,{id,local,remote,base})
+      conflicts.value = [...conflicts.value,{id,name,message,...describeWorkspaceConflict(local,remote,base)}]
+      if (accepted) { acceptedChoices.add(id); return result }
+      unresolvedConflicts++
+      return null
     }
   }
   function pushToGist(data, extras = {}) {
@@ -308,13 +344,14 @@ export function useCloudSync() {
   }
   function cleanup() {
     generation++
+    clearConflicts()
     verifiedIdentity = null
     lastObservedContent = null; lastObservedFiles = {}
     if (syncTimer) clearTimeout(syncTimer)
     syncTimer = null; pendingPayload = null; pushPromise = null; retryTask = null; retryCount = 0
     client.cancel()
   }
-  return { cloudToken, cloudGistId, account, syncStatus, syncError, lastSyncTime, preferences, pending, candidates, backups, revisions,
+  return { cloudToken, cloudGistId, account, syncStatus, syncError, lastSyncTime, preferences, pending, candidates, backups, revisions, conflicts, beginConflictCheck, assertConflictsResolved, clearConflicts,
     loadConfig, setPreferences, markPending, saveConfig, connect, discover, disconnect, pushToGist, pullFromGist, prepareOptional,
     testConnection, getLatestRecovery, getBackupBundle, refreshBackups, loadRevisions, readRevision, scheduleAutoSync, resumePending, cleanup, context, isCurrent }
 }

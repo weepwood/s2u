@@ -190,3 +190,56 @@ test('断开后的修改仍保留待同步标记',()=>{
   assert.equal(sync.pending.value,true)
   assert.equal(storage.get('s2u_gist_pending_'+ID),'1')
 })
+
+
+test('冲突选择只适用于当前已预览文件及未变化的快照',async()=>{
+  const sync=setup(), name='s2u-common-links.json'
+  const snap=label=>({format:'s2u-common-links',version:1,items:[{id:'a',name:label,target:'https://example.com/'}]})
+  let remote=snap('remote'),patches=0
+  const local=snap('local')
+  sync.preferences.value.common=true
+  storage.set('s2u_gist_baseline_'+ID+':'+name,JSON.stringify(snap('base')))
+  globalThis.fetch=async(_url,opts)=>{
+    if(opts.method==='PATCH')patches++
+    const g=gist(history(0));g.files[name]={content:JSON.stringify(remote)};return reply(g)
+  }
+  await sync.pullFromGist();sync.beginConflictCheck()
+  assert.equal(sync.prepareOptional(name,local,x=>x),null)
+  const decision={id:sync.conflicts.value[0].id,mode:'records',records:[['a','local']]}
+  remote=snap('new remote')
+  sync.beginConflictCheck();await sync.pullFromGist()
+  assert.equal(sync.prepareOptional(name,local,x=>x,[decision]),null)
+  assert.notEqual(sync.conflicts.value[0].id,decision.id)
+  assert.match(sync.conflicts.value[0].message,/预览已变化/)
+  const current={...decision,id:sync.conflicts.value[0].id}
+  sync.beginConflictCheck();await sync.pullFromGist()
+  assert.deepEqual(sync.prepareOptional(name,local,x=>x,[current]),local)
+  assert.equal(patches,0)
+  sync.cleanup();assert.equal(sync.conflicts.value.length,0)
+})
+
+test('已接受的冲突仍保留预览，直到所有文件完成审查',async()=>{
+  const sync=setup(), commonName='s2u-common-links.json', settingsName='s2u-settings.json'
+  const snap=label=>({format:'s2u-common-links',version:1,items:[{id:'a',name:label,target:'https://example.com/'}]})
+  const theme=darkMode=>({version:1,darkMode})
+  sync.preferences.value.common=true;sync.preferences.value.theme=true
+  storage.set('s2u_gist_baseline_'+ID+':'+commonName,JSON.stringify(snap('base')))
+  let remote=snap('remote')
+  globalThis.fetch=async()=>{const g=gist(history(0));g.files[commonName]={content:JSON.stringify(remote)};g.files[settingsName]={content:JSON.stringify(theme(true))};return reply(g)}
+  sync.beginConflictCheck();await sync.pullFromGist()
+  sync.prepareOptional(commonName,snap('local'),x=>x)
+  sync.prepareOptional(settingsName,theme(false),x=>x)
+  assert.equal(sync.conflicts.value.length,2)
+  const [a,b]=sync.conflicts.value
+  sync.beginConflictCheck();await sync.pullFromGist()
+  const chosen=[{id:a.id,mode:'local'}]
+  assert.deepEqual(sync.prepareOptional(commonName,snap('local'),x=>x,chosen),snap('local'))
+  assert.equal(sync.prepareOptional(settingsName,theme(false),x=>x,chosen),null)
+  assert.throws(()=>sync.assertConflictsResolved(chosen),/双端冲突/)
+  assert.deepEqual(sync.conflicts.value.map(x=>x.id),[a.id,b.id])
+  sync.beginConflictCheck();await sync.pullFromGist()
+  remote=snap('local')
+  await sync.pullFromGist()
+  assert.throws(()=>sync.prepareOptional(commonName,snap('local'),x=>x,chosen),/预览已变化/)
+  sync.cleanup()
+})
