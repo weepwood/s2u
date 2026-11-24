@@ -529,7 +529,7 @@ button { font: inherit; cursor: pointer; }
 
 /* 桌面鼠标：管理工具浮于卡片右上角，仅悬停或键盘进入该卡片时显示。
    不使用 display:none / visibility:hidden：Tab 焦点仍可抵达隐藏控件。 */
-@media (hover: hover) and (pointer: fine) {
+@media (hover: hover) and (pointer: fine) and (min-width: 621px) {
   .common-card .card-actions {
     position: absolute;
     z-index: 2;
@@ -553,7 +553,7 @@ button { font: inherit; cursor: pointer; }
   }
 }
 /* 触屏 / 不支持悬停的设备保留常驻操作，避免用户无法管理收藏。 */
-@media (hover: none), (pointer: coarse) {
+@media (hover: none), (pointer: coarse), (max-width: 620px) {
   .common-card .card-actions {
     position: static;
     flex-wrap: wrap;

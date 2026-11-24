@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+// 管理工具在鼠标进入卡片后显现；不强制点击隐藏控件。
+async function clickCardTool(button) {
+  await button.locator('xpath=ancestor::article').hover()
+  await button.click()
+}
+
 test('首页渲染与特殊字符分享链接预览', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
@@ -211,7 +217,7 @@ test('常用链接展示图标并可单独复制 Scheme 分享链接', async ({ 
     await expect.poll(() => img.evaluate((element) => element.naturalWidth)).toBeGreaterThan(0)
   }
   await expect(page.getByRole('button', { name: '打开 Obsidian' })).toBeVisible()
-  await page.getByRole('button', { name: '复制 Obsidian 分享链接' }).click()
+  await clickCardTool(page.getByRole('button', { name: '复制 Obsidian 分享链接' }))
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(new URLSearchParams(new URL(copied).hash.slice(1)).get('target')).toBe('obsidian://')
   await expect(page.getByRole('heading', { name: '常用链接' })).toBeVisible()
@@ -251,16 +257,16 @@ test('自定义常用链接可添加、编辑、删除且刷新后仍保留', as
   await page.reload()
   await page.getByRole('tab', { name: /常用链接/ }).click()
   await expect(page.getByText('我的笔记')).toBeVisible()
-  await page.getByRole('button', { name: '编辑 我的笔记' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 我的笔记' }))
   await expect(page.getByRole('dialog', { name: '编辑常用链接' })).toBeVisible()
   await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('资料库')
   await page.getByRole('button', { name: '保存链接' }).click()
   await expect(page.getByText('资料库')).toBeVisible()
-  await page.getByRole('button', { name: '复制 资料库 分享链接' }).click()
+  await clickCardTool(page.getByRole('button', { name: '复制 资料库 分享链接' }))
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(copied).toContain('obsidian%3A%2F%2Fopen')
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: '删除 资料库' }).click()
+  await clickCardTool(page.getByRole('button', { name: '删除 资料库' }))
   await expect(page.getByText('资料库')).toHaveCount(0)
 })
 
@@ -305,14 +311,14 @@ test('应用名称与 URL 位于图标右侧，编辑弹窗支持 ESC 和取消'
   expect(title.x).toBeGreaterThan(image.x + image.width - 1)
   expect(url.x).toBeGreaterThan(image.x + image.width - 1)
 
-  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 Obsidian' }))
   const dialog = page.getByRole('dialog', { name: '编辑常用链接' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByPlaceholder('例如：我的 Obsidian 笔记库')).toHaveValue('Obsidian')
   await expect(dialog.getByPlaceholder('obsidian:// 或 https://example.com')).toHaveValue('obsidian://')
   await page.keyboard.press('Escape')
   await expect(dialog).not.toBeVisible()
-  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 Obsidian' }))
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: '取消' }).click()
   await expect(dialog).not.toBeVisible()
@@ -323,7 +329,7 @@ test('320px 手机视口中编辑弹窗不超出边界', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 })
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
-  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 Obsidian' }))
   const dialog = page.getByRole('dialog', { name: '编辑常用链接' })
   await expect(dialog).toBeVisible()
   const bounds = await dialog.boundingBox()
@@ -339,7 +345,7 @@ test('编辑弹窗快捷键不触发隐藏创建页复制或历史页切换', as
   await page.goto('/')
   await page.locator('#url').fill('https://example.com/should-not-be-copied')
   await page.getByRole('tab', { name: /常用链接/ }).click()
-  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 Obsidian' }))
   const modal = page.getByRole('dialog', { name: '编辑常用链接' })
   await expect(modal).toBeVisible()
   await modal.getByRole('button', { name: '关闭弹窗' }).focus()
@@ -447,7 +453,7 @@ test('常用链接可以搜索、持久化排序及安全追加导入 JSON', asy
   await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('obsidian')
   await expect(page.locator('.common-card')).toHaveCount(1)
   await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('')
-  await page.getByRole('button', { name: '下移 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '下移 Obsidian' }))
   await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
   await page.reload()
   await page.getByRole('tab', { name: /常用链接/ }).click()
@@ -494,7 +500,7 @@ test('已知应用可复制原始 Scheme，危险 Scheme 不能添加', async ({
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
-  await page.getByRole('button', { name: '复制 Obsidian 原始链接' }).click()
+  await clickCardTool(page.getByRole('button', { name: '复制 Obsidian 原始链接' }))
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('obsidian://')
   await page.getByRole('button', { name: /添加常用链接/ }).click()
   await page.getByPlaceholder('例如：我的 Obsidian 笔记库').fill('不安全')
@@ -507,7 +513,7 @@ test('已知应用可复制原始 Scheme，危险 Scheme 不能添加', async ({
 test('上传应用图标后刷新持久化，并可携带图标导出及重新导入', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
-  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 Obsidian' }))
   const editor = page.getByRole('dialog', { name: '编辑常用链接' })
   await editor.getByLabel('上传应用图标').setInputFiles('public/icons/common-obsidian.png')
   await expect.poll(async () =>
@@ -527,7 +533,7 @@ test('上传应用图标后刷新持久化，并可携带图标导出及重新�
   expect(backup.items.find((item) => item.id === 'obsidian').icon).toMatch(/^data:image\/(png|webp);base64,/)
 
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: '删除 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '删除 Obsidian' }))
   await expect(page.getByRole('button', { name: '打开 Obsidian' })).not.toBeVisible()
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByLabel('选择常用链接备份文件').setInputFiles({
@@ -540,7 +546,7 @@ test('上传应用图标后刷新持久化，并可携带图标导出及重新�
 test('上传 SVG 文件时拒绝并保留原应用图标', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('tab', { name: /常用链接/ }).click()
-  await page.getByRole('button', { name: '编辑 Obsidian' }).click()
+  await clickCardTool(page.getByRole('button', { name: '编辑 Obsidian' }))
   const editor = page.getByRole('dialog', { name: '编辑常用链接' })
   await editor.getByLabel('上传应用图标').setInputFiles({
     name: 'danger.svg',
@@ -560,7 +566,7 @@ test('搜索筛选的卡片仍可一键置顶，刷新后首位保持且不会�
   await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('weixin')
   // 这里名称为「微信」，使用 URL Scheme 搜索验证筛选后仍可操作。
   await expect(page.locator('.common-card')).toHaveCount(1)
-  await page.getByRole('button', { name: '置顶 微信' }).click()
+  await clickCardTool(page.getByRole('button', { name: '置顶 微信' }))
   await expect(page.getByRole('button', { name: '置顶 微信' })).not.toBeVisible()
   await page.getByRole('searchbox', { name: '搜索常用链接' }).fill('')
   await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('微信')
@@ -746,7 +752,7 @@ test('删除筛选标签最后一条收藏时自动返回全部列表', async ({
   await page.getByRole('button', { name: '唯一标签', exact: true }).click()
   await expect(page.locator('.common-card')).toHaveCount(1)
   page.once('dialog', async (dialog) => dialog.accept())
-  await page.getByRole('button', { name: '删除 唯一收藏' }).click()
+  await clickCardTool(page.getByRole('button', { name: '删除 唯一收藏' }))
   await expect(page.locator('.common-card')).toHaveCount(1)
   await expect(page.locator('.common-card').first()).toContainText('普通收藏')
   await expect(page.getByRole('button', { name: '唯一标签', exact: true })).toHaveCount(0)
@@ -1025,7 +1031,7 @@ test('触屏设备常用链接卡片管理操作始终可用', async ({ browser 
     expect(pointer).toBe(true)
     await expect(card.locator('.card-actions')).toHaveCSS('opacity', '1')
     await expect(card.getByRole('button', { name: '置顶 Visual Studio Code' })).toBeVisible()
-    await card.getByRole('button', { name: '置顶 Visual Studio Code' }).click()
+    await clickCardTool(card.getByRole('button', { name: '置顶 Visual Studio Code' }))
     await expect(page.locator('.common-card').first().locator('.card-meta strong')).toHaveText('Visual Studio Code')
   } finally {
     await context.close()
@@ -1449,6 +1455,7 @@ test('收藏拖拽排序、切换列表视图及筛选时禁止拖动',async({pa
   const handle=cards.filter({has:page.getByRole('button',{name:'打开 Obsidian',exact:true})}).locator('.common-drag-handle')
   const target=cards.filter({has:page.getByRole('button',{name:'打开 微信',exact:true})})
   const rect=await target.boundingBox()
+  await handle.locator('xpath=ancestor::article').hover()
   await handle.dragTo(target,{targetPosition:{x:Math.floor(rect.width/2),y:Math.floor(rect.height*.75)}})
   await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('s2u_common_links_v1')||'{}').items?.map(i=>i.id))).toEqual(['vscode','weixin','obsidian','orpheus'])
   await page.getByRole('button',{name:'列表视图',exact:true}).click()
@@ -1640,3 +1647,15 @@ test('链接模板仅填入经校验的地址，取消与切换不写历史',asy
   await expect(page.getByText('可以分享',{exact:true})).toBeVisible()
 })
 
+
+test('创建入口区分示例和链接模板，预览明确复制并打开语义', async ({page})=>{
+  await page.setViewportSize({width:375,height:800})
+  await page.goto('/')
+  const examples=page.getByRole('group',{name:'快速填入示例地址'})
+  await expect(examples.getByRole('button')).toHaveCount(4)
+  await expect(examples.getByRole('button',{name:'链接模板'})).toHaveCount(0)
+  await page.getByRole('button',{name:'填入网页示例'}).click()
+  await expect(page.locator('.preview-url')).toHaveAttribute('aria-label',/复制并打开分享链接/)
+  await expect(page.getByRole('button',{name:'链接模板',exact:true})).toBeVisible()
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+})
