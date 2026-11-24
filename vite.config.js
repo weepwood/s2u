@@ -23,6 +23,8 @@ function resolvePublicPath(mode) {
 export default defineConfig(({ mode }) => ({
   // Vite 资源地址与公开分享链接使用同一个路径前缀。
   base: resolvePublicPath(mode),
+  // 小型工作台统一压缩样式，减少多个 CSS chunk 的重复字典；JS 仍按需加载。
+  build: { cssCodeSplit: false },
   plugins: [
     vue(),
     {

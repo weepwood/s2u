@@ -1,6 +1,6 @@
 <template>
   <button ref="trigger" v-bind="$attrs" type="button" class="ui-select" :class="{'ui-select--compact':compact}" role="combobox"
-    aria-haspopup="listbox" :aria-expanded="open" :aria-controls="listId" :aria-activedescendant="open ? listId+'-'+active : undefined"
+    aria-haspopup="listbox" :aria-expanded="open" :aria-controls="open ? listId : undefined" :aria-activedescendant="open ? listId+'-'+active : undefined"
     :disabled="disabled" @click="toggle" @keydown="keys" @blur="close">
     <span>{{ options.find(o=>o.value===modelValue)?.label || '请选择' }}</span>
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -25,10 +25,11 @@ function place(){
   const r=trigger.value?.getBoundingClientRect()
   if(!r)return
   const w=document.documentElement.clientWidth,h=window.innerHeight
-  if(r.bottom<=0||r.top>=h){close();return}
+  if(r.bottom<=0||r.top>=h)return false
   const below=h-r.bottom-12,above=r.top-12,up=below<180&&above>below
   const width=Math.min(w-16,Math.max(152,r.width))
   position.value={width:width+'px',left:Math.max(8,Math.min(r.left,w-width-8))+'px',maxHeight:Math.max(40,Math.min(240,up?above:below))+'px',...(up?{bottom:(h-r.top+4)+'px'}:{top:(r.bottom+4)+'px'})}
+  return true
 }
 function outside(e){if(!trigger.value?.contains(e.target)&&!menu.value?.contains(e.target))close()}
 function scrolled(e){if(!menu.value?.contains(e.target))close()}
@@ -41,10 +42,11 @@ function close(){
 }
 function show(){
   if(props.disabled||!props.options.length)return
+  trigger.value.focus({preventScroll:true})
   host.value=trigger.value.closest('dialog[open]')||trigger.value.closest('.app-shell')
   if(!host.value)return
   active.value=Math.max(0,props.options.findIndex(o=>o.value===props.modelValue))
-  place()
+  if(!place())return
   open.value=true
   document.addEventListener('pointerdown',outside,true)
   window.addEventListener('scroll',scrolled,true)

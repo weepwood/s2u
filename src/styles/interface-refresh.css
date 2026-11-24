@@ -49,7 +49,7 @@
   outline: 2px solid var(--accent); outline-offset: 3px;
 }
 
-.app-shell dialog[open] { animation: s2u-dialog-appear var(--motion-dialog-duration) var(--motion-gentle) both; }
+.app-shell dialog[open] { animation: s2u-dialog-appear var(--motion-dialog-duration) var(--motion-gentle) backwards; }
 @keyframes s2u-dialog-appear {
   from { opacity: 0; transform: translateY(6px) scale(.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
