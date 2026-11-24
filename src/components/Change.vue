@@ -126,6 +126,8 @@
             :history="history"
             :search-query="searchQuery"
             :filtered-history="filteredHistory"
+            :common-links="commonLinks"
+            :save-bookmark="saveHistoryBookmark"
             :show-settings="showSettings"
             @update:search-query="searchQuery = $event"
             @select="toHistoryUrl"
@@ -693,6 +695,14 @@ function openCommonLink(target) {
   } catch {
     showToast('无法打开此链接，请确认目标应用或浏览器支持该协议', 'error', 4000)
   }
+}
+
+function saveHistoryBookmark(item) {
+  // 使用同一收藏校验及工作区存储入口，不增加历史使用次数或触发外部跳转。
+  const persisted=persistCommonLink(item)
+  if(persisted)showToast('已添加到常用链接','success')
+  else if(commonStorageError.value)throw new Error(commonStorageError.value)
+  return persisted
 }
 
 function saveCommonLink(item) {
