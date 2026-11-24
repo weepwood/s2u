@@ -180,7 +180,9 @@
       </div>
     </section>
 
-    <SettingsPanel v-if="showSettings" :cloud="cloud" @close="closeSyncSettings"
+    <SettingsPanel v-if="showSettings" :cloud="cloud" :workspace-preview="workspacePreview" @close="closeSyncSettings"
+      @export-workspace="exportWorkspace" @preview-workspace="previewWorkspace" @restore-workspace="restoreWorkspace"
+      @cancel-workspace="clearWorkspacePreview" @export-before-restore="exportBeforeRestore"
       @connect="connectGist" @sync="syncGist" @disconnect="disconnectGist"
       @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" @test="testGistConnection" />
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
@@ -200,9 +202,10 @@ import Toast from './Toast.vue'
 import ShortcutHelp from './ShortcutHelp.vue'
 import QrShareDialog from './QrShareDialog.vue'
 import CommandPalette from './CommandPalette.vue'
-import { useDarkMode } from '../composables/useDarkMode.js'
-import { useHistory } from '../composables/useHistory.js'
-import { useCommonLinks } from '../composables/useCommonLinks.js'
+import { useDarkMode, DARK_MODE_STORAGE_KEY } from '../composables/useDarkMode.js'
+import { makeWorkspaceBackup, parseWorkspaceBackup, planWorkspaceRestore, runWorkspaceRestore, RECOVERY_KEY, MAX_WORKSPACE_BACKUP_BYTES } from '../domain/sync/workspaceBackup.js'
+import { useHistory, HISTORY_STORAGE_KEY } from '../composables/useHistory.js'
+import { useCommonLinks, COMMON_LINKS_STORAGE_KEY } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
 import { COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
 import { useClipboard } from '../composables/useClipboard.js'
@@ -345,7 +348,7 @@ function handleTabNavigation(event) {
 const showSettings = ref(false)
 let syncTrigger = null
 function openSyncSettings() { syncTrigger = document.activeElement; showSettings.value = true }
-function closeSyncSettings() { showSettings.value = false; nextTick(() => syncTrigger?.isConnected && syncTrigger.focus()) }
+function closeSyncSettings() { showSettings.value = false; clearWorkspacePreview(); nextTick(() => syncTrigger?.isConnected && syncTrigger.focus()) }
 const showCloseMsg = ref(false)
 const redirectPolicy = ref(null)
 const redirectAttempted = ref(false)
@@ -697,6 +700,78 @@ let syncPromise = null
 let syncRequested = false
 let activeContext = null
 let applyingRemote = false
+const workspacePreview = ref(null)
+let workspaceIncoming = null
+let previewGeneration = 0
+function clearWorkspacePreview() { previewGeneration++; workspaceIncoming = null; workspacePreview.value = null }
+function currentWorkspace() {
+  return makeWorkspaceBackup({ history: historySnapshot(), commonLinks: commonSyncSnapshot(true), darkMode: darkMode.value })
+}
+function downloadWorkspace(data, name) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'})
+  if (blob.size > MAX_WORKSPACE_BACKUP_BYTES) throw new Error('备份超过 8 MiB，请分别导出历史与收藏')
+  const href = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = href; link.download = name
+  document.body.appendChild(link); link.click(); link.remove()
+  setTimeout(() => URL.revokeObjectURL(href), 1000)
+}
+function exportWorkspace() {
+  try {
+    if (storageError.value || commonStorageError.value) throw new Error('本机存在存储异常，请先处理再导出')
+    downloadWorkspace(currentWorkspace(), 's2u-workspace-backup.json')
+  } catch (error) { showToast(error.message, 'error') }
+}
+function exportBeforeRestore() {
+  try {
+    const raw = localStorage.getItem(RECOVERY_KEY)
+    if (!raw) { showToast('暂无恢复前快照', 'info'); return }
+    downloadWorkspace(JSON.parse(raw), 's2u-before-restore.json')
+  } catch (error) { showToast(error.message, 'error') }
+}
+async function previewWorkspace(file) {
+  clearWorkspacePreview()
+  const generation = previewGeneration
+  try {
+    if (!file || file.size > MAX_WORKSPACE_BACKUP_BYTES) throw new Error('请选择不超过 8 MiB 的 JSON 备份')
+    const raw = await file.text()
+    if (generation !== previewGeneration || !showSettings.value) return
+    const incoming = parseWorkspaceBackup(raw, {inspectHistory:inspectImport, validateCommon:validateCommonSync})
+    const plan = planWorkspaceRestore(currentWorkspace(), incoming, validateCommonSync)
+    workspaceIncoming = incoming
+    workspacePreview.value = { ...plan.summary, name:file.name }
+  } catch (error) {
+    if (generation === previewGeneration) workspacePreview.value = {error:error.message}
+  }
+}
+function restoreWorkspace({ theme = false } = {}) {
+  if (!workspaceIncoming || syncPromise || ['connecting','syncing'].includes(syncStatus.value)) return
+  if (storageError.value || commonStorageError.value) { workspacePreview.value = {error:'本机存在存储异常，已停止恢复'}; return }
+  try {
+    const before = currentWorkspace()
+    const plan = planWorkspaceRestore(before, workspaceIncoming, validateCommonSync)
+    if (!confirm('合并 ' + plan.summary.history + ' 条历史、' + plan.summary.tombstones + ' 个删除标记，新增 ' + plan.summary.added + ' 条收藏？已有同地址收藏保持不变，历史删除标记仍有效。恢复前保存快照，并暂停自动同步。')) return
+    cloud.setPreferences({auto:false})
+    applyingRemote = true
+    try {
+      runWorkspaceRestore(localStorage, [HISTORY_STORAGE_KEY, COMMON_LINKS_STORAGE_KEY, DARK_MODE_STORAGE_KEY], before, () => {
+        mergeHistory(plan.history)
+        if (plan.commonLinks) applyCommonSync(plan.commonLinks, true)
+        if (theme && plan.settings) {
+          localStorage.setItem(DARK_MODE_STORAGE_KEY, JSON.stringify(plan.settings.darkMode))
+          darkMode.value = plan.settings.darkMode
+        }
+      }, () => { loadHistory(); loadCommonLinks(); darkMode.value = before.settings.darkMode })
+    } finally { applyingRemote = false }
+    cloud.markPending()
+    clearWorkspacePreview()
+    showToast('工作区已合并恢复，自动同步已暂停', 'success', 4000)
+  } catch (error) {
+    cloud.markPending()
+    workspacePreview.value = {error:error.message}
+  }
+}
+
 function validateSettings(value) {
   if (value?.version !== 1 || typeof value.darkMode !== 'boolean') throw new Error('云端主题格式错误')
   return { version: 1, darkMode: value.darkMode }
@@ -899,12 +974,12 @@ function scheduleInitialSync() {
   if ('requestIdleCallback' in window) {
     initialSyncIdle = window.requestIdleCallback(() => {
       initialSyncIdle = null
-      syncGist({ silent: true }).catch(() => {})
+      if (preferences.value.auto) syncGist({ silent: true }).catch(() => {})
     }, { timeout: 2000 })
   } else {
     initialSyncFallback = window.setTimeout(() => {
       initialSyncFallback = null
-      syncGist({ silent: true }).catch(() => {})
+      if (preferences.value.auto) syncGist({ silent: true }).catch(() => {})
     }, 800)
   }
 }

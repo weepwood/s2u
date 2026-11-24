@@ -79,6 +79,30 @@
       <p class="cloud-note">收藏及主题为可选同步。双端冲突会暂停；图标关闭不会删除云端已有图标。每份文件限制 900 KB。</p>
     </section>
     <section v-else key="backup" class="cloud-body">
+      <strong>本机工作区</strong>
+      <div class="cloud-actions">
+        <BaseButton @click="$emit('export-workspace')">导出工作区</BaseButton>
+        <BaseButton :disabled="busy" @click="workspaceFile?.click()">导入工作区</BaseButton>
+        <BaseButton @click="$emit('export-before-restore')">恢复前快照</BaseButton>
+      </div>
+      <input ref="workspaceFile" type="file" accept=".json,application/json" aria-label="导入工作区备份文件" class="workspace-file" tabindex="-1" @change="chooseWorkspace"/>
+      <div v-if="workspacePreview" class="cloud-backup workspace-restore-preview" aria-live="polite">
+        <p v-if="workspacePreview.error" class="cloud-error">{{ workspacePreview.error }}</p>
+        <template v-else>
+          <strong>恢复预览</strong>
+          <span class="cloud-note">{{ workspacePreview.name }}</span>
+          <dl class="cloud-details">
+            <dt>历史记录 / 删除标记</dt><dd>{{ workspacePreview.history }} / {{ workspacePreview.tombstones }}</dd>
+            <dt>新增收藏</dt><dd>{{ workspacePreview.added }} 条</dd>
+            <dt>保留本机同地址收藏</dt><dd>{{ workspacePreview.skipped }} 条</dd>
+          </dl>
+          <BaseSwitch v-if="workspacePreview.theme" v-model="restoreTheme">恢复主题（{{ workspacePreview.theme }}）</BaseSwitch>
+          <p class="cloud-note">只合并本机数据，历史删除标记仍有效。自动同步将暂停，恢复前快照会保存在本机。</p>
+          <BaseButton variant="primary" :disabled="busy" @click="$emit('restore-workspace',{theme:restoreTheme})">确认合并恢复</BaseButton>
+        </template>
+        <BaseButton @click="$emit('cancel-workspace')">取消</BaseButton>
+      </div>
+      <div class="cloud-divider"></div>
       <strong>本地同步前备份</strong>
       <p v-if="!cloud.backups.value.length" class="cloud-note">暂无备份</p>
       <div v-for="(item, index) in cloud.backups.value" :key="index" class="cloud-backup">
@@ -101,11 +125,18 @@ import BaseButton from './ui/BaseButton.vue'
 import BaseInput from './ui/BaseInput.vue'
 import BaseSwitch from './ui/BaseSwitch.vue'
 import SegmentedTabs from './ui/SegmentedTabs.vue'
-const props = defineProps({ cloud: { type: Object, required: true } })
-const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test'])
+const props = defineProps({ cloud: { type: Object, required: true }, workspacePreview: {type:Object, default:null} })
+const emit = defineEmits(['close','connect','sync','disconnect','export-backup','export-bundle','restore','test','export-workspace','preview-workspace','restore-workspace','cancel-workspace','export-before-restore'])
 const cloud = props.cloud
 const dialog = ref(null), tab = ref('connection'), token = ref(''), gist = ref(cloud.cloudGistId.value), mode = ref(gist.value ? 'manual' : 'existing')
 const scrollArea = ref(null), direction = ref('forward')
+const workspaceFile = ref(null), restoreTheme = ref(false)
+function chooseWorkspace(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  restoreTheme.value = false
+  if (file) emit('preview-workspace', file)
+}
 const editing = ref(false), finding = ref(false), searched = ref(false), error = ref('')
 const tabs = [{id:'connection',label:'连接'},{id:'preferences',label:'同步设置'},{id:'backup',label:'备份恢复'}]
 const busy = computed(() => ['connecting','syncing'].includes(cloud.syncStatus.value))
@@ -182,4 +213,7 @@ async function loadVersions() { try { await cloud.loadRevisions() } catch (e) { 
 .token-guide-divider { height:1px; background:var(--hairline); margin-block:2px; }
 .cloud-dialog :is(button,input,select,a,summary):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 @media(max-width:420px) { .cloud-dialog { padding:16px; } .cloud-actions button { font-size:12px; } }
+.workspace-file { display:none; }
+.workspace-restore-preview { display:grid; gap:10px; min-width:0; overflow-wrap:anywhere; }
+.workspace-restore-preview .cloud-details { width:100%; box-sizing:border-box; }
 </style>

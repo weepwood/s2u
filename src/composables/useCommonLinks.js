@@ -1,7 +1,8 @@
 import { ref } from 'vue'
 import { normalizeTarget } from '../domain/linkCodec.js'
 
-const STORAGE_KEY = 's2u_common_links_v1'
+export const COMMON_LINKS_STORAGE_KEY = 's2u_common_links_v1'
+const STORAGE_KEY = COMMON_LINKS_STORAGE_KEY
 const CORRUPT_BACKUP_PREFIX = 's2u_common_links_corrupt_backup_'
 const VERSION = 1
 const MAX_LINKS = 50
