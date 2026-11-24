@@ -52,14 +52,15 @@ test('模拟 Gist 同步不接触真实 Token/API', async ({ page }) => {
     if (url.pathname === '/gists' && request.method() === 'POST') {
       const body = request.postDataJSON()
       remoteData = JSON.parse(body.files['scheme-history.json'].content)
-      return route.fulfill({ json: { id: 'test-gist-id' } })
+      return route.fulfill({ json: { id: 'abcde12345' } })
     }
-    if (url.pathname === '/gists/test-gist-id' && request.method() === 'GET') {
-      return route.fulfill({ json: { files: { 'scheme-history.json': { content: JSON.stringify(remoteData) } } } })
+    if (url.pathname === '/gists/abcde12345' && request.method() === 'GET') {
+      return route.fulfill({ json: { public: false, owner: { login: 'test-user' }, files: { 'scheme-history.json': { content: JSON.stringify(remoteData) } } } })
     }
-    if (url.pathname === '/gists/test-gist-id' && request.method() === 'PATCH') {
+    if (url.pathname === '/gists/abcde12345' && request.method() === 'PATCH') {
       patched++
-      return route.fulfill({ json: { id: 'test-gist-id' } })
+      remoteData = JSON.parse(request.postDataJSON().files['scheme-history.json'].content)
+      return route.fulfill({ json: { id: 'abcde12345' } })
     }
     return route.fulfill({ status: 404, json: { message: 'Unexpected API request' } })
   })
@@ -67,9 +68,12 @@ test('模拟 Gist 同步不接触真实 Token/API', async ({ page }) => {
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
+  await page.locator('#gist-mode').selectOption('new')
+  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: '连接 Gist' }).click()
   await expect(page.getByRole('button', { name: '立即同步' })).toBeVisible()
-  await expect.poll(() => patched).toBeGreaterThan(0)
+  await expect(page.getByRole('status').filter({ hasText: '已同步' })).toBeVisible()
+  expect(patched).toBe(0)
   const stored = await page.evaluate(() => ({
     local: JSON.stringify(localStorage),
     token: sessionStorage.getItem('cloud_token_session'),
@@ -252,10 +256,11 @@ test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', asyn
     const method = route.request().method()
     if (url.pathname === '/user') return route.fulfill({ json: { login: 'test-user' } })
     if (url.pathname === '/gists' && method === 'POST') {
-      return route.fulfill({ json: { id: 'test-sync-id' } })
+      return route.fulfill({ json: { id: 'abcde12346' } })
     }
-    if (url.pathname === '/gists/test-sync-id' && method === 'GET') {
+    if (url.pathname === '/gists/abcde12346' && method === 'GET') {
       return route.fulfill({ json: {
+        public: false, owner: { login: 'test-user' },
         files: {
           'scheme-history.json': {
             content: JSON.stringify({
@@ -270,7 +275,7 @@ test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', asyn
     }
     if (method === 'PATCH') {
       patchCount++
-      return route.fulfill({ json: { id: 'test-sync-id' } })
+      return route.fulfill({ json: { id: 'abcde12346' } })
     }
     return route.fulfill({ status: 404, json: { message: 'unexpected request' } })
   })
@@ -278,6 +283,8 @@ test('本地历史落盘失败时 Gist 合并停止，绝不 PATCH 远端', asyn
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
+  await page.locator('#gist-mode').selectOption('new')
+  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: '连接 Gist' }).click()
   // 首次访问时历史工作区需按需下载，云端同步错误提示允许完整异步流程结束。
   await expect(page.getByRole('alert')).toContainText('本地存储空间不足', { timeout: 12000 })
@@ -298,21 +305,23 @@ test('连接后远端被另一设备修改时不会覆盖 Gist', async ({ page }
     const { pathname } = new URL(request.url())
     if (pathname === '/user') return route.fulfill({ json: { login: 'test-user' } })
     if (pathname === '/gists' && request.method() === 'POST') {
-      return route.fulfill({ json: { id: 'test-race' } })
+      return route.fulfill({ json: { id: 'abcde12347' } })
     }
-    if (pathname === '/gists/test-race' && request.method() === 'GET') {
+    if (pathname === '/gists/abcde12347' && request.method() === 'GET') {
       reads++
-      return route.fulfill({ json: { files: {
+      return route.fulfill({ json: { public: false, owner: { login: 'test-user' }, files: {
         'scheme-history.json': { content: history(reads > 1 ? 'https://external.example/new' : 'https://initial.example/') },
       } } })
     }
     if (request.method() === 'PATCH') patches++
-    return route.fulfill({ status: 200, json: { id: 'test-race' } })
+    return route.fulfill({ status: 200, json: { id: 'abcde12347' } })
   })
   await page.goto('/')
   await page.getByRole('tab', { name: /历史记录/ }).click()
   await page.getByRole('button', { name: '云端同步' }).click()
   await page.locator('#gist-token').fill('fake-token-for-test')
+  await page.locator('#gist-mode').selectOption('new')
+  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: '连接 Gist' }).click()
   await expect(page.getByRole('alert')).toContainText('已被其它设备修改')
   expect(patches).toBe(0)
@@ -922,4 +931,53 @@ test('顶部导航与工作区页签在桌面及移动端左右对齐', async ({
     expect(bounds.rightDelta).toBeLessThanOrEqual(1)
     expect(bounds.widthDelta).toBeLessThanOrEqual(1)
   }
+})
+
+
+test('云同步是独立弹窗，支持全局入口、窄屏、Escape 和焦点恢复', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await page.goto('/')
+  const trigger = page.getByRole('button', { name: '打开云同步设置' })
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: '云端同步' })
+  await expect(dialog).toBeVisible()
+  await expect(page.locator('#create-link-title')).toBeVisible()
+  const rect = await dialog.boundingBox()
+  expect(rect.x).toBeGreaterThanOrEqual(0)
+  expect(rect.x + rect.width).toBeLessThanOrEqual(321)
+  await dialog.getByRole('button', { name: '同步设置' }).click()
+  await expect(dialog.getByLabel('自动同步')).toBeChecked()
+  await dialog.getByLabel('自动同步').uncheck()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+  await dialog.getByRole('button', { name: '同步设置' }).click()
+  await expect(dialog.getByLabel('自动同步')).not.toBeChecked()
+  await dialog.getByRole('button', { name: '关闭云端同步' }).click()
+  await expect(dialog).toHaveCount(0)
+})
+
+
+test('Token 创建向导默认折叠，只提供最小 Gist 权限入口', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await page.goto('/')
+  await page.getByRole('button', { name: '打开云同步设置' }).click()
+  const dialog = page.getByRole('dialog', { name: '云端同步' })
+  const link = dialog.getByRole('link', { name: '创建最小权限 Token' })
+  const url = new URL(await link.getAttribute('href'))
+  expect(url.origin + url.pathname).toBe('https://github.com/settings/personal-access-tokens/new')
+  expect(url.searchParams.get('gists')).toBe('write')
+  expect([...url.searchParams.keys()].sort()).toEqual(['description','expires_in','gists','name'])
+  const guide = dialog.locator('.token-guide')
+  await expect(guide).not.toHaveAttribute('open', '')
+  await guide.locator('summary').click()
+  await expect(guide).toHaveAttribute('open', '')
+  const classic = new URL(await dialog.getByRole('link', { name: '创建 Classic Token' }).getAttribute('href'))
+  expect(classic.searchParams.get('scopes')).toBe('gist')
+  await expect(dialog.getByText('Gists', { exact: true })).toBeVisible()
+  const overflow = await dialog.evaluate(node => node.scrollWidth - node.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(1)
+  await guide.locator('summary').click()
+  await expect(dialog.locator('#gist-token')).toBeVisible()
 })

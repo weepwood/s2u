@@ -94,7 +94,7 @@ https://s2u2.netlify.app/#target=weixin%3A%2F%2Fopen
 ### GitHub Gist 同步
 
 1. 打开“历史记录”并展开“云端同步”。
-2. 创建具备 Gist 读写权限的 GitHub Token。
+2. [创建最小权限 Fine-grained Token](https://github.com/settings/personal-access-tokens/new?name=S2U%20Gist%20Sync&description=S2U%20workspace%20sync&expires_in=90&gists=write)：选择自己的账号、建议 90 天有效期、Repository access 仅 Public repositories；Account permissions 只设置 Gists → Read and write，不添加其他权限。GitHub 自动附带的只读权限保持默认。若使用 [Classic Token](https://github.com/settings/tokens/new?description=S2U%20Gist%20Sync&scopes=gist)，只勾选 `gist`，不勾选 `repo`、`workflow`、`user` 或组织权限。生成后复制 Token，切勿公开。
 3. 输入 Token 并连接。
 4. 应用会创建或使用私密 Gist `scheme-history.json`。
 
@@ -204,3 +204,15 @@ Playwright 1.56.1 作为锁定的 devDependency 与 `package-lock.json` 同步�
 首页优先同步加载「创建链接」界面。历史记录/云同步设置与常用链接面板被构建为独立代码块，首次点击对应页签才加载；桌面悬停或键盘聚焦页签时提前预取，后续切换由浏览器模块缓存加速。移除了阻塞首屏渲染的 Google Fonts CSS 请求，改用系统 UI 字体与原有等宽字体回退；CSP 同步收紧以避免无用的第三方字体域名。已连接的 Gist 首次同步延至浏览器空闲时启动，但历史和收藏仍同步读取本地，分享 Scheme 跳转保持优先。
 
 CI 通过 `node scripts/performance-report.mjs` 展示构建后入口 JavaScript/CSS gzip 体积。该指标反映首次需要下载的代码量，不等于真实用户 LCP 或 TTFB；移动端与生产网络的 Web Vitals 仍需独立实测。
+
+### 云同步管理中心
+
+通过顶栏云朵或历史页「云端同步」打开独立弹窗。首次连接须明确选择已有 Gist、手动输入 ID/URL 或创建新文件；不会仅因缺少本地 ID 就自动创建。连接现有文件需要验证当前 GitHub 账号归属、非公开状态及历史格式。Token 仅保存于 sessionStorage，断开时清除 Token，保留最近 Gist ID；不同设备仍使用同一份本地工作区，切换连接前必须确认是否合并上传。不要在共享浏览器使用其他人的工作区。
+
+历史继续使用 scheme-history.json 及原有删除标记格式；收藏（标签、排序）、图标与深浅主题默认不同步，明确开启后使用独立 s2u-common-links.json、s2u-settings.json 文件。收藏及主题采用保守快照三方比较，双端修改或缺少共同基线时暂停并要求用户确认处理方向，而非静默覆盖。图标暂与收藏同文件；关闭图标同步遇到已有远端图标时暂停该同步，避免删除。每文件限制 900 KB，截断或超限停止写入，不自动分片。
+
+连接关闭不删除远端文件；自动同步可暂停，保留待同步标记，网络恢复/焦点返回时检查。无变化不 PATCH，写前备份并检查远端内容，写后重新读取确认。GitHub Gist PATCH 没有原子 CAS，仍可能出现极短并发窗口；Secret Gist 并非真正私密存储，也未提供端到端加密。备份保留最近三份，可导出历史/完整快照，恢复历史先校验和确认后合并至本机；旧删除标记仍有效，不提供强制覆盖恢复。账号切换取消旧请求，浏览器工作区数据不按账号分区。
+
+只读「测试连接」仅验证身份、归属和历史结构，不承诺 Token 有写权限。每次拉取失败会清除已观察远端内容；未成功拉取禁止推送。网络恢复时仅自动重试暂时性网络/5xx 错误，不重试权限与冲突错误。
+
+Token 创建入口使用 GitHub 官方支持的预填参数（`gists=write`），仍由用户确认权限并生成。权限授予的是账户的 Gist，而非单独某个 Gist；不要扩大到仓库或其他账户权限。401/403/404 提供权限或凭据排查提示，读取通过并不证明写入权限。参考：[GitHub Token 官方说明](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) 与 [Gist API](https://docs.github.com/en/rest/gists/gists)。

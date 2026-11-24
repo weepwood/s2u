@@ -31,6 +31,9 @@
           <span>快捷启动</span>
           <kbd>Ctrl / ⌘ K</kbd>
         </button>
+        <button v-if="!showCloseMsg" class="cloud-trigger" type="button" aria-label="打开云同步设置" :title="pending ? '有待同步的修改' : '云端同步'" :data-status="syncStatus" @click="openSyncSettings">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.5 17A4.5 4.5 0 1 1 8 8a6.5 6.5 0 0 1 12.2 3.1A3 3 0 0 1 19 17H7.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span v-if="pending || syncStatus" class="cloud-dot" aria-hidden="true"></span>
+        </button>
         <a class="github-link" href="https://github.com/weepwood/s2u" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M12 .7a11.5 11.5 0 0 0-3.64 22.4c.58.1.79-.25.79-.56v-2.24c-3.23.7-3.91-1.37-3.91-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.78 1.2 1.78 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.74-1.55-2.58-.3-5.29-1.29-5.29-5.68 0-1.26.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.16 1.18a10.93 10.93 0 0 1 5.75 0C17.03 5.03 18 5.34 18 5.34c.63 1.58.23 2.75.11 3.04.74.8 1.19 1.82 1.19 3.08 0 4.4-2.72 5.38-5.31 5.67.42.36.79 1.07.79 2.16v3.25c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/>
@@ -125,23 +128,13 @@
             :search-query="searchQuery"
             :filtered-history="filteredHistory"
             :show-settings="showSettings"
-            :cloud-token="cloudToken"
-            :cloud-gist-id="cloudGistId"
-            :sync-status="syncStatus"
-            :sync-error="syncError"
-            :last-sync-time="lastSyncTime"
             @update:search-query="searchQuery = $event"
             @select="toHistoryUrl"
             @delete="deleteHistoryItem"
             @clear="invalidHistory"
             @export="exportHistory"
-            @toggle-settings="showSettings = !showSettings"
+            @toggle-settings="openSyncSettings"
             @import-file="onImportFile"
-            @update:cloud-token="cloudToken = $event"
-            @connect="connectGist"
-            @disconnect="disconnectGist"
-            @sync="syncGist"
-            @export-backup="exportGistRecovery"
           />
 
           <div
@@ -188,6 +181,9 @@
       </div>
     </section>
 
+    <SettingsPanel v-if="showSettings" :cloud="cloud" @close="closeSyncSettings"
+      @connect="connectGist" @sync="syncGist" @disconnect="disconnectGist"
+      @export-backup="exportGistRecovery" @export-bundle="exportGistBundle" @restore="restoreGistRecovery" @test="testGistConnection" />
     <CommandPalette v-if="commandPaletteOpen" :common-links="commonLinks" :history="history"
       @close="commandPaletteOpen = false" @open="openCommonLink" @copy="copyCommonRaw" />
     <QrShareDialog v-if="qrShareUrl" :share-url="qrShareUrl" @close="qrShareUrl = ''" />
@@ -197,7 +193,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, defineAsyncComponent, h, onMounted, onBeforeUnmount } from 'vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UrlInput from './UrlInput.vue'
 import ClosePanel from './ClosePanel.vue'
@@ -209,6 +205,7 @@ import { useDarkMode } from '../composables/useDarkMode.js'
 import { useHistory } from '../composables/useHistory.js'
 import { useCommonLinks } from '../composables/useCommonLinks.js'
 import { useCloudSync } from '../composables/useCloudSync.js'
+import { COMMON_FILE, SETTINGS_FILE } from '../domain/sync/gistClient.js'
 import { useClipboard } from '../composables/useClipboard.js'
 import {
   decodeShareTarget,
@@ -229,6 +226,7 @@ const HistoryWorkspace = defineAsyncComponent({
   loadingComponent: LoadingPanel,
   delay: 120,
 })
+const SettingsPanel = defineAsyncComponent(() => import('./SettingsPanel.vue'))
 const CommonLinksPanel = defineAsyncComponent({
   loader: loadCommonLinksPanel,
   loadingComponent: LoadingPanel,
@@ -271,25 +269,19 @@ const {
   exportJSON: exportCommonJSON,
   inspectImport: inspectCommonImport,
   importJSON: importCommonJSON,
+  validateSync: validateCommonSync,
+  syncSnapshot: commonSyncSnapshot,
+  applySync: applyCommonSync,
 } = useCommonLinks()
 const commonPanel = ref(null)
 const { copyText, copyToClipboard, cleanup: cleanupClipboard } = useClipboard()
 
+const cloud = useCloudSync()
 const {
-  cloudToken,
-  cloudGistId,
-  syncStatus,
-  syncError,
-  lastSyncTime,
-  loadConfig,
-  connect,
-  disconnect,
-  pushToGist,
-  pullFromGist,
-  scheduleAutoSync,
-  cleanup: cleanupSync,
-  getLatestRecovery,
-} = useCloudSync()
+  cloudToken, cloudGistId, syncStatus, syncError, lastSyncTime, preferences, pending,
+  loadConfig, connect, disconnect, pushToGist, pullFromGist, scheduleAutoSync,
+  cleanup: cleanupSync, getLatestRecovery,
+} = cloud
 
 const commandPaletteOpen = ref(false)
 const qrShareUrl = ref('')
@@ -352,6 +344,9 @@ function handleTabNavigation(event) {
   nextTick(() => document.getElementById(`${next}-tab`)?.focus())
 }
 const showSettings = ref(false)
+let syncTrigger = null
+function openSyncSettings() { syncTrigger = document.activeElement; showSettings.value = true }
+function closeSyncSettings() { showSettings.value = false; nextTick(() => syncTrigger?.isConnected && syncTrigger.focus()) }
 const showCloseMsg = ref(false)
 const redirectPolicy = ref(null)
 const redirectAttempted = ref(false)
@@ -696,100 +691,120 @@ async function copyCommonLink(item) {
 }
 
 function autoSync() {
-  scheduleAutoSync(() => syncGist({ silent: true }))
+  if (!showCloseMsg.value) scheduleAutoSync(() => syncGist({ silent: true }))
 }
 
 let syncPromise = null
 let syncRequested = false
-let syncToastWanted = false
+let activeContext = null
+let applyingRemote = false
+function validateSettings(value) {
+  if (value?.version !== 1 || typeof value.darkMode !== 'boolean') throw new Error('云端主题格式错误')
+  return { version: 1, darkMode: value.darkMode }
+}
+watch(commonLinks, () => { if (!applyingRemote && preferences.value.common) autoSync() }, { deep: true, flush: 'sync' })
+watch(darkMode, () => { if (!applyingRemote && preferences.value.theme) autoSync() }, { flush: 'sync' })
 
-function syncGist({ silent = false } = {}) {
-  if (!cloudToken.value || !cloudGistId.value) return Promise.resolve(false)
-
-  // 同一标签页只允许一个完整的拉取—合并—推送流程。
-  // 并发触发会请求当前流程结束后再跑一轮，避免遗漏期间的新本地修改。
-  if (syncPromise) {
+function syncGist({ silent = false, resolve = '' } = {}) {
+  if (!cloudToken.value || !cloudGistId.value || showCloseMsg.value || syncStatus.value === 'connecting') return Promise.resolve(false)
+  const ctx = cloud.context()
+  if (syncPromise && activeContext && cloud.isCurrent(activeContext)) {
     syncRequested = true
-    syncToastWanted ||= !silent
     return syncPromise
   }
-
-  syncRequested = false
-  syncToastWanted = !silent
-
+  activeContext = ctx
+  cloud.markPending()
   const task = (async () => {
     do {
       syncRequested = false
-      if (!cloudToken.value || !cloudGistId.value) return false
-
       const remote = await pullFromGist()
-      if (remote === null) {
-        if (!cloudToken.value || !cloudGistId.value) return false
-        if (syncRequested) continue
-        if (syncToastWanted) showToast(syncError.value || '同步失败', 'error', 4000)
-        return false
-      }
-
-      // 拉取返回后再次检查连接状态，避免断开后继续合并或写入。
-      if (!cloudToken.value || !cloudGistId.value) return false
-
-      mergeHistory(remote)
-      notifyStorageError()
-
-      let pushed = false
-      try {
-        pushed = await pushToGist(historySnapshot())
-      } catch (error) {
-        if (!cloudToken.value || !cloudGistId.value) return false
-        if (syncRequested) continue
-        if (syncToastWanted) {
-          showToast(syncError.value || error.message || '同步失败', 'error', 4000)
+      if (!cloud.isCurrent(ctx) || remote === null) return false
+      const summary = inspectImport(remote)
+      if (summary.invalid || (Array.isArray(remote?.tombstones) && summary.tombstones !== remote.tombstones.length)) throw new Error('云端历史包含无效记录或删除标记，已停止同步')
+      const extras = {}
+      const prefs = { ...preferences.value }
+      if (prefs.common) {
+        const validate = data => {
+          const value = validateCommonSync(data)
+          if (!prefs.icons && value.items.some(item => item.icon)) throw new Error('云端收藏包含图标，请开启图标同步或关闭收藏同步；不会覆盖云端图标')
+          return value
         }
-        return false
+        extras[COMMON_FILE] = cloud.prepareOptional(COMMON_FILE, commonSyncSnapshot(prefs.icons), validate, resolve)
       }
-
-      if (!pushed) {
-        if (!cloudToken.value || !cloudGistId.value) return false
-        if (syncRequested) continue
-        if (syncToastWanted) showToast(syncError.value || '同步失败', 'error', 4000)
-        return false
-      }
-    } while (syncRequested && cloudToken.value && cloudGistId.value)
-
-    if (syncToastWanted) showToast('历史记录已同步', 'success')
+      if (prefs.theme) extras[SETTINGS_FILE] = cloud.prepareOptional(SETTINGS_FILE, { version: 1, darkMode: darkMode.value }, validateSettings, resolve)
+      if (!cloud.isCurrent(ctx)) return false
+      applyingRemote = true
+      try {
+        mergeHistory(remote)
+        if (extras[COMMON_FILE]) applyCommonSync(extras[COMMON_FILE], prefs.icons)
+        if (extras[SETTINGS_FILE]) darkMode.value = extras[SETTINGS_FILE].darkMode
+      } finally { applyingRemote = false }
+      notifyStorageError()
+      if (!await pushToGist(historySnapshot(), extras)) return false
+      resolve = ''
+    } while (syncRequested && cloud.isCurrent(ctx))
+    if (!silent) showToast('云端同步完成', 'success')
     return true
-  })().catch((error) => {
-    if (cloudToken.value && cloudGistId.value) {
-      syncStatus.value = 'error'
-      syncError.value = error?.message || '同步失败'
-      if (syncToastWanted) showToast(syncError.value, 'error', 4000)
-    }
+  })().catch(error => {
+    if (cloud.isCurrent(ctx)) { syncStatus.value = 'error'; syncError.value = error.message || '同步失败' }
     return false
   })
-
-  let wrapped
-  wrapped = task.finally(() => {
-    if (syncPromise === wrapped) syncPromise = null
-    syncRequested = false
-    syncToastWanted = false
+  const wrapped = task.finally(() => {
+    if (syncPromise === wrapped) { syncPromise = null; activeContext = null; syncRequested = false }
   })
   syncPromise = wrapped
   return wrapped
 }
 
-async function connectGist() {
+async function connectGist(options) {
   try {
-    await connect(historySnapshot())
-    const synced = await syncGist({ silent: true })
-    if (synced) showToast('已连接 GitHub Gist', 'success')
-  } catch {
-    // 错误状态由 composable 维护。
-  }
+    await connect(historySnapshot(), { ...options, validate: data => {
+      const summary = inspectImport(data)
+      if (summary.invalid || (Array.isArray(data?.tombstones) && summary.tombstones !== data.tombstones.length)) throw new Error('Gist 包含无效历史记录或删除标记')
+    } })
+    if (await syncGist({ silent: true })) showToast('已连接 GitHub Gist', 'success')
+  } catch { /* 连接错误由 composable 维护 */ }
 }
 
-function exportGistRecovery() {
+async function testGistConnection() {
   try {
-    const snapshot = getLatestRecovery()
+    const payload = await cloud.testConnection()
+    const summary = inspectImport(payload)
+    if (summary.invalid || (Array.isArray(payload?.tombstones) && summary.tombstones !== payload.tombstones.length)) throw new Error('历史文件包含无效数据')
+    showToast('读取验证通过，写入权限须实际同步确认', 'success')
+  } catch (error) { syncError.value = error.message || '连接检查失败' }
+}
+
+async function restoreGistRecovery({ index, version }) {
+  try {
+    const snapshot = version ? await cloud.readRevision(version) : getLatestRecovery(index)
+    if (!snapshot) return
+    const summary = inspectImport(snapshot)
+    if (summary.invalid) throw new Error('备份包含无效记录')
+    if (!confirm('备份包含 ' + summary.valid + ' 条记录及 ' + summary.tombstones + ' 个删除标记。将合并到本机历史，是否继续？')) return
+    localStorage.setItem('s2u_history_before_recovery', JSON.stringify(historySnapshot()))
+    mergeHistory(snapshot)
+    cloud.markPending()
+    showToast('已合并恢复至本机，确认后可手动同步', 'success')
+  } catch (error) { syncError.value = error.message; syncStatus.value = 'error' }
+}
+
+function exportGistBundle(index) {
+  try {
+    const backup = cloud.getBackupBundle(index)
+    if (!backup) return
+    const href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = href
+    link.download = 's2u-gist-workspace-backup.json'
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+  } catch (error) { showToast(error.message || '导出备份失败', 'error', 4000) }
+}
+
+function exportGistRecovery(index = -1) {
+  try {
+    const snapshot = getLatestRecovery(index)
     if (!snapshot) {
       showToast('目前没有同步前备份，首次成功推送后会自动保留', 'info', 4000)
       return
@@ -812,6 +827,7 @@ function exportGistRecovery() {
 
 function disconnectGist() {
   disconnect()
+  syncPromise = null; activeContext = null; syncRequested = false
   showToast('已断开 GitHub Gist', 'info')
 }
 
@@ -867,7 +883,17 @@ function handleKeydown(event) {
 
 let initialSyncIdle = null
 let initialSyncFallback = null
+function onSyncFocus(event) {
+  const transientError = /超时|请求失败（5\\d\\d）|fetch|network/i.test(syncError.value)
+  const retryOnline = event?.type === 'online' && syncStatus.value === 'error' && transientError
+  if (!showCloseMsg.value && cloudToken.value && preferences.value.auto &&
+      !['connecting','syncing'].includes(syncStatus.value) && (syncStatus.value !== 'error' || retryOnline) &&
+      (pending.value || Date.now() - (lastSyncTime.value || 0) > 60000)) {
+    syncGist({ silent: true })
+  }
+}
 function scheduleInitialSync() {
+  if (!preferences.value.auto) return
   if ('requestIdleCallback' in window) {
     initialSyncIdle = window.requestIdleCallback(() => {
       initialSyncIdle = null
@@ -895,6 +921,8 @@ onMounted(() => {
 
   const hasSavedConfig = loadConfig()
   window.addEventListener('hashchange', readShareHash)
+  window.addEventListener('online', onSyncFocus)
+  window.addEventListener('focus', onSyncFocus)
   if (window.location.hash) {
     // 分享链接转发优先；无需与初始云同步竞争网络资源。
     readShareHash()
@@ -908,6 +936,8 @@ onBeforeUnmount(() => {
   if (initialSyncIdle !== null) window.cancelIdleCallback(initialSyncIdle)
   if (initialSyncFallback !== null) window.clearTimeout(initialSyncFallback)
   window.removeEventListener('hashchange', readShareHash)
+  window.removeEventListener('online', onSyncFocus)
+  window.removeEventListener('focus', onSyncFocus)
   cancelAutoRedirect()
   cleanupClipboard()
   cleanupSync()

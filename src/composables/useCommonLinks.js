@@ -256,5 +256,31 @@ export function useCommonLinks() {
     return persist(defaultItems(), { recover: true })
   }
 
-  return { links, storageError, load, save, move, pin, remove, restoreDefaults, exportJSON, inspectImport, importJSON }
+  function validateSync(payload) {
+    if (payload?.format !== EXPORT_FORMAT || payload.version !== VERSION || !Array.isArray(payload.items) || payload.items.length > MAX_LINKS) throw new Error('云端收藏格式错误')
+    const items = payload.items.map(normalizeItem)
+    if (items.some(item => !item) || new Set(items.map(item => item.id)).size !== items.length || new Set(items.map(item => item.target)).size !== items.length) throw new Error('云端收藏包含无效或重复链接')
+    return { format: EXPORT_FORMAT, version: VERSION, items }
+  }
+  function syncSnapshot(icons = false) {
+    return { format: EXPORT_FORMAT, version: VERSION, items: links.value.map(item => {
+      const { icon, ...rest } = item
+      return icons && icon ? { ...rest, icon } : rest
+    }) }
+  }
+  function applySync(payload, icons = false) {
+    const { items } = validateSync(payload)
+    const merged = icons ? items : items.map(item => {
+      const rest = { ...item }
+      delete rest.icon
+      const previous = links.value.find(old => old.id === item.id && old.target === item.target)
+      return previous?.icon ? { ...rest, icon: previous.icon } : rest
+    })
+    if (JSON.stringify(merged) === JSON.stringify(links.value)) return true
+    // 先保存本机收藏，无法备份时不覆盖。
+    localStorage.setItem('s2u_common_links_before_sync', exportJSON())
+    if (!persist(merged)) throw new Error(storageError.value)
+    return true
+  }
+  return { links, storageError, load, save, move, pin, remove, restoreDefaults, exportJSON, inspectImport, importJSON, validateSync, syncSnapshot, applySync }
 }

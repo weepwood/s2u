@@ -15,34 +15,18 @@
       @toggle-settings="$emit('toggleSettings')"
       @import-file="$emit('importFile', $event)"
     />
-    <SettingsPanel
-      v-if="showSettings"
-      :cloud-token="cloudToken"
-      :cloud-gist-id="cloudGistId"
-      :sync-status="syncStatus"
-      :sync-error="syncError"
-      :last-sync-time="lastSyncTime"
-      @update:cloud-token="$emit('update:cloudToken', $event)"
-      @connect="$emit('connect')"
-      @disconnect="$emit('disconnect')"
-      @sync="$emit('sync')"
-      @export-backup="$emit('exportBackup')"
-    />
   </div>
 </template>
 
 <script setup>
 import HistoryPanel from './HistoryPanel.vue'
 import HistoryFooter from './HistoryFooter.vue'
-import SettingsPanel from './SettingsPanel.vue'
 
 defineProps([
   'history', 'searchQuery', 'filteredHistory', 'showSettings',
-  'cloudToken', 'cloudGistId', 'syncStatus', 'syncError', 'lastSyncTime',
 ])
 defineEmits([
   'update:searchQuery', 'select', 'delete', 'clear', 'export',
-  'toggleSettings', 'importFile', 'update:cloudToken',
-  'connect', 'disconnect', 'sync', 'exportBackup',
+  'toggleSettings', 'importFile',
 ])
 </script>
